@@ -9,6 +9,9 @@ var PROTOCOL = 'pt',
     ADMIN  = 'A', 
     PLAYER = 'P',
     ENTITY = 'E',
+    BULLET = 'B',
+    SHIP   = 'H',
+    WALL   = 'L',
     
     // Actions
     HANDSHAKE = 'h',
@@ -47,112 +50,245 @@ var SHIP_ROTATION_SPEED = 4,
 
 
 
-
-var NetObject = {
+var GameObject = {
   
-  /**
-   *  Apply all NetObject prototype methods to the target class.
-   */
-  apply_to: function(Class, type_name) {
-    
+  HISTORY_LENGTH: 5,
+  
+  _proto: {
 
-    // Initializes the object. This must be called from the Class constructor.
-    Class.prototype.init = function(initial_props) {
-      if (this.before_init) this.before_init.apply(this, arguments);      
+    /**
+     *  Initializes the object. This must be called from the Class constructor.
+     */
+    no_init: function(initial_props) {
+      if (this.before_init) this.before_init.apply(this, arguments);
+      this.Version = function() {};
+      this.Version.prototype = this;
       this._versions = [];
-      this._all_fields = {};
-      this._changed_fields = {};
-      this._field_collections = {};
-      this.fields('_default', { 'type': type_name });
+      this._all_fields = [];
+      this._uncommited_fields = {};
+      this._changed_collections = {};
+      this._collections = {};
+      this._changed = false;
+      this.fields('_default', { 'type': this.type });
       this.fields('_initial', initial_props || {});
       if (this.after_init) this.after_init.apply(this, arguments);      
-    }
+    },
     
-    // Adds a field collection to the current instance. The field collections is 
-    // used to track specific fields representation to a remote part.
-    Class.prototype.fields = function(collection_name, fields) {
+    /**
+     *  Adds a field collection to the current instance. The field collections is 
+     * used to track specific fields representation to a remote part.
+     */
+    fields: function(cname, fields) {
       for (var prop in fields) {
         if (this[prop] === undefined) {
           this[prop] = fields[prop];
         }
-        this._all_fields[prop] = true;
+        this._all_fields.push(prop);
       }
-      this._field_collections[collection_name] = fields;
-    }
+      this._collections[cname] = fields;
+    },
     
-    // Returns a representation, based on all fields in any field collection.
-    Class.prototype.representation = function() {
-      var result = {};
-      for (var prop in this._all_fields) {
-        result[prop];
+    /**
+     *  Returns a representation, based on all fields in any field collection.
+     */
+    repr: function() {
+      var result = {}, l=this._all_fields.length;
+      while (l--) {
+        var prop = this._all_fields[l];
+        result[prop] = this[prop];
       }
       return result;
-    }
+    },
     
-    // Update specified fields for this object. The affected properties is 
-    // pushed to the change stack
-    Class.prototype.update = function(props) {
-      var version = {};
+    /**
+     *  Update specified fields for this object. The affected properties is 
+     *  pushed to the change stack. Returns ´´true´´ if one or more field where
+     *  changed, else ´´false´´.
+     */
+    update: function(props) {
       for (var prop in props) {
-        version[prop] = this[prop];
-        this[prop] = props[prop];
-        this._changed_fields[prop] = true;
+        if (this[prop] != props[prop]) {
+          var new_value = props[prop], cname = this.find_collection(prop);
+          if (!this._changed) {
+            if (this._versions.length == GameObject.HISTORY_LENGTH) {
+              this._versions.pop();
+            }
+            this._versions.unshift(new this.Version());
+            this._changed = true;
+          }
+          if (this._uncommited_fields[prop] == undefined) {
+            this._versions[0][prop] = this[prop];
+          }
+          this[prop] = this._uncommited_fields[prop] = new_value;
+          this._changed_collections[cname] = true;
+        }
       }
-      this._versions.push(version);
-    }
+      return this._changed;
+    },
     
-    // Returns a dict with all changed fields from last commit.
-    Class.prototype.changed_fields = function() {
-      var fields = this._changed_fields;
+    /**
+     *  Returns ´´true´´ if the specified collection is changed, else ´´false´´.
+     */
+    is_changed: function(collname) {
+      return collname == undefined ? 
+              this._changed :
+                this._changed_collections[collname] || false;
+    },
+    
+    /**
+     *  Returns a dict with all changed fields from last commit.
+     */
+    changed_fields: function() {
+      var fields = this._uncommited_fields;
+      var result = [];
+      for (var prop in fields) {
+        result.push(prop);
+      }
+      return result;
+    },
+    
+    /**
+     *  Returns a dict with all changed fields from a specific field collection.
+     */
+    changed_fields_in: function(collection_name) {
+      if (collection_name === undefined || collection_name == null) return this.changed_fields();
+      var fields = this._uncommited_fields;
+      var collection = this._collections[collection_name];
+      var result = [];
+      for (var prop in fields) {
+        for (var coll_prop in collection) {
+          if (coll_prop == prop) {
+            result.push(prop);
+          }
+        }
+      }
+      return result;
+    },
+    
+    /**
+     *  Searches through all collections and returns the name of the collection
+     *  of where the specified field exists.
+     */
+    find_collection: function(field_name) {
+      var results = [];
+      for (var collection in this._collections) {
+        for (var field in this._collections[collection]) {
+          if (field == field_name) results.push(collection);
+        }
+      }
+      return results[results.length - 1];
+    },
+
+    /**
+     *  Returns a dict with all changed fields from last commit.
+     */
+    changed_values: function() {
+      var fields = this._uncommited_fields;
       var result = {};
       for (var prop in fields) {
         result[prop] = this[prop];
       }
       return result;
+    },
+    
+    /**
+     *  Pop last version from the versions stack and apply it to the object. This
+     *  method returns ´´true´´ on success and ´´false´´ when the original 
+     *  version of the object is restored.
+     */
+    revert: function(deepth) {
+      var no = deepth || 1, version;
+      while (no-- && (version = this._versions.shift())) { }
+      if (version) {
+        for (var prop in version) {
+          if (version.hasOwnProperty(prop)) {
+            this[prop] = version[prop];
+          }
+        }        
+        return true;
+      }
+      return false;
+    },
+    
+    /**
+     *  Commit all made changes. The version control is resetted for the object
+     *  instance. The changed fields, with values, are returned. A ´´null´´ value
+     *  is return ff no changes was made.
+     */
+    commit: function() {
+      if (this.before_commit) this.before_commit.apply(this, arguments);
+      var result = this._uncommited_fields;
+      this._uncommited_fields = {};
+      this._changed_collections = {};
+      this._changed = false;
+      if (this.after_commit) this.after_commit.apply(this, arguments);
+      return result;
     }
+    
+  },
+  
+  /**
+   *  Apply all GameObject prototype methods to the target class.
+   */
+  apply_to: function(Class, type_name, subject) {    
+    for (var member in GameObject._proto) {
+      Class.prototype[member] = GameObject._proto[member];
+    }
+    Class.prototype.type = type_name;
+    Class.prototype._subject = subject;
+  }
+}
 
-    // Returns a dict with all changed fields from a specific field collection.
-    Class.prototype.changed_fields_in = function(collection_name) {
-      var fields = this._changed_fields;
-      var collection = this._field_collections[collection_name];
-      var result = {};
-      for (var prop in fields) {
-        for (var coll_prop in collection) {
-          if (collection[coll_prop] == prop) {
-            result[prop] = this[prop];
+var GameObjectList = {
+
+  _proto: {
+    
+    /**
+     *  Initialize the GameObjectList instance
+     */
+    nol_init: function(initial_lists) {
+      for (var list_name in initial_lists) {
+        if (this[list_name] == undefined) {
+          this[list_name] = initial_lists[list_name];
+        }
+      }
+      this._lists = initial_lists;
+    },
+    
+    append_to: function(list_name, netobj) {
+      
+    },
+    
+    /**
+     *  Executes a callback on each uncommited object in this list. It's 
+     *  possible limit the result by give the optional collection_name argument.
+     */
+    each_uncommited: function(callback, collection_name) {
+      var lists = this._lists, cb = callback || function() {}, result = [];
+      for (var list_name in lists) {
+        var list = lists[list_name];
+        for (var object_id in list) {
+          var obj = list[object_id];
+          if (obj.is_changed(collection_name)) {
+            cb(obj, this);
+            result.push(obj);
           }
         }
       }
       return result;
     }
     
-    // Pop last version from the versions stack and apply it to the object. This
-    // method returns ´´true´´ on success and ´´false´´ when the original 
-    // version of the object is restored.
-    Class.prototype.revert = function() {
-      var version = this._versions.pop();
-      if (version) {
-        for (var prop in version) {
-          this[prop] = version[prop];
-        }
-        return true;
-      }
-      return false;
+  },
+
+  /**
+   *  Apply all GameObjectList prototype methods to the target class.
+   */
+  apply_to: function(Class, type_name) {    
+    for (var member in GameObjectList._proto) {
+      Class.prototype[member] = GameObjectList._proto[member];
     }
-    
-    // Commit all made changes. The version control is resetted for the object
-    // instance. The changed fields, with values, are returned. A ´´null´´ value
-    // is return ff no changes was made.
-    Class.prototype.commit = function() {
-      var result = this.changed_fields;
-      if (this.before_commit) this.before_commit.apply(this, arguments);
-      this._versions = [];
-      this._changed_fields = {};
-      if (this.after_commit) this.after_commit.apply(this, arguments);
-      return result;
-    }
-    
   }
+
 }
 
 /**
@@ -226,7 +362,8 @@ GameLoop.prototype.start = function() {
  *
  */
 function World(props) {
-  this.init(props);
+  this.no_init(props);
+  this.nol_init({ entities: {}, players: {} });
   this.fields('static', {
     start_time: 0,
     id: -1,
@@ -239,16 +376,15 @@ function World(props) {
   this.fields('player', {
     admin_id: null,
     max_players: 0,
-    no_players: 0,
-    players: {}
+    no_players: 0
   });
-  this.entities = {};
   this._entities = [];  
   this.collision_manager = function() {};
   this.build()
 }
 
-NetObject.apply_to(World, 'world');
+GameObject.apply_to(World, WORLD, 'world');
+GameObjectList.apply_to(World);
 
 World.prototype.start = function() {
   this.start_time = new Date().getTime();
@@ -275,7 +411,7 @@ World.prototype.step = function(frame, step) {
   for (var id in entities) {
     var entity = entities[id], res = false;
     if (entity && entity.move && !entity.dead) {
-      entity.old_state = entity.get_state();
+      // entity.old_state = entity.get_state();
       entity.move(step);
       if (entity.update) entity.update(step);
     }
@@ -318,42 +454,38 @@ World.prototype.build = function() {}
 /**
  *  Class Player
  *  Represents a Player in the game world. 
+ *
+ *  Static fields (Fields that is never changed);
+ *    id          - The Entity ID of this ship instance
+ *    name        - The name of the player.
+ *    color       - Player color
+ *    start_time  - The time when the player joined the world.
+ *    max_speed   - Max speed of the ship  
+ *  
+ *  Props fields (Fields that are change occasionally):
+ *    eid       - Id of the player's entity (Entity Id).
+ *    st (n/r)  - Current state of the player. Vaild values are: 
+ *                "r" (ready), "n" (not ready).
+ *    s (Int)   - Current score
+ *    e (Int)   - Current energy
  */
 function Player(initial_props) {
-  this.init(initial_props);
-  
-  // Static fields 
-  // Fields that is never changed. The dynamic field collection 
-  // contains:
-  //    id          - The Entity ID of this ship instance
-  //    name        - The name of the player.
-  //    color       - Player color
-  //    start_time  - The time when the player joined the world.
-  //    max_speed   - Max speed of the ship  
+  this.no_init(initial_props);
   this.fields('static', {
     id: -1,
     name: 'Unknown',
     color: '0xFFFFFF',
     start_time: new Date().getTime(),
   });
-  
-  // Props fields 
-  // Fields that are change occasionally. The props field collection 
-  // contains:
-  //    eid       - Id of the player's entity (Entity Id).
-  //    st (0/1)  - Current state of the player. Vaild values are: 
-  //                "1" (ready), "0" (not ready).
-  //    s (Int)   - Current score
-  //    e (Int)   - Current energy
   this.fields('props', {
-    eid: -1
-    st: 1,
+    eid: -1,
+    st: 'n',
     s: 0,
     e: 0
   });
 }
 
-NetObject.apply_to(Player, 'player');
+GameObject.apply_to(Player, PLAYER, PLAYER);
 
 Player.prototype.toString = function() {
   return 'Player ' + this.name + ' (' + this.id + ')';
@@ -362,112 +494,107 @@ Player.prototype.toString = function() {
 /**
  *  Class Ship
  *  Represents a Ship entity.
+ *  Static fields (Fields that is never changed);
+ *    id          - The Entity ID of this ship instance
+ *    pid         - The Player ID.
+ *    w           - The width of the ship
+ *    h           - The height of the ship
+ *    max_speed   - Max speed of the ship
+ *
+ *  Dynamic fields (Fields that changes often);
+ *    x       - The x coordinate of the ship.      
+ *    y       - The y coordinate of the ship.
+ *    a       - Ships current angle. 
+ *    r       - The current rotation of the ship.
+ *    sx      - Current speed x value for the the ship.
+ *    sy      - Current speed y value for the the ship.
+ *
+ *  Actions fields 
+ *  Fields such as actions. This fields is highly priorities and will likely
+ *  to be sent to client on next world tick. The state field collection 
+ *  contains:
+ *    sd (0/1) - Indicates that the shield is currently activated. 
+ *    sh (0/1) - Indicates that the ship is currently shooting.
+ *    t  (0/1) - Indicates that the thurst of the ship is currently on.
+ *    re        - Indicates that the ship is currently reloading.
  */
 function Ship(initial_props) {
-  this.init(initial_props);
-
-  // Static fields 
-  // Fields that is never changed. The dynamic field collection 
-  // contains:
-  //    id          - The Entity ID of this ship instance
-  //    pid         - The Player ID.
-  //    w           - The width of the ship
-  //    h           - The height of the ship
-  //    max_speed   - Max speed of the ship
+  this.no_init(initial_props);
   this.fields('static', {
     id: -1,
     pid: -1, 
     w: 7, 
-    h: 10
-    max_speed: SHIP_MAX_SPEED,
+    h: 10,
+    max_speed: SHIP_MAX_SPEED
   });
-  
-  // Dynamic fields 
-  // Fields that changes often. The dynamic field collection 
-  // contains:
-  //    x       - The x coordinate of the ship.      
-  //    y       - The y coordinate of the ship.
-  //    a       - Ships current angle. 
-  //    r       - The current rotation of the ship.
-  //    sx      - Current speed x value for the the ship.
-  //    sy      - Current speed y value for the the ship.
   this.fields('dynamic', {
     x: 0, 
     y: 0,
     a: 0,
-    r: 0,
     sx: 0,
-    sy: 0,
-    speed: 0 //???????????????????
+    sy: 0
   });
-
-  // State fields 
-  // Fields such as actions. This fields is highly priorities and will likely
-  // to be sent to client on next world tick. The state field collection 
-  // contains:
-  //    sd (0/1) - Indicates that the shield is currently activated. 
-  //    sh (0/1) - Indicates that the ship is currently shooting.
-  //    t  (0/1) - Indicates that the thurst of the ship is currently on.
-  //    re        - Indicates that the ship is currently reloading.
-  this.fields('state', {
+  this.fields('actions', {
     sd: 0,
     sh: 0,
+    r: 0,
     t: 0,
     re: 0
   });
 }
 
-NetObject.apply_to(Ship, 'ship');
+GameObject.apply_to(Ship, SHIP, ENTITY);
 
-Ship.prototype.update = function(step) {
-  if (this.energy && this.energy < 100) {
-    this.energy = this.energy + (4 * step); 
-    if (this.energy > 100) this.energy = 100;
-  }
-}
+// Ship.prototype.update = function(step) {
+//   if (this.energy && this.energy < 100) {
+//     this.energy = this.energy + (4 * step); 
+//     if (this.energy > 100) this.energy = 100;
+//   }
+// }
 
 Ship.prototype.move = function(step) {
-  var angle = this.angle;
-  var max = this.max_speed;
-  if (this.rotate == 2) angle -= step * SHIP_ROTATION_SPEED;
-  else if (this.rotate == 1) angle += step * SHIP_ROTATION_SPEED;
+  var angle = this.a;
+  if (this.r == 2) angle -= step * SHIP_ROTATION_SPEED;
+  else if (this.r == 1) angle += step * SHIP_ROTATION_SPEED;
   
   if (angle > Math.PI) angle = -Math.PI;
   else if(angle < -Math.PI) angle = Math.PI;
 
-  var acc = this.thrust == 1 ? step * SHIP_ACCELERATION_SPEED : 0 ;
-  var speedx = this.speedx + acc * Math.sin(angle);
-  var speedy = this.speedy + acc * Math.cos(angle);
+  var acc = this.t == 1 ? step * SHIP_ACCELERATION_SPEED : 0 ;
+  var speedx = this.sx + acc * Math.sin(angle);
+  var speedy = this.sy + acc * Math.cos(angle);
   var speed = Math.sqrt(Math.pow(speedx,2) + Math.pow(speedy,2));
   
-  if (speed > max) {
-    speedx = speedx / speed * max;
-    speedy = speedy / speed * max;
+  if (speed > this.max_speed) {
+    speedx = speedx / speed * this.max_speed;
+    speedy = speedy / speed * this.max_speed;
   } 
-
-  this.x += speedx * step;
-  this.y -= speedy * step;
-  this.speedx = speedx;
-  this.speedy = speedy;
-  this.angle = angle;
-  this.speed = speed;  
+  
+  this.update({
+    x: this.x += speedx * step,
+    y: this.y -= speedy * step,
+    sx: speedx,
+    sy: speedy,
+    a: angle
+    // speed = speed;  
+  }); 
 }
 
 /**
  *  Class Wall
  *  Represents a Wall Entity
+ *
+ *  Static fields 
+ *  Fields that is never changed. The dynamic field collection 
+ *  contains:
+ *    id          - The Entity ID of this ship instance
+ *    pid         - The Player ID.
+ *    w           - The width of the ship
+ *    h           - The height of the ship
+ *    max_speed   - Max speed of the ship  
  */
 function Wall(initial_props) {
-  this.init(initial_props);
-  // Static fields 
-  
-  // Fields that is never changed. The dynamic field collection 
-  // contains:
-  //    id          - The Entity ID of this ship instance
-  //    pid         - The Player ID.
-  //    w           - The width of the ship
-  //    h           - The height of the ship
-  //    max_speed   - Max speed of the ship  
+  this.no_init(initial_props);
   this.fields('static', {
     id: -1,
     x: 0, y: 0, w: 0, h: 0,
@@ -475,52 +602,57 @@ function Wall(initial_props) {
   });
 }
 
-NetObject.apply_to(Wall, 'wall');
+GameObject.apply_to(Wall, WALL, ENTITY);
 
 
 /**
  *  Class Bullet
  *  Represents a Bullet Entity
+ *
+ *  Static fields 
+ *  Fields that is never changed. The dynamic field collection 
+ *  contains:
+ *    id          - The Entity ID of this ship instance
+ *    oid         - The ID of the owner to the bullet
+ *    w           - The width of the ship
+ *    h           - The height of the ship
+ *    sx          - The speed x value for the the bullet.
+ *    sy          - The speed y value for the the bullet.
+ *    a           - The angle of the bullet
+ *    max_speed   - The max speed
+ *
+ *  Dynamic fields 
+ *  Fields that changes often. The dynamic field collection 
+ *  contains:
+ *    x       - The x coordinate of the bullet.      
+ *    y       - The y coordinate of the bullet.
  */
 function Bullet(initial_props) {
-  this.init(initial_props);
-  
-  // Static fields 
-  // Fields that is never changed. The dynamic field collection 
-  // contains:
-  //    id          - The Entity ID of this ship instance
-  //    oid         - The ID of the owner to the bullet
-  //    w           - The width of the ship
-  //    h           - The height of the ship
-  //    sx          - The speed x value for the the bullet.
-  //    sy          - The speed y value for the the bullet.
+  this.no_init(initial_props);
   this.fields('static', {
     id: -1,
     oid: -1, 
     w: 2, 
     h: 1,
     sx: 0,
-    sy: 0
+    sy: 0,
+    a: 0,
+    max_speed: BULLET_MAX_SPEED
   });
-  
-  // Dynamic fields 
-  // Fields that changes often. The dynamic field collection 
-  // contains:
-  //    x       - The x coordinate of the bullet.      
-  //    y       - The y coordinate of the bullet.
   this.fields('dynamic', {
     x: 0, 
     y: 0
   });
 }
 
-NetObject.apply_to(Bullet, 'bullet');
+GameObject.apply_to(Bullet, BULLET, ENTITY);
 
 
 Bullet.prototype.move = function(step) {
-  var y = this.y;
-  this.x += this.speedx * step;
-  this.y -= this.speedy * step;
+  this.update({
+    x: this.x + this.sx * step,
+    y: this.y - this.sy * step
+  });
 }
 
 World.ENTITIES = {'ship': Ship, 'wall': Wall, 'bullet': Bullet};
@@ -561,6 +693,9 @@ function intersects(a, b) {
 }
 
 try {
+  exports.GameObject = GameObject;
+  exports.GameObjectList = GameObjectList;
+  
   exports.World = World;
   exports.GameLoop = GameLoop;
   exports.Player = Player;
@@ -575,6 +710,8 @@ try {
   exports.ADMIN  = ADMIN; 
   exports.PLAYER = PLAYER;
   exports.ENTITY = ENTITY;
+  exports.SHIP = SHIP;
+  exports.BULLET = BULLET;
 
   exports.HANDSHAKE = HANDSHAKE;
   exports.READY = READY;
