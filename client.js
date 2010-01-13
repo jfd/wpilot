@@ -109,7 +109,20 @@ function create_gameloop(initial_tick, session) {
   var loop = new GameLoop(initial_tick);
       
   loop.step_callback = function(t, step) {
+    var player = session.player || {};
+    var entity = player.entity;
+
     handle_input(session, step);
+
+    if (entity && entity.is_changed('actions')) {
+      var fields = entity.changed_fields_in('actions');
+      for (var i = 0; i < fields.length; i++) {
+        var action = fields[i];
+        session.post([CLIENT + COMMAND, action, entity[action]]);
+      }
+      entity.commit();
+    }
+    
     session.world.step(t, step);
     // loop.kill = env._kill;
   }
@@ -128,7 +141,7 @@ function initialize_keyboard(target, bindings) {
   var target = $(target);
   var state = {};
   
-  for (var key in bindings) state[key] = false;
+  for (var key in bindings) state[bindings[key]] = 0;
   
   function get_name(e) {
     if (bindings[e.keyCode]) return bindings[e.keyCode];
@@ -156,13 +169,59 @@ function initialize_keyboard(target, bindings) {
     // 
     toggle: function(keycode) {
       if (state[keycode]) {
-        state[keycode] = false;
-        return true;
+        state[keycode] = 0;
+        return 1;
       }
-      return false;
+      return 0;
     }
   }
 }
+
+function handle_input(session, step) {
+  var env = session.env,
+      player = session.player || {},
+      entity = player.entity,
+      device = session.env.device;
+      
+  if (device.on(BACK)) {
+    env._kill = true;
+    return;
+  }
+  
+  if (entity) {
+    entity.update({
+      't': device.on(THRUST),
+      'r': device.on(ROTATE_CW) ? 1 : device.on(ROTATE_CCW) ? 2 : 0,
+      'sh': device.on(SHOOT),
+      'sd': device.on(SHIELD)
+    });
+  }
+  
+  // if_changed(env, 'show_pos', device.toggle(TOGGLE_POS));
+  // if_changed(env, 'show_fps', device.toggle(TOGGLE_FPS));
+  // if_changed(env, 'lock_fps', device.toggle(TOGGLE_FLOCK));
+  
+  
+  
+  // Fire a shoot
+
+  if (player.reloading >= 0) {
+    player.reloading -= 4 * step
+  }
+
+  if(device.on(SHOOT) && 
+     !player.shield && 
+     player.reloading <= 0 &&
+     player.energy > 0) {
+    player.energy -= 2;
+    player.score++;
+    player.reloading = 1;
+    var bullet = player.create_bullet();
+    world.append(bullet);
+  }
+}
+
+
 
 function ViewPort(target) {
   var q = $(target);
@@ -245,15 +304,17 @@ ViewPort.prototype = {
 
 var process_message = Match (
   
-  [[SERVER + HANDSHAKE, Number, Number, Object, Array], _], 
-  function(player_id, tick, world_data, entities, session) {
+  [[SERVER + HANDSHAKE, Number, Number, Object, Array, Array], _], 
+  function(player_id, tick, world_data, entities, players, session) {
     var world = new World(world_data);
+    session.world = world;
     for (var i = 0; i < entities.length; i++) {
-      var entity = entities[i];
-      world.append(Serializable.parse(entity));
+      process_message([[ENTITY + SPAWN, entities[i]], session]);
+    }
+    for (var i = 0; i < players.length; i++) {
+      world.players[players[i].id] = new Player(players[i]);
     }
     session.id = player_id;
-    session.world = world;
     session.player = world.players[player_id];
     var loop = create_gameloop(tick, session);
     session.gameloop = loop;
@@ -269,8 +330,31 @@ var process_message = Match (
    */
   [[PLAYER + CONNECT, Object], _], 
   function(player_data, session) {
+    console.log('-> Player connect');
     // var player = new Player(player_data);
     console.log( 'Player connected...');
+  },
+
+  /**
+   * Player state changed
+   * Is recived when an existing player is changed
+   */
+  [[PLAYER + STATE, Number, Object], _],
+  function(id, data, session) {
+    var world = session.world,
+        player = world.players[id];
+    if (player) {
+      player.update(data);
+      player.commit();
+      if (data.eid) {
+        var entity = world.find(data.eid);
+        player.entity = entity;
+        if (session.id == player.id) {
+          session.env.player_entity_id = entity.id;
+          session.env.viewport.set_camera_pos(entity);
+        }
+      }
+    }
   },
   
   /**
@@ -289,15 +373,48 @@ var process_message = Match (
       session.env.viewport.set_camera_pos(entity);
     }
   },
+
+  /**
+   * Spawn ship
+   * Is recived when a ship is created
+   */
+  [[ENTITY + SPAWN, {'type =': SHIP}], _],
+  function(data, session) {
+    var entity = new Ship(data);
+    session.world.append(entity);
+  },
+
+  /**
+   * Spawn bullet
+   * Is recived when a bullet is created
+   */
+  [[ENTITY + SPAWN, {'type =': BULLET}], _],
+  function(data, session) {
+    var entity = new Bullet(data);
+    session.world.append(entity);
+  },
+
+  /**
+   * Spawn bullet
+   * Is recived when a bullet is created
+   */
+  [[ENTITY + SPAWN, {'type =': WALL}], _],
+  function(data, session) {
+    var entity = new Wall(data);
+    session.world.append(entity);
+  },
   
   /**
    * Entity state changed
    * Is recived when an entity's state has changed.
    */
   [[ENTITY + STATE, Number, Object], _],
-  function(entity_id, props, session) {
-    var entity = session.world.find(entity_id);
-    if (entity) entity.apply_props(props);
+  function(id, data, session) {
+    var entity = session.world.find(id);
+    if (entity) {
+      entity.update(data);
+      entity.commit();
+    } 
   },
 
   /**
@@ -316,7 +433,7 @@ var process_message = Match (
   },
   
   function(msg) {
-    console.log(msg);
+    console.log(msg[1]);
   }
 
 );
@@ -368,72 +485,18 @@ var collision_manager = Match (
 
 );
 
-function handle_input(session, step) {
-  var entity = session.player.entity,
-      env = session.env,
-      player = session.player,
-      entity = session.player.entity,
-      device = session.env.device;
-      
-  if (device.on(BACK)) {
-    env._kill = true;
-    return;
-  }
-  
-  if (entity) {
-
-    if_changed(entity, THRUST, device.on(THRUST), function(value) {
-      session.post([CLIENT + COMMAND, THRUST, value]);
-    });
-
-    var rotation = 0;  
-    if (device.on(ROTATE_CW)) rotation = 1;
-    if (device.on(ROTATE_CCW)) rotation = 2;
-
-    if_changed(entity, ROTATE, rotation, function(value) {
-      session.post([CLIENT + COMMAND, ROTATE, value]);
-    });
-
-    // if(shield && player.energy > 1) {
-    //   player.energy -= 0.5;    
-    //   player.shield = true;
-    // } else {
-    //   player.shield = false;
-    // }
-    // 
-    // if_changed(entity, SHIELD, device.on(SHIELD), function(value) {
-    //   session.post([CLIENT + COMMAND, SHIELD, value]);
-    // });
-    
-  }
-  
-  if_changed(env, 'show_pos', device.toggle(TOGGLE_POS));
-  if_changed(env, 'show_fps', device.toggle(TOGGLE_FPS));
-  if_changed(env, 'lock_fps', device.toggle(TOGGLE_FLOCK));
-  
-  
-  
-  // Fire a shoot
-
-  if (player.reloading >= 0) {
-    player.reloading -= 4 * step
-  }
-
-  if(device.on(SHOOT) && 
-     !player.shield && 
-     player.reloading <= 0 &&
-     player.energy > 0) {
-    player.energy -= 2;
-    player.score++;
-    player.reloading = 1;
-    var bullet = player.create_bullet();
-    world.append(bullet);
-  }
+/**
+ *  Class Ship
+ *  Local constructor for the Entity class. Add a visible property that 
+ *  indiciates that the Entity is visible or not.
+ */
+Ship.prototype.before_init = function() {
+  this.visible = true;
 }
 
-
 /**
- *  Adds painting routines to Ship entity.
+ *  Method Ship.draw
+ *  Draws the Ship instance on the specified GraphicsContext.
  */
 Ship.prototype.draw = function(ctx) {
   ctx.strokeStyle = "white";
@@ -445,39 +508,63 @@ Ship.prototype.draw = function(ctx) {
   ctx.lineTo(-(this.w / 2), this.h);
   ctx.lineTo(0, -this.h);
   ctx.fill();
-  if(this.shield) {
+  if(this.sd) {
     ctx.beginPath();
     ctx.arc(0, 0, 20, 0, Math.PI / 180, true);
     ctx.stroke();
   }  
 }
 
+/**
+ *  Method Ship.interpolate
+ *  Interpolates the x and y coordinates for this Entity instance. Makes things
+ *  look smoother.
+ */
 Ship.prototype.interpolate = function(alpha) {
-  this.x = this.x * alpha + this.old_state.x * (1 - alpha);
-	this.y = this.y * alpha + this.old_state.y * (1 - alpha);	
+}
+
+
+/**
+ *  Class Bullet
+ *  Local constructor for the Entity class. Add a visible property that 
+ *  indiciates that the Entity is visible or not.
+ */
+Bullet.prototype.before_init = function() {
+  this.visible = true;
 }
 
 /**
- *  Adds painting routines to Bullet entity.
+ *  Method Ship.draw
+ *  Draws the Bullet instance on the specified GraphicsContext.
  */
 Bullet.prototype.draw = function(ctx) {
   ctx.fillStyle = "white";
   ctx.fillRect(0, 0, this.w, this.h);
 }
 
+/**
+ *  Method Bullet.interpolate
+ *  Interpolates the x and y coordinates for this Entity instance. Makes things
+ *  look smoother.
+ */
 Bullet.prototype.interpolate = function(alpha) {
-  // console.log(alpha);
-  this.x = this.x * alpha + this.old_state.x * (1 - alpha);
-  this.y = this.y * alpha + this.old_state.y * (1 - alpha);  
-}
-
-Wall.prototype.interpolate = function(alpha) {z
-  // No need for interpolation for static objects.
+  var last = this._tags['move@old'];
+  this.update({
+    x: this.x * alpha + last.x * (1 - alpha),
+    y: this.y * alpha + last.y * (1 - alpha)
+  });
 }
 
 
 /**
- *  Adds painting routines to Wall entity.
+ *  Class Wall
+ *  Local constructor for the Wall Entity class. 
+ */
+Wall.prototype.before_init = function() { }
+
+/**
+ *  Method Wall.draw
+ *  Draws Wall instance on the specified GraphicsContext.
  */
 Wall.prototype.draw = function(ctx, world) {
   ctx.fillStyle = "red";
@@ -485,28 +572,35 @@ Wall.prototype.draw = function(ctx, world) {
 }
 
 /**
+ *  Method Wall.interpolate
+ *  Static entities needs no interpolation.
+ */
+Wall.prototype.interpolate = function(alpha) { }
+
+
+/**
+ *  Method World.draw
  *  Draw all entites within viewport bounds.
  */
 World.prototype.draw = function(viewport, alpha, env) {
   var entities = this.entities, ctx = viewport.ctx, state, camera = viewport.camera;
   this.draw_grid(viewport);  
   for (var id in entities) {
-    var entity = entities[id];
+    var entity = entities[id], pos = { x: entity.x, y: entity.y };
     if (intersects(entity, camera)) {
-      if (entity.old_state) {
-        state = entity.get_state();
-        entity.interpolate(alpha);
-      }
+      // if (entity._oldpos) {
+      //   pos = interpolate(pos, entity._oldpos, alpha);
+      // }
       if (entity.id == env.player_entity_id) {
-        viewport.set_camera_pos(entity);
+        viewport.set_camera_pos(pos);
       }
-      var point = viewport.translate(entity);
+      var point = viewport.translate(pos);
       ctx.save();
       ctx.translate(point.x, point.y);
-      ctx.rotate(entity.angle);
+      ctx.rotate(entity.a);
       entity.draw(ctx);
       ctx.restore();
-      if (entity.old_state) entity.apply_state(state);
+      // entity._oldpos = pos; //{ x: entity.x, y: entity.y };
     }
   }
 }
@@ -578,6 +672,16 @@ World.prototype.draw_grid = function(viewport) {
 
 }
 
+function interpolate(current, old, alpha) {
+  return {
+    x: current.x * alpha + old.x * (1 - alpha),
+    y: current.x * alpha + old.y * (1 - alpha),
+  };
+}
+
+/**
+ *  
+ */
 function draw(session, alpha) {
   var env = session.env,
       world = session.world,

@@ -132,7 +132,7 @@ var GameObject = {
     is_changed: function(collname) {
       return collname == undefined ? 
               this._changed :
-                this._changed_collections[collname] || false;
+              this._changed_collections[collname] || false;
     },
     
     /**

@@ -37,6 +37,20 @@ function main() {
   sessions.push(new GameSession(game_id_incr++, server, {}));  
 }
 
+/**
+ *  GameObject.dump
+ *  Prints all or selected files in console.
+ */
+GameObject._proto.dump = function() {
+  var item = this.repr();
+  var result = this.type + '#' + this.id + ': { ';
+  for (var name in item) {
+    result += name + ': ' + item;
+  };
+  result += '}';
+  sys.debug(result);
+}
+
 
 /**
  *  Class GameSession
@@ -80,7 +94,6 @@ GameSession.prototype.onData = function(data, conn) {
     // session.
    try {
       session = this.create_player_session(conn); 
-      this.sessions[session.id] = session;
       process_message([msg, this, session]);
       if (session.state == 'unvalidated') {
         throw "Expected client+handshake command";
@@ -138,7 +151,7 @@ GameSession.prototype.create_player_session = function(conn) {
   // Handles state event's
   function state_changed(changed_values) {
     sys.debug('state_changes')
-    self.broadcast([PLAYER + STATE, session.state.id, changed_values]);    
+    self.broadcast([PLAYER + STATE, session.player.id, changed_values]);    
     if (changed_values.state == 'ready') {
       self.log(session.state + ' is ready');
     }
@@ -154,27 +167,31 @@ GameSession.prototype.create_player_session = function(conn) {
   session.addListener('disconnected', disconnected);
   session.addListener('state', state_changed);
 
-  self.sessions[session.player.id] = session;
-  world.players[session.player.id] = session.player;
+  self.sessions[session.id] = session;
+  world.players[session.id] = session.player;
   
   self.log(session.player + ' connected. Sending handshake...');
   
-  var entities = [];
-  for(var i = 0; i < world._entities.length; i++) {
-    entities.push(world._entities[i].props());
+  var entities = [], players = [];
+  for (var i = 0; i < world._entities.length; i++) {
+    entities.push(world._entities[i].repr());
+  }
+  for (var pid in world.players) {
+    players.push(world.players[pid]);
   }
   
   session.send([
     SERVER + HANDSHAKE, 
     session.player.id, 
     self.gameloop.tick, 
-    world.props(),
-    entities
+    world.repr(),
+    entities,
+    players
   ]);
   
   self.broadcast_exclude(
     [session], 
-    [PLAYER + CONNECT, session.player.props()]
+    [PLAYER + CONNECT, session.player.repr()]
   );
 
   // Update the player count
@@ -190,12 +207,20 @@ GameSession.prototype.create_player_session = function(conn) {
 }
 
 GameSession.prototype.start_gameloop = function() {
-  var world = this.world,
-      sessions = this.sessions;
-  this.log('Starting ' + this);
+  var self = this,
+      world = self.world,
+      sessions = self.sessions;
+  this.log('Starting ' + self);
   var loop = new GameLoop();
   loop.step_callback = function(t, dt) {
+
     world.step(t, dt);
+
+    world.each_uncommited(function(item) {
+      self.broadcast([item._subject + STATE, item.id, item.changed_values()]);
+      item.commit();
+    });
+    
     for (var id in sessions) {
       var session = sessions[id];
       session.send_queue();
@@ -240,13 +265,14 @@ GameSession.prototype.broadcast_exclude = function(exclude_list, msg, prio) {
 }
 
 GameSession.prototype.spawn_player = function(session) {
+  var player = session.player;
   var entity = this.world.spawn_entity('ship', {
     pid: session.player.id,
     x: 150,
     y: 150
   });
-  session.update_values({'entity_id': entity.id});
-  this.broadcast([PLAYER + SPAWN, entity.props()]);
+  this.broadcast([ENTITY + SPAWN, entity.repr()])
+  player.update({ eid: entity.id });
   return entity;
 }
 
@@ -280,6 +306,7 @@ GameSession.prototype.toString = function() {
  */
 function PlayerSession(id, conn, game) {
   var self = this;
+  this.id = id;
   this.conn = conn;
   this.game = game;
   this.player = new Player({
@@ -367,10 +394,11 @@ PlayerSession.prototype.send_queue = function() {
   }
 }
 
+
 /**
  *  Is called upon before init.
  */
-World.prototype.pre_init = function() {
+World.prototype.before_init = function() {
   this.entity_count = 1;
 }
 
@@ -408,16 +436,20 @@ World.prototype.spawn_entity = function(type, props) {
 
 World.prototype.spawn_bullet = function(ship) {
   var bullet = this.spawn_entity('bullet', {
-    pid: ship.id,
-    x: this.x + Math.cos(ship.angle - Math.PI/2)*ship.w*2,
-    y: this.y + Math.sin(ship.angle - Math.PI/2)*ship.w*2,
-    angle: this.angle,
+    oid: ship.id,
+    x: this.x + Math.cos(ship.a - Math.PI/2)*ship.w*2,
+    y: this.y + Math.sin(ship.a - Math.PI/2)*ship.w*2,
+    a: this.a,
   });  
-  bullet.speedx =  Math.sin(bullet.angle) * bullet.max_speed;
-  bullet.speedy =  Math.cos(bullet.angle) * bullet.max_speed;
+  bullet.sx =  Math.sin(bullet.a) * bullet.max_speed;
+  bullet.sy =  Math.cos(bullet.a) * bullet.max_speed;
   return bullet;
 }
 
+// if_changed(player, ROTATE, value, function() {
+//   var prop_names = [ROTATE].concat(Ship.STATE_PROPS);
+//   game.broadcast([ENTITY + STATE, entity.id, entity.props(prop_names)]);
+// });
 
 var process_message = match (
 
@@ -429,17 +461,14 @@ var process_message = match (
     game.log('Client connect');
     session.state = 'validated';
   },
-  
+
   /**
    * CLIENT ROTATE
    * Starts/ends rotation for a player's ship.
    */
   [[CLIENT + COMMAND, ROTATE, Number], _, _], function(value, game, session) {
-    var player = session.player;
-    if_changed(player, ROTATE, value, function() {
-      var prop_names = [ROTATE].concat(Ship.STATE_PROPS);
-      game.broadcast([ENTITY + STATE, player.entity_id, player.props(prop_names)]);
-    });
+    var entity = game.world.find(session.player.eid);
+    if (entity) entity.update({'r': value});
   },
 
   /**
@@ -447,11 +476,8 @@ var process_message = match (
    * Activates/de-activates thrust of a player's ship
    */
   [[CLIENT + COMMAND, THRUST, Number], _, _], function(value, game, session) {
-    var entity = game.world.find(session.player.entity_id);
-    if_changed(entity, THRUST, value, function() {
-      var prop_names = [THRUST].concat(Ship.STATE_PROPS);
-      game.broadcast([ENTITY + STATE, entity.id , entity.props(prop_names)]);
-    });
+    var entity = game.world.find(session.player.eid);
+    if (entity) entity.update({'t': value});
   },
 
   /**
@@ -474,19 +500,19 @@ var process_message = match (
 
   /**
    * PLAYER READY
-   * Player is ready for some action.  
+   * Indicates that the player is ready for some action.  
+   *
+   * The game is automaticly started if 60% of the players are ready.
    */
   [[PLAYER + READY], _, _], function(game, session) {
     var world = game.world;
     var player = session.player;
 
-    // Set player state to ready and broadcast to a notification to the rest 
-    // of the players. 
-    player.ready = true;
-
-    // Start if the game is 60% full and all of them are ready.
+    // Set player state to ´´ready´´
+    player.update({ st: READY });
+    
     if(world.no_players / world.max_players >= 0.6) {
-      for(var id in world.players) if(!world.players[id].state != READY) return;
+      for(var id in world.players) if(!world.players[id].st != READY) return;
       return start_game(world);
     }
   },
@@ -513,8 +539,8 @@ var collision_manager = match (
   // Bullet vs. Ship
   // A bullet hitted a ship. 
   [Ship, Bullet], function(ship, bullet) {  
-    if (bullet.owner == ship) return;
-    if (ship.shield) return bullet;
+    if (bullet.oid == ship.id) return;
+    if (ship.sd) return bullet;
     else return ship;
   },
   [Bullet, Ship], function(bullet, ship) { return collision_manager(ship, bullet)},
@@ -523,9 +549,16 @@ var collision_manager = match (
   // A ship hitted a wall.
   [Ship, Wall], function(ship, wall) {
     sys.debug('Ship vs wall');
-    if (ship.shield) {
-      if (wall.w > wall.h) ship.speedy = -ship.speedy;
-      else ship.speedx = -ship.speedx;
+    if (ship.sd) {
+      if (wall.w > wall.h) {
+        ship.update({
+          sy: -ship.sy
+        });
+      } else {
+        ship.update({
+          sx: -ship.sx
+        });
+      }
     } else {
       return ship;
     }
@@ -539,18 +572,21 @@ var collision_manager = match (
   },
   
   [Ship, Ship], function(ship_a, ship_b) {
-    if (!ship_a.shield && !ship_b.shield) {
+    if (!ship_a.sd && !ship_b.sd) {
       ship_a.dead = true;
       ship_b.dead = true;
-    } else if(ship_a.shield && ship_b.shield) {
-      ship_a.speedx = -ship_a.speedx;
-      ship_a.speedy = -ship_a.speedy;
-
-      ship_b.speedx = -ship_b.speedx;
-      ship_b.speedy = -ship_b.speedy;
+    } else if(ship_a.sd && ship_b.sd) {
+      ship_a.update({
+        sx: -ship_a.sx,
+        sy: -ship_a.sy
+      });
+      ship_b.update({
+        sx: -ship_b.sx,
+        sy: -ship_b.sy
+      });
     } else {
-      ship_a.dead = !ship_a.shield;
-      ship_b.dead = !ship_b.shield;
+      ship_a.dead = !ship_a.sd;
+      ship_b.dead = !ship_b.sd;
     }
   }
 
