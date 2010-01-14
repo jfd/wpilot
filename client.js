@@ -249,7 +249,11 @@ ViewPort.prototype = {
     this.camera.h = this.h;
     this.camera.scale = 1;
   },
-
+  
+  set_world_size: function(size) {
+    this.world = { w: size.w, h: size.h }
+  },
+    
   /**
    *  Translate a point into a camera pos.
    */
