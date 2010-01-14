@@ -249,39 +249,7 @@ ViewPort.prototype = {
     this.camera.h = this.h;
     this.camera.scale = 1;
   },
-  
-  set_world_size: function(size) {
-    this.world = { w: size.w, h: size.h }
-  },
-  
-  /**
-   *  Translate world cooridnates into viewport coordinates.
-   */
-  to_vp_point: function(point) {
-    return { x: point.x * this.camera.scale, y: point.y * this.camera.scale };
-  },
 
-  /**
-   *  Translate a world size into viewport size.
-   */
-  to_vp_size: function(size) {
-    return { w: size.w * this.camera.scale, h: size.h * this.camera.scale };
-  },
-  
-  /**
-   *  Translate world cooridnates into viewport coordinates.
-   */
-  to_world_point: function(point) {
-    return { x: point.x / this.camera.scale, y: point.y / this.camera.scale };
-  },
-
-  /**
-   *  Translate viewport size into world size.
-   */
-  to_world_size: function(size) {
-    return { w: size.w / this.camera.scale, h: size.h / this.camera.scale };
-  },
-  
   /**
    *  Translate a point into a camera pos.
    */
@@ -588,11 +556,11 @@ World.prototype.draw = function(viewport, alpha, env) {
   for (var id in entities) {
     var entity = entities[id], pos = { x: entity.x, y: entity.y };
     if (intersects(entity, camera)) {
-      // if (entity._oldpos) {
-      //   pos = interpolate(pos, entity._oldpos, alpha);
-      // }
+      if (entity._oldpos) {
+        pos = interpolate(pos, entity._oldpos, alpha);
+      }
       if (entity.id == env.player_entity_id) {
-        viewport.set_camera_pos(pos);
+        viewport.set_camera_pos(entity);
       }
       var point = viewport.translate(pos);
       ctx.save();
@@ -600,7 +568,7 @@ World.prototype.draw = function(viewport, alpha, env) {
       ctx.rotate(entity.a);
       entity.draw(ctx);
       ctx.restore();
-      // entity._oldpos = pos; //{ x: entity.x, y: entity.y };
+      // entity._oldpos = { x: entity.x, y: entity.y };
     }
   }
 }
@@ -675,7 +643,7 @@ World.prototype.draw_grid = function(viewport) {
 function interpolate(current, old, alpha) {
   return {
     x: current.x * alpha + old.x * (1 - alpha),
-    y: current.x * alpha + old.y * (1 - alpha),
+    y: current.y * alpha + old.y * (1 - alpha),
   };
 }
 
@@ -692,7 +660,7 @@ function draw(session, alpha) {
   if (!env.lock_fps || env.lock_fps && env.cur_fps < MAX_FPS) {
       viewport.begin_draw();
       world.draw(viewport, alpha, env);
-      draw_gui(env, world);
+      draw_gui(env, viewport, session.player  , env.cur_fps, env.cur_sps);
       env.fps_frame++;
       viewport.end_draw();      
     } 
@@ -702,12 +670,11 @@ function draw(session, alpha) {
   env.cur_fps = parseInt(1000 / ((currtime - startime) / env.fps_frame));  
 }
 
-function draw_gui(env, world) {
-  var vp = env.viewport,
-      player = env.player || {},
-      ctx = vp.ctx,
-      px = parseInt(player.x || 0),
-      py = parseInt(player.y || 0),
+function draw_gui(options, vp, player, fps, sps) {
+  console.log(player);
+  var ctx = vp.ctx,
+      px = parseInt(player.entity.x || 0),
+      py = parseInt(player.entity.y || 0),
       vpw = vp.w / 2,
       vph = vp.h / 2,
       cx = px + vpw,
@@ -719,15 +686,17 @@ function draw_gui(env, world) {
   ctx.textAlign = 'center';
   ctx.fillStyle = 'rgba(255,255,255,0.5)';
   ctx.font = "9px Arial";
-  if (env.show_pos) 
+  if (options.show_pos) 
     draw_label(ctx, px + ' x ' + py, vpw - 52, vph + 45);
-  if (env.show_fps)
-    draw_label(ctx, env.cur_sps + ' steps / ' + env.cur_fps + ' fps', w - 6, 12, 'right');
-  // if (env.show_energy)
-  //   draw_v_bar(ctx, vpw + 45, vph - 25, 7, 50, player.energy);
+  if (options.show_fps) {
+    draw_label(ctx, sps + ' steps / ' + fps + ' fps', w - 6, 12, 'right');
+  }
+  if (options.show_energy) {
+    draw_v_bar(ctx, vpw + 45, vph - 25, 7, 50, player.e);
+  }
   ctx.fillStyle = 'rgba(255,255,255,0.8)';
   ctx.font = "bold 11px Arial";
-//  draw_label(ctx, player.score, vpw + 52, vph + 44, 'right', 45);
+  draw_label(ctx, player.s, vpw + 52, vph + 44, 'right', 45);
   
   ctx.restore();            
 }
