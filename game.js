@@ -26,12 +26,13 @@ var PROTOCOL = 'pt',
     FIRE = 'f',
     
     // Other
-    ERROR = '$e';
+    ERROR = '$e',
+    MULTIPART = -1;
 
 // Client Commands    
 var THRUST = 't',
-    ROTATE = 'r',  // 0 = off, 1=cw, 2=ccw 
     SHOOT = 'sh',
+    ROTATE = 'r',  // 0 = off, 1=cw, 2=ccw 
     SHIELD = 'sd';
 
 // World timer related constants
@@ -45,10 +46,10 @@ var SHIP_ROTATION_SPEED = 4,
     SHIP_MAX_SPEED = 150,
     SHIP_ACCELERATION_SPEED = 150,
     BULLET_ACCELERATION_SPEED = 1,
-    BULLET_MAX_SPEED = 250,
+    BULLET_MAX_SPEED = 50,
     SHIP_COLORS = ['0xFFFFFF', '0xFF0000', '0x00FF00', '0x0000FF'];
 
-
+var CC = 1;
 
 var GameObject = {
   
@@ -124,6 +125,16 @@ var GameObject = {
         }
       }
       return this._changed;
+    },
+
+    /**
+     *  Invalidates a set of fields
+     */
+    invalidate: function() {
+      for (var i = 0; i < arguments.length; i++) {
+        var prop = arguments[i];
+        this._uncommited_fields[prop] = this[prop];
+      }
     },
     
     /**
@@ -407,6 +418,27 @@ World.prototype.delete_by_id = function(id) {
 }
 
 World.prototype.step = function(frame, step) {
+  for (var id in this.players) {
+    var player = this.players[id];
+    
+    if (player.entity && player.entity.sd) {
+      player.e -= 30 * step;
+    }
+
+    if (player.entity && player.entity.sh) {
+      player.e -= 1 * step;
+      // player.entity.sh = 0;
+    }
+    
+    if (player.r >= 0) { // Reloading
+      player.r -= 4 * step
+    }
+    
+    if (player.e <= 100) {
+      player.e += 3 * step;  
+    }
+  }
+  
   var entities = this.entities, target;
   for (var id in entities) {
     var entity = entities[id], res = false;
@@ -481,11 +513,17 @@ function Player(initial_props) {
     eid: -1,
     st: 'n',
     s: 0,
-    e: 0
+    e: 100
   });
+  this.r = 0;
 }
 
 GameObject.apply_to(Player, PLAYER, PLAYER);
+
+Player.prototype.can_issue_command = function() {
+  // console.log('issue command? ' + (this.entity && this.r <= 0 && !this.entity.sh && this.e > 0));
+  return this.entity && this.r <= 0 && !this.entity.sh && this.e > 0;
+}
 
 Player.prototype.toString = function() {
   return 'Player ' + this.name + ' (' + this.id + ')';
@@ -571,8 +609,8 @@ Ship.prototype.move = function(step) {
   } 
   
   this.update({
-    x: this.x += speedx * step,
-    y: this.y -= speedy * step,
+    x: this.x + speedx * step,
+    y: this.y - speedy * step,
     sx: speedx,
     sy: speedy,
     a: angle
@@ -616,10 +654,7 @@ GameObject.apply_to(Wall, WALL, ENTITY);
  *    oid         - The ID of the owner to the bullet
  *    w           - The width of the ship
  *    h           - The height of the ship
- *    sx          - The speed x value for the the bullet.
- *    sy          - The speed y value for the the bullet.
  *    a           - The angle of the bullet
- *    max_speed   - The max speed
  *
  *  Dynamic fields 
  *  Fields that changes often. The dynamic field collection 
@@ -634,10 +669,7 @@ function Bullet(initial_props) {
     oid: -1, 
     w: 2, 
     h: 1,
-    sx: 0,
-    sy: 0,
-    a: 0,
-    max_speed: BULLET_MAX_SPEED
+    a: 0
   });
   this.fields('dynamic', {
     x: 0, 
@@ -649,9 +681,11 @@ GameObject.apply_to(Bullet, BULLET, ENTITY);
 
 
 Bullet.prototype.move = function(step) {
+  var speedx = Math.sin(this.a) * BULLET_MAX_SPEED;
+  var speedy = Math.cos(this.a) * BULLET_MAX_SPEED;  
   this.update({
-    x: this.x + this.sx * step,
-    y: this.y - this.sy * step
+    x: this.x + speedx * step,
+    y: this.y - speedy * step
   });
 }
 
@@ -662,7 +696,7 @@ function check_collision(entity, entities, delete_list) {
   var l = entities.length;
   while (l--) {
     var target = entities[l];
-    if (target != entity && intersects(entity, target)) {
+    if (entity.move && target != entity && intersects(entity, target)) {
       return this.collision_manager([entity, target, delete_list]);
     }
   }
@@ -724,10 +758,11 @@ try {
   exports.SPAWN = SPAWN;
   exports.FIRE = FIRE;
   exports.ERROR = ERROR;
+  
+  exports.MULTIPART = MULTIPART;
 
   exports.THRUST = THRUST;
   exports.ROTATE = ROTATE;  
-  exports.BRAKE = BRAKE;
   exports.SHOOT = SHOOT;
   exports.SHIELD = SHIELD;
 

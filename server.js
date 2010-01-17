@@ -23,14 +23,17 @@ function main() {
   var sessions = [],
       game_id_incr = 1;
 
-  fu.listen(8000, null);
+  fu.listen(6114, '10.0.1.2');
 
   fu.get("/", fu.staticHandler("index.html"));
+  fu.get("/local", fu.staticHandler("index.local.html"));
   fu.get("/style.css", fu.staticHandler("style.css"));
   fu.get("/client.js", fu.staticHandler("client.js"));
+  fu.get("/game.js", fu.staticHandler("game.js"));
+  fu.get("/match.js", fu.staticHandler("match.js"));
   fu.get("/space.jpg", fu.staticHandler("space.jpg"));
 
-  var server = new websocket.Server({ address: '127.0.0.1', port: 8001});
+  var server = new websocket.Server({ host: '10.0.1.2', port: 6115});
   // server.get('room1', create_route());
 
   // Create a new Gmae that user's can connect to.
@@ -88,13 +91,13 @@ sys.inherits(GameSession, process.EventEmitter);
 GameSession.prototype.onData = function(data, conn) {
   var session = conn.session, msg = JSON.parse(data);
   if (session) {
-    process_message([msg, this, session]);  
+    process_messages(msg, this, session);  
   } else {
     // No session is available. This is a new player. Try to create a new 
     // session.
    try {
       session = this.create_player_session(conn); 
-      process_message([msg, this, session]);
+      process_messages(msg, this, session);
       if (session.state == 'unvalidated') {
         throw "Expected client+handshake command";
       }
@@ -177,7 +180,7 @@ GameSession.prototype.create_player_session = function(conn) {
     entities.push(world._entities[i].repr());
   }
   for (var pid in world.players) {
-    players.push(world.players[pid]);
+    players.push(world.players[pid].repr());
   }
   
   session.send([
@@ -190,7 +193,7 @@ GameSession.prototype.create_player_session = function(conn) {
   ]);
   
   self.broadcast_exclude(
-    [session], 
+    session, 
     [PLAYER + CONNECT, session.player.repr()]
   );
 
@@ -210,16 +213,26 @@ GameSession.prototype.start_gameloop = function() {
   var self = this,
       world = self.world,
       sessions = self.sessions;
+      
   this.log('Starting ' + self);
   var loop = new GameLoop();
   loop.step_callback = function(t, dt) {
 
     world.step(t, dt);
-
-    world.each_uncommited(function(item) {
-      self.broadcast([item._subject + STATE, item.id, item.changed_values()]);
-      item.commit();
-    });
+    
+    if (t % dt * 10) {
+      world.each_uncommited(function(item) {
+        var session = item.session;
+        if (session) {
+          // sys.puts(sys.inspect(item.changed_values('dynamic')));
+          session.post([item._subject + STATE, item.id, item.changed_values('dynamic')]);
+          self.broadcast_exclude(session, [item._subject + STATE, item.id, item.changed_values()]);
+        } else {
+          self.broadcast([item._subject + STATE, item.id, item.changed_values()]);
+        }
+        item.commit();
+      });
+    }
     
     for (var id in sessions) {
       var session = sessions[id];
@@ -257,10 +270,12 @@ GameSession.prototype.broadcast = function(msg, prio) {
  *  Broadcasts specified message to all connected players except does who is
  *  in the exclude list..
  */
-GameSession.prototype.broadcast_exclude = function(exclude_list, msg, prio) {
-  var sessions = subtract_array(this.sessions, exclude_list);
+GameSession.prototype.broadcast_exclude = function(exclude, msg, prio) {
+  var sessions = this.sessions;
   for(var id in sessions) {
-    sessions[id].post(msg, prio);
+    if (exclude.id != id) {
+      sessions[id].post(msg, prio);
+    }
   }
 }
 
@@ -271,11 +286,27 @@ GameSession.prototype.spawn_player = function(session) {
     x: 150,
     y: 150
   });
+  entity.session = session;
   this.broadcast([ENTITY + SPAWN, entity.repr()])
   player.update({ eid: entity.id });
+  player.entity = entity;
   return entity;
 }
 
+GameSession.prototype.spawn_bullet = function(session) {
+  var player = session.player,
+      ship = player.entity;
+  var entity = this.world.spawn_entity('bullet', {
+    oid: ship.id,
+    x: ship.x + Math.cos(ship.a - Math.PI/2)*ship.w*2,
+    y: ship.y + Math.sin(ship.a - Math.PI/2)*ship.w*2,
+    a: ship.a,
+  });
+  this.broadcast([ENTITY + SPAWN, entity.repr()])
+  player.r = 10;
+  ship.sh = 1;  
+  return entity;
+}
 
 GameSession.prototype.delete_manager = function(delete_list) {
   sys.debug('Inside delete manager')
@@ -408,11 +439,11 @@ World.prototype.before_init = function() {
 World.prototype.build = function() {
   
   this.spawn_entity('wall', {
-    x: 0, y: 0, w: this.w, h:2
+    x: 0, y: 0, w: this.w + 2, h:2
   });
 
   this.spawn_entity('wall', {
-    x: this.w + 2, y: 0, w: this.w + 2, h:2
+    x: this.w, y: 0, w: 2, h: this.h + 2
   });
 
   this.spawn_entity('wall', {
@@ -434,22 +465,22 @@ World.prototype.spawn_entity = function(type, props) {
   return instance;
 }
 
-World.prototype.spawn_bullet = function(ship) {
-  var bullet = this.spawn_entity('bullet', {
-    oid: ship.id,
-    x: this.x + Math.cos(ship.a - Math.PI/2)*ship.w*2,
-    y: this.y + Math.sin(ship.a - Math.PI/2)*ship.w*2,
-    a: this.a,
-  });  
-  bullet.sx =  Math.sin(bullet.a) * bullet.max_speed;
-  bullet.sy =  Math.cos(bullet.a) * bullet.max_speed;
-  return bullet;
-}
 
 // if_changed(player, ROTATE, value, function() {
 //   var prop_names = [ROTATE].concat(Ship.STATE_PROPS);
 //   game.broadcast([ENTITY + STATE, entity.id, entity.props(prop_names)]);
 // });
+function process_messages(message_data, game_session, player_session) {
+  if (message_data[0] == MULTIPART) {
+    // Multipart
+    var messages = message_data[1];
+    for (var i = 0; i < messages.length; i++) {
+      process_message([messages[i], game_session, player_session]);
+    }
+  } else {
+    process_message([message_data, game_session, player_session]);
+  }
+}
 
 var process_message = match (
 
@@ -468,7 +499,9 @@ var process_message = match (
    */
   [[CLIENT + COMMAND, ROTATE, Number], _, _], function(value, game, session) {
     var entity = game.world.find(session.player.eid);
-    if (entity) entity.update({'r': value});
+    if (entity) {
+      entity.update({'r': value});
+    } 
   },
 
   /**
@@ -478,6 +511,32 @@ var process_message = match (
   [[CLIENT + COMMAND, THRUST, Number], _, _], function(value, game, session) {
     var entity = game.world.find(session.player.eid);
     if (entity) entity.update({'t': value});
+  },
+
+  /**
+   * CLIENT SHOOT
+   * Activates/de-activates thrust of a player's ship
+   */
+  [[CLIENT + COMMAND, SHOOT, Number], _, _], function(value, game, session) {
+    var player = session.player
+        world = game.world;
+    if (player.can_issue_command()) {
+      game.spawn_bullet(session);
+    }
+  },
+
+  /**
+   * CLIENT SHIELD
+   * Activates/de-activates thrust of a player's ship
+   */
+  [[CLIENT + COMMAND, SHIELD, Number], _, _], function(value, game, session) {
+    var player = session.player,
+        entity = session.player.entity;
+    if (entity) {
+      entity.update({
+        'sd': player.can_issue_command() ? value : 0
+      });
+    } 
   },
 
   /**
@@ -522,14 +581,12 @@ var process_message = match (
    * Player fire's a bullet.  
    */
   [[PLAYER + FIRE], _, _], function(world, player) {
-    if(world.state !== 'running') return;
-    
-  
   },
   
   function(msg) {
-    sys.puts('Unhandled message')
-    sys.puts(sys.inspect(msg));
+    sys.puts('Unhandled message:');
+    sys.puts(sys.inspect(msg[0]));
+    // sys.puts(sys.inspect(msg));
   }
   
 );
@@ -539,11 +596,15 @@ var collision_manager = match (
   // Bullet vs. Ship
   // A bullet hitted a ship. 
   [Ship, Bullet], function(ship, bullet) {  
+    sys.debug('bullet coll');
+    sys.debug(ship.sd);
     if (bullet.oid == ship.id) return;
     if (ship.sd) return bullet;
     else return ship;
   },
-  [Bullet, Ship], function(bullet, ship) { return collision_manager(ship, bullet)},
+  [Bullet, Ship], function(bullet, ship, list) { 
+    return collision_manager([ship, bullet]);
+  },
   
   // Ship vs. Wall
   // A ship hitted a wall.
@@ -567,15 +628,14 @@ var collision_manager = match (
   // Bullet vs. Wall
   // A bullet hitted a wall. 
   [Bullet, Wall], function(bullet, wall) {
-    console.log('bullet vs wall');
-    bullet.dead = true;
+    sys.debug('bullet vs wall');
+    return bullet;
   },
   
   [Ship, Ship], function(ship_a, ship_b) {
     if (!ship_a.sd && !ship_b.sd) {
-      ship_a.dead = true;
-      ship_b.dead = true;
-    } else if(ship_a.sd && ship_b.sd) {
+    //   return [ship_a, ship_b];
+    // } else if(ship_a.sd && ship_b.sd) {
       ship_a.update({
         sx: -ship_a.sx,
         sy: -ship_a.sy
@@ -599,20 +659,6 @@ function get_random_value(src) {
 
 function error(msg) {
   return [ERROR, msg];
-}
-
-function subtract_array(array_a, array_b) {
-  var result = [];
-  for (var i = 0; i < array_a.length; i++) {
-    var item = array_a[i], found = false;
-    for (var i = 0; i < array_b.length; i++) {
-      if (item == array_b[i]) {
-        found = true;
-        break;
-      } 
-    }
-    if (!found) result.push(item);
-  }
 }
 
 // Start the server

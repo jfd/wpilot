@@ -57,7 +57,7 @@ function Session(addr) {
   var self = this;
   this.id = -1;
   this.world = null;
-  this.player = null;
+  this.player = { entity: {}};
   this.gameloop = null;
   this.env = {
     show_fps: true,
@@ -116,9 +116,16 @@ function create_gameloop(initial_tick, session) {
 
     if (entity && entity.is_changed('actions')) {
       var fields = entity.changed_fields_in('actions');
-      for (var i = 0; i < fields.length; i++) {
-        var action = fields[i];
-        session.post([CLIENT + COMMAND, action, entity[action]]);
+      if (fields.length == 1) {
+        var action = fields[0];
+        session.post([CLIENT + COMMAND, action, entity[action]]);        
+      } else {
+        var messages = [];
+        for (var i = 0; i < fields.length; i++) {
+          var action = fields[i];
+          messages.push([CLIENT + COMMAND, action, entity[action]]);
+        }
+        session.post([MULTIPART, messages]);
       }
       entity.commit();
     }
@@ -181,8 +188,7 @@ function handle_input(session, step) {
   var env = session.env,
       player = session.player || {},
       entity = player.entity,
-      device = session.env.device;
-      
+      device = session.env.device      
   if (device.on(BACK)) {
     env._kill = true;
     return;
@@ -192,33 +198,18 @@ function handle_input(session, step) {
     entity.update({
       't': device.on(THRUST),
       'r': device.on(ROTATE_CW) ? 1 : device.on(ROTATE_CCW) ? 2 : 0,
-      'sh': device.on(SHOOT),
-      'sd': device.on(SHIELD)
+      'sh': player.can_issue_command() ? device.on(SHOOT) : 0,
+      'sd': player.can_issue_command() ? device.on(SHIELD) : 0
     });
+    
+    if (entity.sh) {
+      player.r = 10;
+    }
   }
   
   // if_changed(env, 'show_pos', device.toggle(TOGGLE_POS));
   // if_changed(env, 'show_fps', device.toggle(TOGGLE_FPS));
   // if_changed(env, 'lock_fps', device.toggle(TOGGLE_FLOCK));
-  
-  
-  
-  // Fire a shoot
-
-  if (player.reloading >= 0) {
-    player.reloading -= 4 * step
-  }
-
-  if(device.on(SHOOT) && 
-     !player.shield && 
-     player.reloading <= 0 &&
-     player.energy > 0) {
-    player.energy -= 2;
-    player.score++;
-    player.reloading = 1;
-    var bullet = player.create_bullet();
-    world.append(bullet);
-  }
 }
 
 
@@ -353,6 +344,7 @@ var process_message = Match (
   [[ENTITY + SPAWN, {'type =': SHIP}], _],
   function(data, session) {
     var entity = new Ship(data);
+    // session.world.players[entity.pid] = entity;
     session.world.append(entity);
   },
 
@@ -362,6 +354,8 @@ var process_message = Match (
    */
   [[ENTITY + SPAWN, {'type =': BULLET}], _],
   function(data, session) {
+    console.log('Spawn bullet');
+    console.log(data);
     var entity = new Bullet(data);
     session.world.append(entity);
   },
@@ -409,53 +403,53 @@ var process_message = Match (
   }
 
 );
-
-var collision_manager = Match (
-
-  // Bullet vs. Ship
-  // A bullet hitted a ship. 
-  [Ship, Bullet], function(ship, bullet) {  
-    if (bullet.owner == ship) return;
-    if (ship.shield) bullet.dead = true;
-    else ship.dead = true;
-  },
-  [Bullet, Ship], function(bullet, ship) { return collision_manager(ship, bullet)},
-  
-  // Ship vs. Wall
-  // A ship hitted a wall.
-  [Ship, Wall], function(ship, wall) {
-    if (ship.shield) {
-      if (wall.w > wall.h) ship.speedy = -ship.speedy;
-      else ship.speedx = -ship.speedx;
-    } else {
-      ship.dead = true;
-    }
-  },
-
-  // Bullet vs. Wall
-  // A bullet hitted a wall. 
-  [Bullet, Wall], function(bullet, wall) {
-    console.log('bullet vs wall');
-    bullet.dead = true;
-  },
-  
-  [Ship, Ship], function(ship_a, ship_b) {
-    if (!ship_a.shield && !ship_b.shield) {
-      ship_a.dead = true;
-      ship_b.dead = true;
-    } else if(ship_a.shield && ship_b.shield) {
-      ship_a.speedx = -ship_a.speedx;
-      ship_a.speedy = -ship_a.speedy;
-
-      ship_b.speedx = -ship_b.speedx;
-      ship_b.speedy = -ship_b.speedy;
-    } else {
-      ship_a.dead = !ship_a.shield;
-      ship_b.dead = !ship_b.shield;
-    }
-  }
-
-);
+// 
+// var collision_manager = Match (
+// 
+//   // Bullet vs. Ship
+//   // A bullet hitted a ship. 
+//   [Ship, Bullet], function(ship, bullet) {  
+//     if (bullet.owner == ship) return;
+//     if (ship.shield) bullet.dead = true;
+//     else ship.dead = true;
+//   },
+//   [Bullet, Ship], function(bullet, ship) { return collision_manager(ship, bullet)},
+//   
+//   // Ship vs. Wall
+//   // A ship hitted a wall.
+//   [Ship, Wall], function(ship, wall) {
+//     if (ship.shield) {
+//       if (wall.w > wall.h) ship.speedy = -ship.speedy;
+//       else ship.speedx = -ship.speedx;
+//     } else {
+//       ship.dead = true;
+//     }
+//   },
+// 
+//   // Bullet vs. Wall
+//   // A bullet hitted a wall. 
+//   [Bullet, Wall], function(bullet, wall) {
+//     console.log('bullet vs wall');
+//     bullet.dead = true;
+//   },
+//   
+//   [Ship, Ship], function(ship_a, ship_b) {
+//     if (!ship_a.shield && !ship_b.shield) {
+//       ship_a.dead = true;
+//       ship_b.dead = true;
+//     } else if(ship_a.shield && ship_b.shield) {
+//       ship_a.speedx = -ship_a.speedx;
+//       ship_a.speedy = -ship_a.speedy;
+// 
+//       ship_b.speedx = -ship_b.speedx;
+//       ship_b.speedy = -ship_b.speedy;
+//     } else {
+//       ship_a.dead = !ship_a.shield;
+//       ship_b.dead = !ship_b.shield;
+//     }
+//   }
+// 
+// );
 
 /**
  *  Class Ship
@@ -664,7 +658,7 @@ function draw(session, alpha) {
   if (!env.lock_fps || env.lock_fps && env.cur_fps < MAX_FPS) {
       viewport.begin_draw();
       world.draw(viewport, alpha, env);
-      draw_gui(env, viewport, session.player  , env.cur_fps, env.cur_sps);
+      draw_gui(env, viewport, session.player, env.cur_fps, env.cur_sps);
       env.fps_frame++;
       viewport.end_draw();      
     } 
@@ -675,10 +669,11 @@ function draw(session, alpha) {
 }
 
 function draw_gui(options, vp, player, fps, sps) {
-  console.log(player);
+  // console.log(player);
   var ctx = vp.ctx,
-      px = parseInt(player.entity.x || 0),
-      py = parseInt(player.entity.y || 0),
+      entity = player.entity || {},
+      px = parseInt(entity.x || 0),
+      py = parseInt(entity.y || 0),
       vpw = vp.w / 2,
       vph = vp.h / 2,
       cx = px + vpw,
@@ -716,16 +711,8 @@ function draw_v_bar(ctx, x, y, w, h, percent) {
 }
 
 function draw_label(ctx, text, x, y, align, width) {
-  var len = ctx.measureText(text).width,
-      cx = x,
-      cy = y;
-  // if (align === 'center') {
-  //   cx = cx + (width / 2) + (len / 2);
-  // } else if (align === 'right') {
-  //   cx = cx + width - len;
-  // }
   ctx.textAlign = align || 'left';
   // console.log(ctx.textAlign);
-  ctx.fillText(text, cx, cy, width || 0);
+  ctx.fillText(text, x, y, width || 0);
 }
 
