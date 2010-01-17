@@ -1,15 +1,15 @@
-var MAX_FPS = 50;
+var MAX_FPS = 60;
 
+// Keyboard Constants
 var BACK = 'back',
-    ROTATE_CCW = 'ccw',
-    ROTATE_CW = 'cw',
+    ROTATE_W = 'ccw',
+    ROTATE_E = 'cw',
     TOGGLE_FPS = 'toggle_fps',
     TOGGLE_POS = 'toggle_pos',
     TOGGLE_FLOCK = 'toggle_flock';
 
 var GRID_CELL_SIZE = 250;
     GRID_CELL_COLOR = 'rgba(255,255,255,0.2)';
-
     
 var _ = Match.incl;
 
@@ -17,8 +17,8 @@ var _ = Match.incl;
 var KEYBOARD_BINDINGS = {
   27:         BACK,           // Trigger: ESC
   
-  37:         ROTATE_CCW,     // Trigger: Left arrow
-  39:         ROTATE_CW,      // Trigger: Right arrow
+  37:         ROTATE_W,     // Trigger: Left arrow
+  39:         ROTATE_E,      // Trigger: Right arrow
   38:         THRUST,         // Trigger: Up arrow
   32:         SHOOT,          // Trigger: Space
   40:         SHIELD,          // Trigger: Down arrow
@@ -28,8 +28,11 @@ var KEYBOARD_BINDINGS = {
   51:         TOGGLE_FLOCK   // Trigger: l
 } 
 
+// Set location for the WebSocket SWF library.
+WebSocket.__swfLocation = "WebSocketMain.swf";
 
-$(document).ready(function() {
+
+ $(document).ready(function() {
   
 //  $('#viewport').hide();
   $('#error').hide();
@@ -197,7 +200,7 @@ function handle_input(session, step) {
   if (entity) {
     entity.update({
       't': device.on(THRUST),
-      'r': device.on(ROTATE_CW) ? 1 : device.on(ROTATE_CCW) ? 2 : 0,
+      'r': device.on(ROTATE_E) ? 1 : device.on(ROTATE_W) ? 2 : 0,
       'sh': player.can_issue_command() ? device.on(SHOOT) : 0,
       'sd': player.can_issue_command() ? device.on(SHIELD) : 0
     });

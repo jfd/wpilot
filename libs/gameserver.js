@@ -1,247 +1,98 @@
-var sys = require('sys'),
-    websocket = require('./websocket'),
-    fu = require('./fu'),
-    match = require('./match').Match;
-    _ = match.incl;
-
-process.mixin(require('./game'));
-
-var MAX_PLAYERS = 8,
-    START_DELAY = 3,
-    WORLD_WIDTH = 1000,
-    WORLD_HEIGHT = 1000;
-    
-var PRIO_HIGH = 3,
-    PRIO_MID = 2,
-    PRIO_LOW = 1;
-      
+var sys       = require('sys'),
 
 /**
- *  Entry point for server.
+ *  Starts the game server
  */
-function main() {
-  var sessions = [],
-      game_id_incr = 1;
-
-  fu.listen(6114, '10.0.1.2');
-
-  fu.get("/", fu.staticHandler("index.html"));
-  fu.get("/local", fu.staticHandler("index.local.html"));
-  fu.get("/style.css", fu.staticHandler("style.css"));
-  fu.get("/client.js", fu.staticHandler("client.js"));
-  fu.get("/game.js", fu.staticHandler("game.js"));
-  fu.get("/match.js", fu.staticHandler("match.js"));
-  fu.get("/space.jpg", fu.staticHandler("space.jpg"));
-
-  var server = new websocket.Server({ host: '10.0.1.2', port: 6115});
-  // server.get('room1', create_route());
-
-  // Create a new Gmae that user's can connect to.
-  sessions.push(new GameSession(game_id_incr++, server, {}));  
-}
-
-/**
- *  GameObject.dump
- *  Prints all or selected files in console.
- */
-GameObject._proto.dump = function() {
-  var item = this.repr();
-  var result = this.type + '#' + this.id + ': { ';
-  for (var name in item) {
-    result += name + ': ' + item;
-  };
-  result += '}';
-  sys.debug(result);
+exports.listen = function(options) {
+  ws.createServer(connection);
+  ws.listen(options.ws_port);
 }
 
 
-/**
- *  Class GameSession
- */
-function GameSession(id, server, props) {
-  var self = this;
-  this.name = "game" + id; 
-  this.gameloop = null;
-  this.server = server;
-  this.sessions = {};
-  this.session_count = 1;
+function connection(conn) {
+  
+}
 
-  var world = new World({
-    id: id,
-    max_players: props.max_players || MAX_PLAYERS,
-    start_delay: props.start_delay || START_DELAY,
+
+try {
+  session = create_player_session(conn); 
+  process_messages(msg, this, session);
+  if (session.state == 'unvalidated') {
+    throw "Expected client+handshake command";
+  }
+} catch (msg) {
+  log("Disconnected client: " + msg);
+  conn.post(error(msg));
+  if (session) {
+     session.kill('Invalid client');
+  }
+  return;
+}
+
+/**
+ *  Prints a system message in the console.
+ */
+function log(msg) {
+  sys.puts(options.name + ': ' + msg);
+}
+
+/**
+ *  Starts the server game loop.
+ */
+function start_gameloop() {
+  var update_rate = options.update_rate;
+
+  log('Creating server World...');
+  world = new World({
+    id: 1,
+    max_players: options.max_players,
+    start_delay: options.start_delay,
     state: 'waiting',
-    w: props.w || WORLD_WIDTH,
-    h: props.h || WORLD_HEIGHT
+    w: options.world_width,
+    h: options.world_height
   });
-  world.collision_manager = collision_manager;
-  world.delete_manager = function(list) { self.delete_manager.apply(self, [list]) };
-  this.world = world;
-  
-  // Start to listen for data at the given URL.
-  server.get('/' + this.name, this);
-  this.log('Starting socket server');
-}
 
-sys.inherits(GameSession, process.EventEmitter);
-
-/**
- *  Handles the ondata event from the server instance. 
- */
-GameSession.prototype.onData = function(data, conn) {
-  var session = conn.session, msg = JSON.parse(data);
-  if (session) {
-    process_messages(msg, this, session);  
-  } else {
-    // No session is available. This is a new player. Try to create a new 
-    // session.
-   try {
-      session = this.create_player_session(conn); 
-      process_messages(msg, this, session);
-      if (session.state == 'unvalidated') {
-        throw "Expected client+handshake command";
-      }
-    } catch (msg) {
-      this.log("Disconnected client: " + msg);
-      conn.post(error(msg));
-      if (session) {
-        session.kill('Invalid client');
-      }
-      return;
-    }
-  }  
-  conn.session = session;
-}
-
-/**
- *  Handles the onDisconnect event from the server instance. 
- */
-GameSession.prototype.onDisconnect = function(conn) {
-  var session = conn.session;
-  if (session) {
-    session._reason = 'User Disconnected';
-  }
-}
-
-/**
- *  Creates a new player session. 
- */
-GameSession.prototype.create_player_session = function(conn) {
-  var self = this,
-      player = null,
-      world = this.world,
-      session = null;
-    
-  // Player was not found. Check player limit, then create a new player 
-  // profile and add it to the world. 
-  if (world.no_players == world.max_players) {
-    throw error('Server is full');
-  }
-  
-  if (world.state == 'finished') {
-    throw error('Game already finished');
-  }
-    
-  // Handles the killed event's 
-  function disconnected(reason) {
-    delete self.sessions[session.id];
-    session.removeListener('disconnected', disconnected);
-    session.removeListener('state', state_changed);
-    self.broadcast([PLAYER + DISCONNECT, session.id]);    
-    self.log(session.player + ' disconnected (Reason: ' + reason + ')');
-  }
-  
-  // Handles state event's
-  function state_changed(changed_values) {
-    sys.debug('state_changes')
-    self.broadcast([PLAYER + STATE, session.player.id, changed_values]);    
-    if (changed_values.state == 'ready') {
-      self.log(session.state + ' is ready');
-    }
-  }
-  
-  if (!self.gameloop) {
-    // First player to connect. Start the gameloop
-    self.start_gameloop();
-  }
-
-  session = new PlayerSession(self.session_count++, conn);
-
-  session.addListener('disconnected', disconnected);
-  session.addListener('state', state_changed);
-
-  self.sessions[session.id] = session;
-  world.players[session.id] = session.player;
-  
-  self.log(session.player + ' connected. Sending handshake...');
-  
-  var entities = [], players = [];
-  for (var i = 0; i < world._entities.length; i++) {
-    entities.push(world._entities[i].repr());
-  }
-  for (var pid in world.players) {
-    players.push(world.players[pid].repr());
-  }
-  
-  session.send([
-    SERVER + HANDSHAKE, 
-    session.player.id, 
-    self.gameloop.tick, 
-    world.repr(),
-    entities,
-    players
-  ]);
-  
-  self.broadcast_exclude(
-    session, 
-    [PLAYER + CONNECT, session.player.repr()]
-  );
-
-  // Update the player count
-  world.no_players++;
-  
-  // // The player is automaticly granted admin status if he/she is the first 
-  // // one to connect to the world.
-  // if (world.no_players == 0) {
-  //   world.admin = player;
-  // }
-
-  return session;
-}
-
-GameSession.prototype.start_gameloop = function() {
-  var self = this,
-      world = self.world,
-      sessions = self.sessions;
-      
-  this.log('Starting ' + self);
-  var loop = new GameLoop();
-  loop.step_callback = function(t, dt) {
+  log('Creating game loop...');
+  gameloop = new GameLoop();
+  gameloop.step_callback = function(t, dt) {
 
     world.step(t, dt);
-    
-    if (t % dt * 10) {
+
+    if (t % dt * update_rate) {
       world.each_uncommited(function(item) {
         var session = item.session;
         if (session) {
           // sys.puts(sys.inspect(item.changed_values('dynamic')));
           session.post([item._subject + STATE, item.id, item.changed_values('dynamic')]);
-          self.broadcast_exclude(session, [item._subject + STATE, item.id, item.changed_values()]);
+          broadcast_exclude(session, [item._subject + STATE, item.id, item.changed_values()]);
         } else {
-          self.broadcast([item._subject + STATE, item.id, item.changed_values()]);
+          broadcast([item._subject + STATE, item.id, item.changed_values()]);
         }
         item.commit();
       });
     }
-    
+
     for (var id in sessions) {
       var session = sessions[id];
       session.send_queue();
     }
   }
-  this.gameloop = loop;
+
+  log('Starting game loop...');
   loop.start();
   world.start();
+}
+
+function stop_gameloop(reason) {
+  
+  for (var id in sessions) {
+    sessions[id].post([SERVER + SHUTDOWN, reason]);
+  }
+  
+  gameloop.kill = true;
+  gameloop = null;
+  world = null;
+  sessions = null;
 }
 
 /**
@@ -259,8 +110,7 @@ GameSession.prototype.start = function() {
 /**
  *  Broadcasts specified message to all connected players.
  */
-GameSession.prototype.broadcast = function(msg, prio) {
-  var sessions = this.sessions;
+function broadcast(msg, prio) {
   for(var id in sessions) {
     sessions[id].post(msg, prio);
   }
@@ -270,8 +120,7 @@ GameSession.prototype.broadcast = function(msg, prio) {
  *  Broadcasts specified message to all connected players except does who is
  *  in the exclude list..
  */
-GameSession.prototype.broadcast_exclude = function(exclude, msg, prio) {
-  var sessions = this.sessions;
+function broadcast_exclude(exclude, msg, prio) {
   for(var id in sessions) {
     if (exclude.id != id) {
       sessions[id].post(msg, prio);
@@ -279,30 +128,30 @@ GameSession.prototype.broadcast_exclude = function(exclude, msg, prio) {
   }
 }
 
-GameSession.prototype.spawn_player = function(session) {
+function spawn_player(session) {
   var player = session.player;
-  var entity = this.world.spawn_entity('ship', {
+  var entity = world.spawn_entity('ship', {
     pid: session.player.id,
     x: 150,
     y: 150
   });
   entity.session = session;
-  this.broadcast([ENTITY + SPAWN, entity.repr()])
+  broadcast([ENTITY + SPAWN, entity.repr()])
   player.update({ eid: entity.id });
   player.entity = entity;
   return entity;
 }
 
-GameSession.prototype.spawn_bullet = function(session) {
+function spawn_bullet(session) {
   var player = session.player,
       ship = player.entity;
-  var entity = this.world.spawn_entity('bullet', {
+  var entity = world.spawn_entity('bullet', {
     oid: ship.id,
     x: ship.x + Math.cos(ship.a - Math.PI/2)*ship.w*2,
     y: ship.y + Math.sin(ship.a - Math.PI/2)*ship.w*2,
     a: ship.a,
   });
-  this.broadcast([ENTITY + SPAWN, entity.repr()])
+  broadcast([ENTITY + SPAWN, entity.repr()])
   player.r = 10;
   ship.sh = 1;  
   return entity;
@@ -321,25 +170,28 @@ GameSession.prototype.delete_manager = function(delete_list) {
 }
 
 /**
- *  Prints a system message in the console.
+ *  GameObject.dump
+ *  Prints all or selected files in console.
  */
-GameSession.prototype.log = function(msg) {
-  sys.puts(this + ': ' + msg);
+GameObject._proto.dump = function() {
+  var item = this.repr();
+  var result = this.type + '#' + this.id + ': { ';
+  for (var name in item) {
+    result += name + ': ' + item;
+  };
+  result += '}';
+  sys.debug(result);
 }
 
-GameSession.prototype.toString = function() {
-  return this.name;
-}
 
 
 /**
  *  Class PlayerSession
  */
-function PlayerSession(id, conn, game) {
+function PlayerSession(conn) {
   var self = this;
-  this.id = id;
+  this.id = PlayerSession.session_count++;
   this.conn = conn;
-  this.game = game;
   this.player = new Player({
     id: id
     // color: get_random_value(SHIP_COLORS)
@@ -350,7 +202,7 @@ function PlayerSession(id, conn, game) {
 
   function onclose(had_error) {
     self.emit('disconnected', self._reason);
-    
+
     conn.socket.removeListener('close', onclose);
     conn.socket.removeListener('timeout', ontimeout);
 
@@ -362,12 +214,15 @@ function PlayerSession(id, conn, game) {
   function ontimeout(had_error) {
     self.kill('timeout');
   }
-  
+
   conn.socket.addListener('close', onclose);
   conn.socket.addListener('timeout', ontimeout);
 }
 
 sys.inherits(PlayerSession, process.EventEmitter);
+
+PlayerSession.session_count = 1;
+
 
 /**
  *  Disconnect the player session.
@@ -437,7 +292,7 @@ World.prototype.before_init = function() {
  *  Is called upon after init.
  */
 World.prototype.build = function() {
-  
+
   this.spawn_entity('wall', {
     x: 0, y: 0, w: this.w + 2, h:2
   });
@@ -453,7 +308,7 @@ World.prototype.build = function() {
   this.spawn_entity('wall', {
     x: 0, y: 0, w: 2, h: this.h + 2
   });
-  
+
 }
 
 World.prototype.spawn_entity = function(type, props) {
@@ -569,26 +424,26 @@ var process_message = match (
 
     // Set player state to ´´ready´´
     player.update({ st: READY });
-    
+
     if(world.no_players / world.max_players >= 0.6) {
       for(var id in world.players) if(!world.players[id].st != READY) return;
       return start_game(world);
     }
   },
-  
+
   /**
    * PLAYER FIRE
    * Player fire's a bullet.  
    */
   [[PLAYER + FIRE], _, _], function(world, player) {
   },
-  
+
   function(msg) {
     sys.puts('Unhandled message:');
     sys.puts(sys.inspect(msg[0]));
     // sys.puts(sys.inspect(msg));
   }
-  
+
 );
 
 var collision_manager = match (
@@ -605,7 +460,7 @@ var collision_manager = match (
   [Bullet, Ship], function(bullet, ship, list) { 
     return collision_manager([ship, bullet]);
   },
-  
+
   // Ship vs. Wall
   // A ship hitted a wall.
   [Ship, Wall], function(ship, wall) {
@@ -631,7 +486,7 @@ var collision_manager = match (
     sys.debug('bullet vs wall');
     return bullet;
   },
-  
+
   [Ship, Ship], function(ship_a, ship_b) {
     if (!ship_a.sd && !ship_b.sd) {
     //   return [ship_a, ship_b];
@@ -660,6 +515,3 @@ function get_random_value(src) {
 function error(msg) {
   return [ERROR, msg];
 }
-
-// Start the server
-main();
