@@ -1,0 +1,8 @@
+TODO's before release 1.0
+
+- Better bounding boxes for Entites (incluedes shield bounding boxes)
+- Add game rules (score limit etc).
+- Add the abillity to shoot things
+- Implement network interpolation for entities (it's feel's kind of "chopped" right now)
+- New ships should spawn at a random position
+

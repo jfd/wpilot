@@ -1,157 +1,474 @@
-var MAX_FPS = 60;
+//
+//  wpilot.js
+//  Web browser WPilot client
+//  
+//  Read README for instructions and LICENSE license.
+//  
+//  Copyright (c) 2010 Johan Dahlberg 
+//
+var CLIENT_VERSION = '0.1';
 
 // Keyboard Constants
-var BACK = 'back',
-    ROTATE_W = 'ccw',
-    ROTATE_E = 'cw',
-    TOGGLE_FPS = 'toggle_fps',
-    TOGGLE_POS = 'toggle_pos',
-    TOGGLE_FLOCK = 'toggle_flock';
+var BACK                = 'back',
+    ROTATE_W            = 'ccw',
+    ROTATE_E            = 'cw',
+    TOGGLE_FPS          = 'toggle_fps',
+    TOGGLE_POS          = 'toggle_pos',
+    TOGGLE_FLOCK        = 'toggle_flock';
 
-var GRID_CELL_SIZE = 250;
-    GRID_CELL_COLOR = 'rgba(255,255,255,0.2)';
+var GRID_CELL_SIZE      = 250;
+    GRID_CELL_COLOR     = 'rgba(255,255,255,0.2)';
     
 var _ = Match.incl;
+
+// GUI Fonts used in the client.
+var HUD_SMALL_FONT      = 'bold 9px Arial',
+    HUD_LARGE_FONT      = 'bold 11px Arial',
+    HUD_WHITE_COLOR     = 'rgba(255,255,255,0.8)',
+    HUD_GREY_COLOR      = 'rgba(255,255,255,0.4)';
+
+
+// Message log related constants.
+var LOG_AGE_LIMIT       = 100,
+    LOG_HISTORY_COUNT   = 20,
+    LOG_FONT            = '9px Arial',
+    LOG_COLOR           = 'rgba(255,255,255,0.4)';
+
+// WPilotClient states
+var CLIENT_DISCONNECTED     = 0,
+    CLIENT_CONNECTING       = 1,
+    CLIENT_CONNECTED        = 2;
+
+// Default client options. This options can be changed from the console
+// by typing wpilot.options[OPTION_NAME] = new_value
+var DEFAULT_OPTIONS         = {
+  max_fps:              100,
+  show_fps:             true, 
+
+  hud_player_score_v:   true,
+  hud_player_name_v:    true,
+  hud_player_pos_v:     true,
+  hud_coords_v:         true,
+  hud_energy_v:         true,
+  
+  log_max_messages:     3,
+  log_msg_lifetime:     5000,
+  log_console:          true,
+  
+  bindings: {
+    'ready':            114,
+    'rotate_west':      37,
+    'rotate_east':      39,
+    'thrust':           38,
+    'shoot':            32,
+    'shield':           40
+  }
+}
 
 // Keyboard bindings
 var KEYBOARD_BINDINGS = {
   27:         BACK,           // Trigger: ESC
   
-  37:         ROTATE_W,     // Trigger: Left arrow
-  39:         ROTATE_E,      // Trigger: Right arrow
+  37:         ROTATE_W,       // Trigger: Left arrow
+  39:         ROTATE_E,       // Trigger: Right arrow
   38:         THRUST,         // Trigger: Up arrow
   32:         SHOOT,          // Trigger: Space
-  40:         SHIELD,          // Trigger: Down arrow
+  40:         SHIELD,         // Trigger: Down arrow
 
   49:         TOGGLE_FPS,     // Trigger: f
   50:         TOGGLE_POS,     // Trigger: p
-  51:         TOGGLE_FLOCK   // Trigger: l
-} 
+  51:         TOGGLE_FLOCK    // Trigger: l
+}
 
-// Set location for the WebSocket SWF library.
-WebSocket.__swfLocation = "WebSocketMain.swf";
+/**
+ *  Represents the WPilot client.
+ */
+function WPilotClient(options) {
+  this.options            = options;
+  
+  this.viewport           = null;
+  this.input              = null;
+  this.world              = null;
+  this.player             = { entity: null };
+  this.conn               = null;
+  this.message_log        = [];
+  this.hud_message        = null;
+  this.hud_message_alpha  = 0.2;
+  
+  // Status variables
+  this.state              = CLIENT_DISCONNECTED;
+  this.server_state       = null;
+  this.handshaked         = false;
+  this.is_connected       = false;
+  this.disconnect_reason  = null;
+  
+  // Event callbacks
+  this.onconnect          = function() {};
+  this.ondisconnect       = function() {};
+  
+  this.log('Welcome to WPilot ' + CLIENT_VERSION);
+}
 
+/**
+ *  Writes a message to the message log.
+ *  @param {String} The message string
+ *  @return {undefined} Nothing
+ */
+WPilotClient.prototype.log = function(msg) {
+  var buffer = this.message_log, 
+      time   = get_time() + this.options.log_msg_lifetime;
+  if (buffer.length > LOG_HISTORY_COUNT) {
+    buffer.shift();
+  }
+  buffer.push({ text: msg, time: time, disposed: false });
+  if (this.options.log_console && window.console) console.log(msg);
+}
 
- $(document).ready(function() {
-  
-//  $('#viewport').hide();
-  $('#error').hide();
-  
-  // Initlaize the World object. 
-  // var world = new World({ w: 1000, h: 1000 });
-  // world.collision_manager = collision_manager;
-  
-  var session = null;
-  
-  $('a.join-server').click(function(e) {
-    e.preventDefault();
-    var addr = $(this).attr('href');
-    session = new Session(addr);
-    $('#servers').hide();
-    $('#viewport').show();
-    
-  });
-  
-  // start_game(env, world);
-  
-});
+/**
+ *  Sets the world data
+ *  @param {World} world The World instance
+ *  @return {undefined} Nothing
+ */
+WPilotClient.prototype.set_world = function(world) {
+  this.world = world;
+  this.log('World data loaded...');
+}
 
-function Session(addr) {
+/**
+ *  Set the viewport to use for this WPilotClient instance.
+ *  @param {Viewport} viewport The Viewport instance.
+ *  @return {undefined} Nothing
+ */
+WPilotClient.prototype.set_viewport = function(viewport) {
   var self = this;
-  this.id = -1;
-  this.world = null;
-  this.player = { entity: {}};
-  this.gameloop = null;
-  this.env = {
-    show_fps: true,
-    show_pos: true,
-    lock_fps: true,
-    show_energy: true,
-    cur_fps: 0,
-    cur_sps: 0, 
-    fps_frame: 0,
-    viewport: new ViewPort('#viewport canvas'), 
-    device: initialize_keyboard('body', KEYBOARD_BINDINGS)
-  };
-
-  var conn = new WebSocket(addr);
-  
-  conn.onopen = function(event){
-    self.post([CLIENT + CONNECT]);
-  };
-
-  conn.onmessage = function(e) {
-    var data = JSON.parse(e.data);
-    if (data[0] == 0) {
-      // Single message
-      process_message([data[1], self]);
-    } else {
-      // Message batch
-      var messages = data[1];
-      for (var i = 0; i < messages.length; i++) {
-        process_message([messages[i], self]);
-      }
+  viewport.ondraw = function() {
+    if (self.state == CLIENT_CONNECTED) {
+      self.world.draw(viewport);
+      self.draw_hud();
     }
+    self.draw_message_log();
+  }
+  this.viewport = viewport;
+}
+
+/**
+ *  Set the Input Device
+ *  @param {InputDevice} device The Input Device instance.
+ *  @return {undefined} Nothing
+ */
+WPilotClient.prototype.set_input = function(device) {
+  this.input = device;
+}
+
+/**
+ *  Sets the player data
+ *  @param {Player} player The player instance
+ *  @return {undefined} Nothing
+ */
+WPilotClient.prototype.set_player = function(player) {
+  player.is_me = true;
+  this.player = player;
+  this.log('You are now known as "' + player.name  + '"...');
+}
+
+WPilotClient.prototype.set_server_state = function(state) {
+  if (state.no_players != state.max_players) {
+    this.server_state = state;
+    this.log('Recived server state, now joining game...');
+    this.post([CLIENT + CONNECT]);
+  } else {
+    this.log('Server is full');
+  }
+}
+
+/**
+ *  Sets the state of the Client instance
+ *  @param {Number} state The new state.
+ *  @return {undefined} Nothing
+ */
+WPilotClient.prototype.set_state = function(state) {
+  switch(state) {
+
+    case CLIENT_CONNECTING:
+      this.log('Server found, now joining game...');
+      this.onconnect();
+      break;
+
+    case CLIENT_CONNECTED:
+      this.log('Joined server ' + this.conn.URL + '...');
+      this.hud_message = 'Waiting for more players to connect';
+      this.post([PLAYER + HANDSHAKE]);  
+      break;
+      
+    case CLIENT_DISCONNECTED:    
+      this.conn = null;
+      this.is_connected = false;
+      this.handshaked = false;
+      this.ondisconnect(this.disconnect_reason);
+      this.stop_gameloop();
+      
+      this.log('You where disconnected from server ' +
+                this.disconnect_reason ? '(Reason: ' + this.disconnect_reason + ').' :
+                '');
+      break;
+    
+  }
+  this.state = state;
+}
+
+/**
+ *  Starts the gameloop
+ *  @param {Number} initial_tick The tick to start on (synced with server).
+ *  @return {undefined} Nothing
+ */
+WPilotClient.prototype.process_user_input = function(t, dt) {
+  var player        = this.player,
+      input        = this.input;
+  
+  player.update({
+    't': input.on(THRUST),
+    'r': input.on(ROTATE_E) ? 1 : input.on(ROTATE_W) ? 2 : 0,
+    'sh': input.on(SHOOT),
+    'sd': input.on(SHIELD)
+  });
+
+  if (player.is_changed('actions')) {
+    var fields = player.changed_fields_in('actions');
+    if (fields.length == 1) {
+      var action = fields[0];
+      this.post([CLIENT + COMMAND, action, player[action]]);
+    } else {
+      var messages = [];
+      for (var i = 0; i < fields.length; i++) {
+        var action = fields[i];
+        messages.push([CLIENT + COMMAND, action, player[action]]);
+      }
+      this.post([MULTIPART, messages]);
+    }
+    player.commit();
+  }    
+  
+}
+
+/**
+ *  Starts the gameloop
+ *  @param {Number} initial_tick The tick to start on (synced with server).
+ *  @return {GameLoop} The newly created gameloop
+ */
+WPilotClient.prototype.start_gameloop = function(initial_tick) {
+  var self          = this,
+      player_entity = self.player.entity,
+      world         = self.world,
+      viewport      = self.viewport;
+      
+  var gameloop = new GameLoop(initial_tick);
+
+  // Is called on each game tick.
+  gameloop.ontick = function(t, dt) {
+    self.process_user_input(t, dt);
+    self.world.step(t, dt);
+  }
+  
+  // Is called when loop is about to start over.
+  gameloop.ondone = function(t, dt, alpha) {
+    viewport.refresh(alpha);
   }
 
-  conn.onclose = function(event){
-//    $('#viewport').hide();
-    $('#error').html('Session closed');
-    $('#error').show();
-  };
+  // self.gameloop.loop_callback = function(t, step, alpha) {
+  //     var curtime = new Date().getTime();
+  //     session.env.cur_sps = parseInt(1000 / ((curtime - session.world.start_time) / (t / step)));  
+  //     session.draw(session, alpha);
+  //   }
+  // }
+  this.viewport.set_autorefresh(false);
+  gameloop.start();
+  self.gameloop = gameloop;
+  return gameloop;
+}
+
+/**
+ *  Kills the game loop. 
+ *  @return {undefined} Nothing
+ */
+WPilotClient.prototype.stop_gameloop = function() {
+  if (this.gameloop) {
+    this.gameloop.kill();
+    this.gameloop = null;
+    this.viewport.set_autorefresh(true);
+  }
+}
+
+/**
+ *  Joins a game server. 
+ *  @param {String} url Server URL.
+ *  @return {undefined} Nothing
+ */
+WPilotClient.prototype.join = function(url) {
+  var self = this;
   
-  this.conn = conn;
-}
+  if (!self.is_connected) {
+    self.disconnect_reason = 'Unknown reason';
+    this.log('Trying to join server at ' + url + '...');
+    self.conn = new WebSocket(url);
 
-Session.prototype.post = function(data) {
-  var msg = JSON.stringify(data);
-  this.conn.send(msg);
-}
+    /**
+     *  Override the onopen event of the WebSocket instance.
+     *  @param {WebSocketEvent} event The websocket event object.
+     *  @returns {undefined} Nothing
+     */
+    self.conn.onopen = function(event){
+      self.is_connected = true;
+    };
 
-function create_gameloop(initial_tick, session) {
-  var loop = new GameLoop(initial_tick);
-      
-  loop.step_callback = function(t, step) {
-    var player = session.player || {};
-    var entity = player.entity;
+    /**
+     *  Override the onmessage event of the WebSocket instance.
+     *  @param {WebSocketEvent} event The websocket event object.
+     *  @returns {undefined} Nothing
+     */
+    self.conn.onmessage = function(event) {
+      var graph = JSON.parse(event.data);
 
-    handle_input(session, step);
-
-    if (entity && entity.is_changed('actions')) {
-      var fields = entity.changed_fields_in('actions');
-      if (fields.length == 1) {
-        var action = fields[0];
-        session.post([CLIENT + COMMAND, action, entity[action]]);        
-      } else {
-        var messages = [];
-        for (var i = 0; i < fields.length; i++) {
-          var action = fields[i];
-          messages.push([CLIENT + COMMAND, action, entity[action]]);
-        }
-        session.post([MULTIPART, messages]);
+      // Check if message is  aso called MULTIPART message. MULTIPART messages
+      // is handled a little bit different then single messages.
+      var messages = graph[0] == MULTIPART ? graph[1] : [graph];
+      for (var i = 0; i < messages.length; i++) {
+        PROCESS_MESSAGE([messages[i], self]);
       }
-      entity.commit();
+    }
+
+    /**
+     *  Override the onclose event of the WebSocket instance.
+     *  @param {WebSocketEvent} event The websocket event object.
+     *  @returns {undefined} Nothing
+     */
+    self.conn.onclose = function(event){
+      self.set_state(CLIENT_DISCONNECTED);
+    };
+    
+    this.set_state(CLIENT_CONNECTING);
+  }
+
+}
+
+/**
+ *  Leaves the game server, if connected to one
+ *  @param {String} reason A reason why leaving
+ *  @return {undefined} Nothing
+ */
+WPilotClient.prototype.leave = function(reason) {
+  this.disconnect_reason = reason;
+  this.conn.close();
+}
+
+/**
+ *  Post a jsonified message to the server 
+ *  @param {String} msg The message that should be sent.
+ *  @return {undefined} Nothing
+ */
+WPilotClient.prototype.post = function(msg) {
+  this.conn.send(JSON.stringify(msg));
+}
+
+/**
+ *  Draws the message log.
+ *  @param {String} msg The message that should be sent.
+ *  @return {undefined} Nothing
+ */
+WPilotClient.prototype.draw_message_log = function() {
+  var ctx             = this.viewport.ctx,
+      log             = this.message_log,
+      log_index       = log.length,
+      log_count       = 0,
+      log_x           = 5,
+      log_y           = this.viewport.h + 7,
+      current_time    = get_time(),
+      max             = this.options.log_max_messages;
+  
+  ctx.font = LOG_FONT;
+  while (log_index-- && ((log.length - 1) - log_index < max)) {
+    var msg = log[log_index];
+    if (!msg.disposed) {
+      var alpha = msg.time > current_time ? 0.8 :
+           0.8 + (0 - ((current_time - msg.time) / 1000));
+      if (alpha < 0.02) {
+        msg.disposed = true;
+      } 
+      ctx.fillStyle = 'rgba(255,255,255,' + alpha + ')';
+      draw_label(ctx, log_x, (log_y -= 12), msg.text, 'left');
+    }
+  }  
+}
+
+/**
+ *  Draws the player HUD.
+ *  @param {String} msg The message that should be sent.
+ *  @return {undefined} Nothing
+ */
+WPilotClient.prototype.draw_hud = function() {
+  var viewport        = this.viewport,
+      ctx             = viewport.ctx,
+      center_w        = viewport.w / 2,
+      center_h        = viewport.h / 2,
+      player_entity   = this.player.entity,
+      opt             = this.options;
+  
+  if (player_entity) {
+    ctx.textAlign = 'center';
+
+    ctx.font = HUD_SMALL_FONT;
+    
+    if(opt.hud_player_score_v) {
+      ctx.fillStyle = HUD_GREY_COLOR;
+      draw_label(ctx, center_w + 72, center_h + 55, 'Score: ' + this.player.s, 'right', 45);
+    }
+
+    if (opt.hud_player_name_v) {
+      ctx.fillStyle = HUD_WHITE_COLOR;
+      draw_label(ctx, center_w - 72, center_h - 45, this.player.name, 'left', 100);
+    }
+
+    if (opt.hud_player_pos_v) {
+      ctx.fillStyle = HUD_WHITE_COLOR;
+      draw_label(ctx, center_w + 72, center_h - 45, 'Pos 1/8', 'right', 45);
     }
     
-    session.world.step(t, step);
-    // loop.kill = env._kill;
+    if (opt.hud_coords_v)  {
+      ctx.fillStyle = HUD_GREY_COLOR;
+      draw_label(ctx, center_w - 72, center_h + 55, parseInt(player_entity.x) + ' x ' + parseInt(player_entity.y));
+    }    
+    
+    if (opt.hud_energy_v) {
+      draw_v_bar(ctx, center_w + 62, center_h - 37, 7, 78, this.player.e);
+    }
+    
   }
 
-  loop.loop_callback = function(t, step, alpha) {
-    var curtime = new Date().getTime();
-    session.env.cur_sps = parseInt(1000 / ((curtime - session.world.start_time) / (t / step)));  
-    draw(session, alpha);
+  ctx.font = HUD_LARGE_FONT;
+  
+  // Draw HUD message
+  // Fixme: Find a better way to cycle between alpha values
+  if (this.hud_message) {
+    var alpha = Math.abs(Math.sin((this.hud_message_alpha += 0.08)));
+    if (alpha < 0.1) alpha = 0.1;
+    ctx.fillStyle = 'rgba(255, 215,0,' + alpha + ')';
+    draw_label(ctx, center_w, viewport.h - 50, this.hud_message, 'center', 100);
   }
   
-  return loop;
 }
 
 
-function initialize_keyboard(target, bindings) {
-  var target = $(target);
-  var state = {};
+/**
+ *  Represents a keyboard device. 
+ *  @param {DOMElement} target The element to read input from.
+ *  @param {Object} bindings A dict with keycode bindings.
+ */
+function Keyboard(target, bindings) {
+  this.target = target;
+  var state = this.state = {};
   
-  for (var key in bindings) state[bindings[key]] = 0;
+  for (var key in bindings) {
+    this.state[bindings[key]] = 0;
+  } 
   
   function get_name(e) {
     if (bindings[e.keyCode]) return bindings[e.keyCode];
@@ -161,153 +478,242 @@ function initialize_keyboard(target, bindings) {
     if (!name && e.metaKey) return bindings['<meta>'];
   }
 
-  document.onkeydown = function(event) {
+  target.onkeydown = function(event) {
     var name = get_name(event);
     if(name) state[name] = 1;
   };
 
-  document.onkeyup = function(event) {
+  target.onkeyup = function(event) {
     var name = get_name(event);
     if(name) state[name] = 0;
   };
+}
 
-  return {
-    on: function(keycode) {
-      return state[keycode];
-    },
-    
-    // 
-    toggle: function(keycode) {
-      if (state[keycode]) {
-        state[keycode] = 0;
-        return 1;
+/**
+ *  Returns current state of a defined key
+ *  @param {String} name Name of defined key
+ *  @return {NUmber} 1 if down else 0.
+ */
+Keyboard.prototype.on = function(name) {
+  return this.state[name];
+}
+
+/**
+ *  Returns current state of a defined key. The key is reseted/toggled if state
+ *  is on.
+ *  @param {String} name Name of defined key
+ *  @return {NUmber} 1 if down else 0.
+ */
+Keyboard.prototype.toggle = function(name) {
+  if (this.state[name]) {
+    this.state[name] = 0;
+    return 1;
+  }
+  return 0;
+}
+
+/**
+ *  Represents a canvas Viewport.
+ *  @param {DOMElement} target The canvas element 
+ *  @param {Number} width The width of the viewport
+ *  @param {Number} height The height of the viewport
+ */
+function Viewport(target, width, height, options) {
+  this.target       = target;
+  this.ctx          = target.getContext('2d');
+  this.camera       = { x: 0, y: 0, w: 0, h: 0, scale: 1};
+  this.w            = width;
+  this.h            = height;
+  this.options      = options;
+  this.world        = {};
+  this.factor       = null;
+  this.autorefresh  = false;
+  this.frame_skip   = 1;
+  this.frame_count  = 0;
+  this.frame_time   = 0;
+  this.current_fps  = 0;
+  this.average_fps  = 0;
+  this.refresh_count = 0;
+
+  // Event callbacks
+  this.ondraw       = function() {};
+  
+  // Set canvas width and height
+  target.width        = width;
+  target.height       = height;
+  
+  // Start to draw things
+  this.set_autorefresh(true);
+}
+
+/**
+ *  Moves the camera focus to the specified point. 
+ *  @param {x, y} A point representing the position of the camera
+ *  @returns {undefined} Nothing
+ */
+Viewport.prototype.set_autorefresh = function(autorefresh) {
+  var self  = this;
+  if (autorefresh != self.autorefresh) {
+    self.autorefresh = autorefresh;
+    self.frame_time = get_time();
+    if (autorefresh) {
+      function loop() {
+        self.refresh(0);
+        if (self.autorefresh) setTimeout(loop, 1);
       }
-      return 0;
-    }
+      loop();
+    } 
   }
 }
 
-function handle_input(session, step) {
-  var env = session.env,
-      player = session.player || {},
-      entity = player.entity,
-      device = session.env.device      
-  if (device.on(BACK)) {
-    env._kill = true;
-    return;
-  }
+/**
+ *  Moves the camera focus to the specified point. 
+ *  @param {x, y} A point representing the position of the camera
+ *  @returns {undefined} Nothing
+ */
+Viewport.prototype.set_camera_pos = function(point) {
+   this.camera.x = point.x - (this.w / 2);
+   this.camera.y = point.y - (this.h / 2);
+   this.camera.w = this.w;
+   this.camera.h = this.h;
+   this.camera.scale = 1;
+}
+
+/**
+ *  Moves the camera focus to the specified point. 
+ *  @param {x, y} A point representing the position of the camera
+ *  @returns {undefined} Nothing
+ */
+Viewport.prototype.set_world = function(world) {
+  this.world = world
+}
   
-  if (entity) {
-    entity.update({
-      't': device.on(THRUST),
-      'r': device.on(ROTATE_E) ? 1 : device.on(ROTATE_W) ? 2 : 0,
-      'sh': player.can_issue_command() ? device.on(SHOOT) : 0,
-      'sd': player.can_issue_command() ? device.on(SHIELD) : 0
-    });
+/**
+ *  Translate a point into a camera pos.
+ *  @param {x, y} The point that should be translated into camera pos
+ *  @return The translated Point
+ */
+Viewport.prototype.translate = function(point) {
+  return {
+    x: point.x - this.camera.x,
+    y: point.y - this.camera.y
+  };
+}
+
+/**
+ *  If necessary, refreshes the view.
+ *
+ *  FIXME: Need a better solution for frame skipping (if possible in JS).. 
+ *         frame_skip +- 0 isnt good enough
+ *  @param {Number} alpha A alpha number that can be used for interpolation
+ *  @return {undefined} Nothing
+ */
+Viewport.prototype.refresh = function(alpha) {
+  var time    = get_time(),
+      diff    = time - this.frame_time,
+      max_fps = this.options.max_fps;
+  
+  if (this.refresh_count % this.frame_skip == 0) {
+    this.draw();
+    this.frame_count++;
+  } 
+  
+  if (diff > 100) {
+    this.current_fps = this.current_fps * 0.9 + (diff / 10) * this.frame_count * 0.1;
     
-    if (entity.sh) {
-      player.r = 10;
+    if (this.current_fps > (max_fps)) {
+      this.frame_skip += 1;
+    } else if (this.frame_skip > 1 && this.current_fps < (max_fps)) {
+      this.frame_skip -= 1;
     }
+    
+    this.frame_time = time;
+    this.frame_count = 0;
+    this.average_fps = this.current_fps;
   }
   
-  // if_changed(env, 'show_pos', device.toggle(TOGGLE_POS));
-  // if_changed(env, 'show_fps', device.toggle(TOGGLE_FPS));
-  // if_changed(env, 'lock_fps', device.toggle(TOGGLE_FLOCK));
+  this.refresh_count++;
 }
 
-
-
-function ViewPort(target) {
-  var q = $(target);
-  var elem = q[0], w = q.width(), h = q.height();
-  elem.width = w;
-  elem.height = h;
-  this.ctx = elem.getContext('2d');
-  this.camera = { x: 0, y: 0, w: 0, h: 0, scale: 1};
-  this.elem = elem;
-  this.w = w;
-  this.h = h;
-  this.world = null;
-  this.factor = null;
+/**
+ *  Draws the scene.
+ *  @return {undefined} Nothing
+ */
+Viewport.prototype.draw = function() {
+  var ctx = this.ctx;
+  ctx.clearRect(0, 0, this.w, this.h);
+  ctx.save();
+  ctx.translate(0, 0);
+  this.ondraw(ctx);
+  if (this.options.show_fps) {
+    ctx.font = LOG_FONT;
+    ctx.fillStyle = LOG_COLOR;
+    draw_label(ctx, this.w - 6, 12, 'FPS count: ' + parseInt(this.average_fps), 'right');
+  }
+  ctx.restore();
 }
 
-ViewPort.prototype = {
+/**
+ *  PROCESS_MESSAGE
+ *  Processes message recieved from server.
+ *  
+ */
+var PROCESS_MESSAGE = Match (
+
+  /**
+   *  The first message recieved from server on connect. Contains the 
+   *  state of the server. 
+   */
+  [[SERVER + STATE, Object], _], 
+  function(state, client) {
+    client.set_server_state(state);
+  },
   
   /**
-   *  Moves the camera focus to the specified point. 
+   *  Is received after the client has sent a CLIENT CONNET message. The message
+   *  contains all data necessary to set up the game world.
    */
-  set_camera_pos: function(point) {
-    this.camera.x = point.x - (this.w / 2);
-    this.camera.y = point.y - (this.h / 2);
-    this.camera.w = this.w;
-    this.camera.h = this.h;
-    this.camera.scale = 1;
-  },
-  
-  set_world_size: function(size) {
-    this.world = { w: size.w, h: size.h }
-  },
-    
-  /**
-   *  Translate a point into a camera pos.
-   */
-  translate: function(point) {
-    return {
-      x: point.x - this.camera.x,
-      y: point.y - this.camera.y
-    };
-  },
-  
-  begin_draw: function() {
-    this.ctx.clearRect(0,0, this.w, this.h);
-    this.ctx.save();
-  },
-  
-  end_draw: function() {
-    this.ctx.restore();
-  }
-}
-
-var process_message = Match (
-  
   [[SERVER + HANDSHAKE, Number, Number, Object, Array, Array], _], 
-  function(player_id, tick, world_data, entities, players, session) {
+  function(player_id, tick, world_data, entities, players, client) {
     var world = new World(world_data);
-    session.world = world;
+    client.world = world;
     for (var i = 0; i < entities.length; i++) {
-      process_message([[ENTITY + SPAWN, entities[i]], session]);
+      PROCESS_MESSAGE([[ENTITY + SPAWN, entities[i]], client]);
     }
     for (var i = 0; i < players.length; i++) {
       world.players[players[i].id] = new Player(players[i]);
     }
-    session.id = player_id;
-    session.player = world.players[player_id];
-    var loop = create_gameloop(tick, session);
-    session.gameloop = loop;
-    session.env.viewport.set_world_size(session.world);
-    loop.start();
-
-    session.post([PLAYER + HANDSHAKE]);
+    client.set_world(world);
+    client.set_player(world.players[player_id]);
+    client.start_gameloop(tick);
+    client.set_state(CLIENT_CONNECTED);
   },
+
+  /**
+   *  Is recieved when disconnected from server.
+   */
+  [[SERVER + DISCONNECT, String], _], 
+  function(reason, client) {
+    client.disconnect_reason = reason;
+  },
+
   
   /**
-   * Player connected
-   * Is recived when a new player is connected to the server.
+   * Is recived when a new player has connected to the server.
    */
   [[PLAYER + CONNECT, Object], _], 
-  function(player_data, session) {
-    console.log('-> Player connect');
-    // var player = new Player(player_data);
-    console.log( 'Player connected...');
+  function(player_data, client) {
+    var player = new Player(player_data);
+    client.world.players[player.id] = player;
+    client.log('Player "' + player.name + ' joined the world...');
   },
 
   /**
-   * Player state changed
-   * Is recived when an existing player is changed
+   * Is recived when the state of a player has changed
    */
   [[PLAYER + STATE, Number, Object], _],
-  function(id, data, session) {
-    var world = session.world,
+  function(id, data, client) {
+    var world = client.world,
         player = world.players[id];
     if (player) {
       player.update(data);
@@ -315,71 +721,90 @@ var process_message = Match (
       if (data.eid) {
         var entity = world.find(data.eid);
         player.entity = entity;
-        if (session.id == player.id) {
-          session.env.player_entity_id = entity.id;
-          session.env.viewport.set_camera_pos(entity);
+        if (player.is_me) {
+          entity.is_me = true;
+          client.viewport.set_camera_pos(entity);
+          client.hud_message = 'Waiting for more players to join..';
         }
       }
     }
   },
   
   /**
-   * Player ship spawned
    * Is recived when a new player ship is spawned
    */
-  [[PLAYER + SPAWN, Object], _],
-  function(entity_data, session) {
-    console.log('Player spawn');
-    var world = session.world,
-        entity = new Ship(entity_data);
-    world.append(entity);
-    world.players[entity.pid].entity = entity;
-    if (session.id == entity.pid) {
-      session.env.player_entity_id = entity.id;
-      session.env.viewport.set_camera_pos(entity);
+  [[PLAYER + DESTROY, Number, Number, Number], _], 
+  function(player_id, death_cause, killer_id, client) {
+    var player  = client.world.players[player_id],
+        killer  = client.world.players[killer_id],
+        text    = '';
+    
+    player.entity = null;
+    
+    if (player.is_me) {
+      if (death_cause == DEATH_CAUSE_KILLED) {
+        text = 'You where killed by ' + killer.name;
+      } else {
+        text = 'You took your own life, you suck!';
+      }
+      client.hud_message = 'Relax, you will respawn soon';
+    } else {
+      if (death_cause == DEATH_CAUSE_KILLED) {
+        text = player.name + ' was killed by' + (killer.is_me ? 'you' : killer.name) + '.';
+      } else {
+        text = player.name + ' killed him self.';
+      }
     }
-  },
-
-  /**
-   * Spawn ship
-   * Is recived when a ship is created
-   */
-  [[ENTITY + SPAWN, {'type =': SHIP}], _],
-  function(data, session) {
-    var entity = new Ship(data);
-    // session.world.players[entity.pid] = entity;
-    session.world.append(entity);
-  },
-
-  /**
-   * Spawn bullet
-   * Is recived when a bullet is created
-   */
-  [[ENTITY + SPAWN, {'type =': BULLET}], _],
-  function(data, session) {
-    console.log('Spawn bullet');
-    console.log(data);
-    var entity = new Bullet(data);
-    session.world.append(entity);
-  },
-
-  /**
-   * Spawn bullet
-   * Is recived when a bullet is created
-   */
-  [[ENTITY + SPAWN, {'type =': WALL}], _],
-  function(data, session) {
-    var entity = new Wall(data);
-    session.world.append(entity);
+    client.log(text);
   },
   
   /**
-   * Entity state changed
+   * Is recived when a player has disconnected from the server.
+   */
+  [[PLAYER + DISCONNECT, Number, String], _], 
+  function(player_id, reason, client) {
+    var player = client.world.players[player_id];
+    client.log('Player "' + player.name + ' disconnected. Reason: ' + reason);
+    delete client.world.players[player_id];
+  },
+  
+
+  /**
+   * Is recived when a ship has been created
+   */
+  [[ENTITY + SPAWN, {'type =': SHIP}], _],
+  function(data, client) {
+    var entity = new Ship(data);
+    // session.world.players[entity.pid] = entity;
+    client.world.append(entity);
+  },
+
+  /**
+   * Is recived when a bullet has been created
+   */
+  [[ENTITY + SPAWN, {'type =': BULLET}], _],
+  function(data, client) {
+    console.log('Spawn bullet');
+    console.log(data);
+    var entity = new Bullet(data);
+    client.world.append(entity);
+  },
+
+  /**
+   * Is recived when a bullet has been created
+   */
+  [[ENTITY + SPAWN, {'type =': WALL}], _],
+  function(data, client) {
+    var entity = new Wall(data);
+    client.world.append(entity);
+  },
+  
+  /**
    * Is recived when an entity's state has changed.
    */
   [[ENTITY + STATE, Number, Object], _],
-  function(id, data, session) {
-    var entity = session.world.find(id);
+  function(id, data, client) {
+    var entity = client.world.find(id);
     if (entity) {
       entity.update(data);
       entity.commit();
@@ -387,72 +812,111 @@ var process_message = Match (
   },
 
   /**
-   * Destroy entity
    * Is recived when an entity is destroyed
    */
   [[ENTITY + DESTROY, Number], _],
-  function(entity_id,  session) {
-    var entity = session.world.find(entity_id);
-    if (session.player.entity.id == entity_id) {
-      console.log('Self was destroyed');
-    }
-    session.world.delete_by_id(entity_id);
-    console.log('Player entity: ' + session.player.entity_id);
-    console.log('Delete entity: ' + entity_id);
+  function(entity_id,  client) {
+    client.world.delete_by_id(entity_id);
   },
-  
+
+  //
+  //  Default message handler.
+  //
+  //  The message sent by server could not be matched.
+  //
   function(msg) {
-    console.log(msg[1]);
+    console.log('Unhandled message')
+    console.log(msg[0]);
   }
 
 );
-// 
-// var collision_manager = Match (
-// 
-//   // Bullet vs. Ship
-//   // A bullet hitted a ship. 
-//   [Ship, Bullet], function(ship, bullet) {  
-//     if (bullet.owner == ship) return;
-//     if (ship.shield) bullet.dead = true;
-//     else ship.dead = true;
-//   },
-//   [Bullet, Ship], function(bullet, ship) { return collision_manager(ship, bullet)},
-//   
-//   // Ship vs. Wall
-//   // A ship hitted a wall.
-//   [Ship, Wall], function(ship, wall) {
-//     if (ship.shield) {
-//       if (wall.w > wall.h) ship.speedy = -ship.speedy;
-//       else ship.speedx = -ship.speedx;
-//     } else {
-//       ship.dead = true;
-//     }
-//   },
-// 
-//   // Bullet vs. Wall
-//   // A bullet hitted a wall. 
-//   [Bullet, Wall], function(bullet, wall) {
-//     console.log('bullet vs wall');
-//     bullet.dead = true;
-//   },
-//   
-//   [Ship, Ship], function(ship_a, ship_b) {
-//     if (!ship_a.shield && !ship_b.shield) {
-//       ship_a.dead = true;
-//       ship_b.dead = true;
-//     } else if(ship_a.shield && ship_b.shield) {
-//       ship_a.speedx = -ship_a.speedx;
-//       ship_a.speedy = -ship_a.speedy;
-// 
-//       ship_b.speedx = -ship_b.speedx;
-//       ship_b.speedy = -ship_b.speedy;
-//     } else {
-//       ship_a.dead = !ship_a.shield;
-//       ship_b.dead = !ship_b.shield;
-//     }
-//   }
-// 
-// );
+
+Player.prototype.before_init = function() {
+  this.is_me = false;
+}
+
+/**
+ *  Method World.draw
+ *  Draw all entites within viewport bounds.
+ */
+World.prototype.draw = function(viewport, alpha) {
+  var entities  = this.entities, 
+      ctx       = viewport.ctx,
+      camera    = viewport.camera;
+  this.draw_grid(ctx, camera);
+  for (var id in entities) {
+    var entity = entities[id], pos = { x: entity.x, y: entity.y };
+    if (intersects(entity, camera)) {
+      if (entity.is_me) {
+        viewport.set_camera_pos(entity);
+      }
+      var point = viewport.translate(pos);
+      ctx.save();
+      ctx.translate(point.x, point.y);
+      ctx.rotate(entity.a);
+      entity.draw(ctx);
+      ctx.restore();
+    }
+  }
+}
+
+/**
+ *  Draw's the background grid of the viewport.
+ */
+World.prototype.draw_grid = function(ctx, camera) {
+//ctx.save();
+   ctx.fillStyle = 'black';
+   ctx.strokeStyle = GRID_CELL_COLOR;
+   ctx.lineWidth = 0.5;
+   ctx.beginPath();
+   var x, y;
+
+   if (camera.x < 0) {
+     x = -camera.x;
+   } else {
+     x = GRID_CELL_SIZE - camera.x % GRID_CELL_SIZE;
+   }
+
+   while(x < camera.w) {
+     ctx.moveTo(x, 0);
+     ctx.lineTo(x, camera.h);
+     x += GRID_CELL_SIZE;
+   }
+
+   if (camera.y < 0) {
+     y = -camera.y;
+   } else {
+     y = GRID_CELL_SIZE - camera.y % GRID_CELL_SIZE
+   }
+
+   while(y < camera.h) {
+     ctx.moveTo(0, y);
+     ctx.lineTo(camera.w, y);
+     y += GRID_CELL_SIZE;
+   }
+   
+   ctx.stroke();
+
+   // Left Edge
+   if (camera.x < 0) {
+     ctx.fillRect(0, 0, -camera.x, camera.h);
+   }
+
+   // Right Edge
+   if (camera.x + camera.w > this.w) {
+     ctx.fillRect(this.w - camera.x, 0, camera.x + camera.w - this.w, camera.h);
+   }
+
+   // Top Edge
+   if (camera.y < 0) {
+     ctx.fillRect(0, 0, camera.w, -camera.y);
+   }
+
+   // Bottom Edge
+   if (camera.y + camera.h > this.h) {
+     ctx.fillRect(0, this.h - camera.y, camera.w, camera.y - camera.h + this.h);
+   }
+}
 
 /**
  *  Class Ship
@@ -461,6 +925,8 @@ var process_message = Match (
  */
 Ship.prototype.before_init = function() {
   this.visible = true;
+  this.is_me = false;
+  this.shield_pulse_alpha = 0.3;
 }
 
 /**
@@ -479,19 +945,13 @@ Ship.prototype.draw = function(ctx) {
   ctx.fill();
   if(this.sd) {
     ctx.beginPath();
+    var alpha = Math.abs(Math.sin((this.shield_pulse_alpha += 0.06)));
+    if (alpha < 0.3) alpha = 0.3;
+    ctx.strokeStyle = 'rgba(255, 255, 255,' + alpha + ')';    
     ctx.arc(0, 0, 20, 0, Math.PI / 180, true);
     ctx.stroke();
   }  
 }
-
-/**
- *  Method Ship.interpolate
- *  Interpolates the x and y coordinates for this Entity instance. Makes things
- *  look smoother.
- */
-Ship.prototype.interpolate = function(alpha) {
-}
-
 
 /**
  *  Class Bullet
@@ -512,20 +972,6 @@ Bullet.prototype.draw = function(ctx) {
 }
 
 /**
- *  Method Bullet.interpolate
- *  Interpolates the x and y coordinates for this Entity instance. Makes things
- *  look smoother.
- */
-Bullet.prototype.interpolate = function(alpha) {
-  var last = this._tags['move@old'];
-  this.update({
-    x: this.x * alpha + last.x * (1 - alpha),
-    y: this.y * alpha + last.y * (1 - alpha)
-  });
-}
-
-
-/**
  *  Class Wall
  *  Local constructor for the Wall Entity class. 
  */
@@ -541,168 +987,9 @@ Wall.prototype.draw = function(ctx, world) {
 }
 
 /**
- *  Method Wall.interpolate
- *  Static entities needs no interpolation.
- */
-Wall.prototype.interpolate = function(alpha) { }
-
-
-/**
- *  Method World.draw
- *  Draw all entites within viewport bounds.
- */
-World.prototype.draw = function(viewport, alpha, env) {
-  var entities = this.entities, ctx = viewport.ctx, state, camera = viewport.camera;
-  this.draw_grid(viewport);  
-  for (var id in entities) {
-    var entity = entities[id], pos = { x: entity.x, y: entity.y };
-    if (intersects(entity, camera)) {
-      if (entity._oldpos) {
-        pos = interpolate(pos, entity._oldpos, alpha);
-      }
-      if (entity.id == env.player_entity_id) {
-        viewport.set_camera_pos(entity);
-      }
-      var point = viewport.translate(pos);
-      ctx.save();
-      ctx.translate(point.x, point.y);
-      ctx.rotate(entity.a);
-      entity.draw(ctx);
-      ctx.restore();
-      // entity._oldpos = { x: entity.x, y: entity.y };
-    }
-  }
-}
-
-/**
- *  Draw's the background grid of the viewport.
- */
-World.prototype.draw_grid = function(viewport) {
-  var ctx = viewport.ctx,
-      cam_x = viewport.camera.x,
-      cam_y = viewport.camera.y,
-      cam_w = viewport.camera.w,
-      cam_h = viewport.camera.h,
-      world_w = this.w,
-      world_h = this.h;
-      
-   ctx.save();
-   ctx.fillStyle = 'black';
-   ctx.strokeStyle = GRID_CELL_COLOR;
-   ctx.lineWidth = 0.5;
-   ctx.beginPath();
-   var x, y;
-
-   if (cam_x < 0) {
-     x = -cam_x;
-   } else {
-     x = GRID_CELL_SIZE - cam_x % GRID_CELL_SIZE;
-   }
-
-   while(x < cam_w) {
-     ctx.moveTo(x, 0);
-     ctx.lineTo(x, cam_h);
-     x += GRID_CELL_SIZE;
-   }
-
-   if (cam_y < 0) {
-     y = -cam_y;
-   } else {
-     y = GRID_CELL_SIZE - cam_y % GRID_CELL_SIZE
-   }
-
-   while(y < cam_h) {
-     ctx.moveTo(0, y);
-     ctx.lineTo(cam_w, y);
-     y += GRID_CELL_SIZE;
-   }
-   
-   ctx.stroke();
-
-   // Left Edge
-   if (cam_x < 0) {
-     ctx.fillRect(0, 0, -cam_x, cam_h);
-   }
-
-   // Right Edge
-   if (cam_x + cam_w > world_w) {
-     ctx.fillRect(world_w - cam_x, 0, cam_x + cam_w - world_w, cam_h);
-   }
-
-   // Top Edge
-   if (cam_y < 0) {
-     ctx.fillRect(0, 0, cam_w, -cam_y);
-   }
-
-   // Bottom Edge
-   if (cam_y + cam_h > world_h) {
-     ctx.fillRect(0, world_h - cam_y, cam_w, cam_y - cam_h + world_h);
-   }
-
-}
-
-function interpolate(current, old, alpha) {
-  return {
-    x: current.x * alpha + old.x * (1 - alpha),
-    y: current.y * alpha + old.y * (1 - alpha),
-  };
-}
-
-/**
+ *  Draws a vertical bar 
  *  
  */
-function draw(session, alpha) {
-  var env = session.env,
-      world = session.world,
-      startime = world.start_time,
-      currtime = new Date().getTime(),
-      viewport = env.viewport; 
-
-  if (!env.lock_fps || env.lock_fps && env.cur_fps < MAX_FPS) {
-      viewport.begin_draw();
-      world.draw(viewport, alpha, env);
-      draw_gui(env, viewport, session.player, env.cur_fps, env.cur_sps);
-      env.fps_frame++;
-      viewport.end_draw();      
-    } 
-    
-  // Update the environment object with the current 
-  // Frame's per second count. 
-  env.cur_fps = parseInt(1000 / ((currtime - startime) / env.fps_frame));  
-}
-
-function draw_gui(options, vp, player, fps, sps) {
-  // console.log(player);
-  var ctx = vp.ctx,
-      entity = player.entity || {},
-      px = parseInt(entity.x || 0),
-      py = parseInt(entity.y || 0),
-      vpw = vp.w / 2,
-      vph = vp.h / 2,
-      cx = px + vpw,
-      cy = py + vph;
-      w = vp.w,
-      h = vp.h;
-  ctx.save();
-  ctx.translate(0, 0);
-  ctx.textAlign = 'center';
-  ctx.fillStyle = 'rgba(255,255,255,0.5)';
-  ctx.font = "9px Arial";
-  if (options.show_pos) 
-    draw_label(ctx, px + ' x ' + py, vpw - 52, vph + 45);
-  if (options.show_fps) {
-    draw_label(ctx, sps + ' steps / ' + fps + ' fps', w - 6, 12, 'right');
-  }
-  if (options.show_energy) {
-    draw_v_bar(ctx, vpw + 45, vph - 25, 7, 50, player.e);
-  }
-  ctx.fillStyle = 'rgba(255,255,255,0.8)';
-  ctx.font = "bold 11px Arial";
-  draw_label(ctx, player.s, vpw + 52, vph + 44, 'right', 45);
-  
-  ctx.restore();            
-}
-
 function draw_v_bar(ctx, x, y, w, h, percent) {
   ctx.lineWidth = 0.2;
   ctx.strokeStyle = 'rgba(255,255,255,0.8)';
@@ -713,9 +1000,19 @@ function draw_v_bar(ctx, x, y, w, h, percent) {
   ctx.stroke();   
 }
 
-function draw_label(ctx, text, x, y, align, width) {
+/**
+ *  Draws a label
+ *  
+ */
+function draw_label(ctx, x, y, text, align, width) {
   ctx.textAlign = align || 'left';
-  // console.log(ctx.textAlign);
   ctx.fillText(text, x, y, width || 0);
+}
+
+/**
+ *  Returns current time stamp
+ */
+function get_time() {
+  return new Date().getTime();
 }
 

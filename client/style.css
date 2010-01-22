@@ -24,7 +24,7 @@ header {
   padding: 10px;
 }
 
-section {
+section#viewport {
   position: absolute;
   color: #ffffff;
   margin-left: -320px;
@@ -42,31 +42,106 @@ section#viewport canvas {
   height: 100%;
 }
 
-#fps {
+section#splash {
   position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 20px;
+  color: white;
+  background: rgba(255,255,255, 0.1);
+  border: 1px solid rgba(255, 215, 0, 0.2);
+  left: 50%;
+  top: 50%;
+  width: 540px;
+  height: 270px;
+  margin-left: -270px;
+  margin-top: -135px;
+}
+
+section#splash h1 {
+  background: url(logo.png) center center no-repeat;
+  text-indent: -100000px;
+  height: 70px;
+}
+
+section#splash p.version {
+  position: absolute;
+  left: 5px;
+  bottom: 0px;
+  font-size: 9px;
+  color: #666666;
+}
+
+section#splash section {
+  margin: 20px 40px 20px 40px;
+  height: 120px;
+}
+
+section#splash .notice {
+  display: block;
+  background: rgba(255,0,0, 0.1);
+  padding-top: 20px;
   text-align: center;
   color: white;
-  font-size: 12px;  
-  font-weight: bold;
+  height: 100px;
 }
 
-#pos {
-  position: absolute;
-  left: 0;
-  bottom: 200px;
-  text-align: left;
+section#splash .server-info {
+  display: none;
+  background: rgba(0,0,0, 0.3);
   color: white;
-  font-size: 12px;  
-  font-weight: bold;
+  text-align: center;
 }
 
-footer {
+section#splash .server-info h2 {
+  color: rgb(255, 215, 0);
+  font-size: 0.9em;
+  padding-top: 10px;
+  margin: 0 0 10px 0;
+  text-align: center;
+}
+
+section#splash .server-info h2 span {
+  display: block;
+  color: #444444;
+  font-size: 0.7em;
+}
+
+section#splash .server-info p {
+  position: relative;
+  margin: 0 0 3px 0;
+  color: #666666;
+  font-size: 0.6em;
+  width: 225px;
+  text-align: right;  
+}
+
+section#splash .server-info p span {
   position: absolute;
-  bottom: 0;
-  font-size: 9px;
-  color: #eeeeee;
-  padding: 10px;
+  text-align: left;
+  left: 235px;
+  width: 200px;
+}
+
+section#splash .server-info .actions {
+  position: relative;
+  font-size: 0.7em;
+  color: #666666;
+  margin-left: 147px;
+  padding-top: 10px;
+  text-align: left;
+}
+
+section#splash .server-info .actions .span {
+}
+
+section#splash .server-info .actions  a {
+  color: #33B6FF;
+  
+}
+
+section#splash .server-info button {
+  border-size: 1px;
+  border-color: rgba(255, 255, 255, 0.6);
+  border-radius: 2px;
+  color: #ffffff;
+  background: black;
+  
 }
