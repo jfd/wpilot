@@ -1,10 +1,28 @@
-Release 0.1
------------
+Roadmap for WPilot server and client
+------------------------------------
+This is the roadmap for WPilot. The list may change over time.
 
-Release 0.2
------------
 
+Release 0.6
+-----------
+- (Server/Client) Implement game rules. You should be able to complete a game round.
+
+Release 0.7
+-----------
+- (Client) Implement network interpolation
+
+Release 0.8
+-----------
+- (Client) Implement animations such as thrust particles and explosions.
 
 Release 0.9
 -----------
-- Add event sounds(bullet sounds, explosions, and thrust).
+- (Client) Add event sounds(bullet sounds, explosions, and thrust).
+- (Client) Improve the GUI and HUD
+
+Release 1.0
+-----------
+- Release a site that lists available game server
+- Release a special made game client that can connect to server in the global
+  server list.
+
