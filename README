@@ -1,0 +1,82 @@
+WPilot
+------
+Welcome to WPilot server. A proof-of-concept remake of the old classic game XPilot (http://www.xpilot.org/), this time in your web browser. The game uses
+new fancy HTML5 features such as WebSocket and Canvas to make it possible.
+
+
+Server requirements
+-------------------
+You need Node.js in order to run the server. Download (or clone) Node.js at http://nodejs.org/
+
+
+Quick start
+-----------
+You can start the game- and client server by typing:
+
+	./wpilots.js
+	
+If you want to enable flash support you need to run the server with the -p switch (note: The Flash Policy Server requires you to run as root):
+
+	./wpilots -p
+	
+After that, start your webbrowser of choice and connect to the specified 
+address (default is: http://127.0.0.1:6114).
+	
+For more more switched, start the server with the '-H' (will change to --help when Node.js supports it) switch.
+
+
+Browser compatibility
+---------------------
+
+First of all, Internet Explorer is NOT supported and proably will never be. The game needs full HTML5 Canvas support and WebSocket to communicate. How ever, WebSocket is not that common so a fallback plugin (Flash) is included. 
+
+WPilot is tested on the following setups:
+
+- Apple Safari 4+ (Mac)
+	Everything seems to be in it's order. Safari lacks support for WebSocket so 
+	the library fallbacks to WebSocketMain.swf.
+
+- Webkit (r1234) 
+	Game works great! Only noticeable thing here is the frame drop. Some thing is probably unstable with the <canvas> tag. Any how, fully playable, without any plugins.
+		
+- Firefox 3.5.7 (Mac)
+	Works great, except when using FireBug. FireBug makes the game drop frames. 	
+	Firefox doesn't support WebSocket at the moment so the fallback plugin is
+	used instead.
+
+- Firefox 3.6 (Mac)
+	Firefox has trouble syncing ENTITY STATE packets from server. The game will
+	feel kind of "laggy".
+	
+- Google Chrome 4.0.295.0 dev (Mac)
+	Works great. Uses WebSocket instead of plugin.
+	
+	
+Known issues
+------------
+
+- The max_fps function works kind of crappy right know. Will fix when time is
+  right.
+
+- The shield may stuck in the wall. 
+
+
+Roadmap
+-------
+See ROADMAP for complete project plan.
+
+
+Special thanks to
+-----------------
+Emanuel Dahlberg (http://github.com/EmanueI)
+Linus Larsson (http://github.com/lahjnus)
+
+
+License
+-------
+See LICENSE for more info
+
+
+Copyright
+---------
+Copyright (c) 2010 Johan Dahlberg

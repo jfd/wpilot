@@ -1,0 +1,147 @@
+html {
+  height: 100%;
+}
+
+body {
+  font-family: Arial;  
+  background-image: url(space.jpg);
+  background-size: 100% 100%;
+  background-position: center center;
+}
+
+h1 {
+    color: white;
+}
+
+header {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  color: white;
+  text-align: center;
+  font-size: 22px;
+  padding: 10px;
+}
+
+section#viewport {
+  position: absolute;
+  color: #ffffff;
+  margin-left: -320px;
+  margin-top: -240px;
+  background: rgba(0, 0, 0, 0.9);
+  border: 1px solid rgba(255,255,255, 0.2);
+  left: 50%;
+  top: 50%;
+  width: 640px;
+  height: 480px;
+}
+
+section#viewport canvas {
+  width: 100%;
+  height: 100%;
+}
+
+section#splash {
+  position: absolute;
+  color: white;
+  background: rgba(255,255,255, 0.1);
+  border: 1px solid rgba(255, 215, 0, 0.2);
+  left: 50%;
+  top: 50%;
+  width: 540px;
+  height: 270px;
+  margin-left: -270px;
+  margin-top: -135px;
+}
+
+section#splash h1 {
+  background: url(logo.png) center center no-repeat;
+  text-indent: -100000px;
+  height: 70px;
+}
+
+section#splash p.version {
+  position: absolute;
+  left: 5px;
+  bottom: 0px;
+  font-size: 9px;
+  color: #666666;
+}
+
+section#splash section {
+  margin: 20px 40px 20px 40px;
+  height: 120px;
+}
+
+section#splash .notice {
+  display: block;
+  background: rgba(255,0,0, 0.1);
+  padding-top: 20px;
+  text-align: center;
+  color: white;
+  height: 100px;
+}
+
+section#splash .server-info {
+  display: none;
+  background: rgba(0,0,0, 0.3);
+  color: white;
+  text-align: center;
+}
+
+section#splash .server-info h2 {
+  color: rgb(255, 215, 0);
+  font-size: 0.9em;
+  padding-top: 10px;
+  margin: 0 0 10px 0;
+  text-align: center;
+}
+
+section#splash .server-info h2 span {
+  display: block;
+  color: #444444;
+  font-size: 0.7em;
+}
+
+section#splash .server-info p {
+  position: relative;
+  margin: 0 0 3px 0;
+  color: #666666;
+  font-size: 0.6em;
+  width: 225px;
+  text-align: right;  
+}
+
+section#splash .server-info p span {
+  position: absolute;
+  text-align: left;
+  left: 235px;
+  width: 200px;
+}
+
+section#splash .server-info .actions {
+  position: relative;
+  font-size: 0.7em;
+  color: #666666;
+  margin-left: 147px;
+  padding-top: 10px;
+  text-align: left;
+}
+
+section#splash .server-info .actions .span {
+}
+
+section#splash .server-info .actions  a {
+  color: #33B6FF;
+  
+}
+
+section#splash .server-info button {
+  border-size: 1px;
+  border-color: rgba(255, 255, 255, 0.6);
+  border-radius: 2px;
+  color: #ffffff;
+  background: black;
+  
+}
