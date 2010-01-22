@@ -174,7 +174,7 @@ function start_gameserver(options, state) {
     do_game_logic(t, dt);
     world.step(t, dt);
     check_collisions(t, dt);
-    post_updated_states(t, dt);
+    post_state_updates(t, dt);
     flush_queues();
   }
   
@@ -245,7 +245,7 @@ function start_gameserver(options, state) {
    *  @param {Number} dt Current delta time,
    *  @return {undefined} Nothing
    */
-  function post_updated_states(t, dt) {
+  function post_state_updates(t, dt) {
     if (t % dt * update_rate) {
       world.each_uncommited(function(item) {
         var connection = null;
