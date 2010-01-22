@@ -43,6 +43,10 @@ WPilot is tested on the following setups:
 	Works great, except when using FireBug. FireBug makes the game drop frames. 	
 	Firefox doesn't support WebSocket at the moment so the fallback plugin is
 	used instead.
+
+- Firefox 3.6 (Mac)
+	Firefox has trouble syncing ENTITY STATE packets from server. The game will
+	feel kind of "laggy".
 	
 - Google Chrome 4.0.295.0 dev (Mac)
 	Works great. Uses WebSocket instead of plugin.
@@ -60,6 +64,7 @@ Known issues
 Roadmap
 -------
 See ROADMAP for complete project plan.
+
 
 Special thanks to
 -----------------
