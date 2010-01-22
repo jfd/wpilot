@@ -54,8 +54,12 @@ Known issues
 - The max_fps function works kind of crappy right know. Will fix when time is
   right.
 
-- The shield 
+- The shield may stuck in the wall. 
 
+
+Roadmap
+-------
+See ROADMAP for complete project plan.
 
 Special thanks to
 -----------------
