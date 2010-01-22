@@ -428,8 +428,10 @@ WPilotClient.prototype.draw_hud = function() {
     }
 
     if (opt.hud_player_pos_v) {
+      var my_pos = '1';
+      var max_pos = this.server_state.no_players;
       ctx.fillStyle = HUD_WHITE_COLOR;
-      draw_label(ctx, center_w + 72, center_h - 45, 'Pos 1/8', 'right', 45);
+      draw_label(ctx, center_w + 72, center_h - 45, 'Pos ' + my_pos + '/' + max_pos, 'right', 45);
     }
     
     if (opt.hud_coords_v)  {
@@ -683,6 +685,7 @@ var PROCESS_MESSAGE = Match (
     for (var i = 0; i < players.length; i++) {
       world.players[players[i].id] = new Player(players[i]);
     }
+    client.server_state.no_players++
     client.set_world(world);
     client.set_player(world.players[player_id]);
     client.start_gameloop(tick);
@@ -705,6 +708,7 @@ var PROCESS_MESSAGE = Match (
   function(player_data, client) {
     var player = new Player(player_data);
     client.world.players[player.id] = player;
+    client.server_state.no_players++;
     client.log('Player "' + player.name + ' joined the world...');
   },
 
@@ -750,6 +754,11 @@ var PROCESS_MESSAGE = Match (
       client.hud_message = 'Relax, you will respawn soon';
     } else {
       if (death_cause == DEATH_CAUSE_KILLED) {
+        if (killer.is_me) {
+          // This is a temporary solution to player score. When game rules are
+          // in place, server will handle this.
+          killer.s++;
+        } 
         text = player.name + ' was killed by' + (killer.is_me ? 'you' : killer.name) + '.';
       } else {
         text = player.name + ' killed him self.';
@@ -766,8 +775,8 @@ var PROCESS_MESSAGE = Match (
     var player = client.world.players[player_id];
     client.log('Player "' + player.name + ' disconnected. Reason: ' + reason);
     delete client.world.players[player_id];
+    client.server_state.no_players--;
   },
-  
 
   /**
    * Is recived when a ship has been created
