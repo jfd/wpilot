@@ -467,6 +467,7 @@ function start_gameserver(options, state) {
         sys.debug('Malformed message recieved');
         require('sys').debug(sys.inspect(data));
         conn.kill('Malformed message sent by client');
+        return;
       }
 
       // Check if message is  aso called MULTIPART message. MULTIPART messages
