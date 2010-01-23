@@ -498,9 +498,9 @@ function start_gameserver(options, state) {
       player.events.addListener('state_changed', function(state) {
         switch (state) {
           case OK:
+            broadcast_exclude(conn, [PLAYER + CONNECT, player.repr()]);
             player.spawn_ship(world.find_respawn_pos());
             log(conn + ' joined the game.');
-            broadcast_exclude(conn, [PLAYER + CONNECT, player.repr()]);
             break;
         }
       });
