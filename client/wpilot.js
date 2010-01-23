@@ -6,7 +6,7 @@
 //  
 //  Copyright (c) 2010 Johan Dahlberg 
 //
-var CLIENT_VERSION = '0.1';
+var CLIENT_VERSION = '(develop version)';
 
 // Keyboard Constants
 var BACK                = 'back',
