@@ -45,7 +45,7 @@ var DEFAULT_OPTIONS         = {
   max_fps:              100,
   show_fps:             true,
   
-  show_netstat:         true, 
+  show_netstat:         false, 
 
   hud_player_score_v:   true,
   hud_player_name_v:    true,
