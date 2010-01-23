@@ -43,7 +43,9 @@ var CLIENT_DISCONNECTED     = 0,
 // by typing wpilot.options[OPTION_NAME] = new_value
 var DEFAULT_OPTIONS         = {
   max_fps:              100,
-  show_fps:             true, 
+  show_fps:             true,
+  
+  show_netstat:         true, 
 
   hud_player_score_v:   true,
   hud_player_name_v:    true,
