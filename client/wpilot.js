@@ -164,7 +164,7 @@ WPilotClient.prototype.set_viewport = function(viewport) {
       self.world.draw(viewport);
       self.draw_hud();
     }
-    self.draw_message_log();
+    self.draw_logs();
   }
   this.viewport = viewport;
 }
@@ -394,11 +394,11 @@ WPilotClient.prototype.post = function(msg) {
 }
 
 /**
- *  Draws the message log.
+ *  Draws logs, which includes the message log, netstat log and fps counter.
  *  @param {String} msg The message that should be sent.
  *  @return {undefined} Nothing
  */
-WPilotClient.prototype.draw_message_log = function() {
+WPilotClient.prototype.draw_logs = function() {
   var ctx             = this.viewport.ctx,
       log             = this.message_log,
       log_index       = log.length,
