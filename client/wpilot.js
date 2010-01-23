@@ -43,7 +43,9 @@ var CLIENT_DISCONNECTED     = 0,
 // by typing wpilot.options[OPTION_NAME] = new_value
 var DEFAULT_OPTIONS         = {
   max_fps:              100,
-  show_fps:             true, 
+  show_fps:             true,
+  
+  show_netstat:         false, 
 
   hud_player_score_v:   true,
   hud_player_name_v:    true,
@@ -94,6 +96,22 @@ function WPilotClient(options) {
   this.message_log        = [];
   this.hud_message        = null;
   this.hud_message_alpha  = 0.2;
+
+  this.netstat            = { 
+    start_time:         null,
+    frequence:          0.4,
+    last_update:        0,
+    bytes_received:     0, 
+    bytes_sent:         0,
+    bps_in:             0,
+    bps_out:            0,
+    peek_in:            0,
+    peek_out:           0,
+    messages_received:  0,
+    messages_sent:      0,
+    mps_in:             0,
+    mps_out:            0,
+  };
   
   // Status variables
   this.state              = CLIENT_DISCONNECTED;
@@ -146,7 +164,7 @@ WPilotClient.prototype.set_viewport = function(viewport) {
       self.world.draw(viewport);
       self.draw_hud();
     }
-    self.draw_message_log();
+    self.draw_logs();
   }
   this.viewport = viewport;
 }
@@ -271,16 +289,12 @@ WPilotClient.prototype.start_gameloop = function(initial_tick) {
   
   // Is called when loop is about to start over.
   gameloop.ondone = function(t, dt, alpha) {
+    self.update_netstat();
     viewport.refresh(alpha);
   }
 
-  // self.gameloop.loop_callback = function(t, step, alpha) {
-  //     var curtime = new Date().getTime();
-  //     session.env.cur_sps = parseInt(1000 / ((curtime - session.world.start_time) / (t / step)));  
-  //     session.draw(session, alpha);
-  //   }
-  // }
   this.viewport.set_autorefresh(false);
+  this.netstat.start_time = this.netstat.last_update = get_time();
   gameloop.start();
   self.gameloop = gameloop;
   return gameloop;
@@ -334,6 +348,11 @@ WPilotClient.prototype.join = function(url) {
       for (var i = 0; i < messages.length; i++) {
         PROCESS_MESSAGE([messages[i], self]);
       }
+      
+      if (self.netstat.start_time) {
+        self.netstat.bytes_received += event.data.length;
+        self.netstat.messages_received += 1;
+      }
     }
 
     /**
@@ -366,15 +385,20 @@ WPilotClient.prototype.leave = function(reason) {
  *  @return {undefined} Nothing
  */
 WPilotClient.prototype.post = function(msg) {
-  this.conn.send(JSON.stringify(msg));
+  var data = JSON.stringify(msg);
+  if (this.netstat.start_time) {
+    this.netstat.bytes_sent += data.length;
+    this.netstat.messages_sent += 1;
+  }
+  this.conn.send(data);
 }
 
 /**
- *  Draws the message log.
+ *  Draws logs, which includes the message log, netstat log and fps counter.
  *  @param {String} msg The message that should be sent.
  *  @return {undefined} Nothing
  */
-WPilotClient.prototype.draw_message_log = function() {
+WPilotClient.prototype.draw_logs = function() {
   var ctx             = this.viewport.ctx,
       log             = this.message_log,
       log_index       = log.length,
@@ -397,6 +421,23 @@ WPilotClient.prototype.draw_message_log = function() {
       draw_label(ctx, log_x, (log_y -= 12), msg.text, 'left');
     }
   }  
+  
+  if (this.options.show_netstat && this.netstat.start_time) {
+    ctx.fillStyle = LOG_COLOR;
+    var in_kps = round_number(this.netstat.bps_in / 1024, 2);
+    var out_kps = round_number(this.netstat.bps_out / 1024, 2);
+    var in_mps = round_number(this.netstat.mps_in, 2);
+    var out_mps = round_number(this.netstat.mps_out, 2);
+    var text = 'Netstat: in: ' + in_kps + 'kb/s, out: ' + out_kps + 'kb/s, ' +
+               'in: ' + in_mps + '/mps, out: ' + out_mps + '/mps';
+    draw_label(ctx, 6, 12, text, 'left');
+  }
+  
+  if (this.options.show_fps) {
+    ctx.font = LOG_FONT;
+    ctx.fillStyle = LOG_COLOR;
+    draw_label(ctx, this.viewport.w - 6, 12, 'FPS count: ' + parseInt(this.viewport.average_fps), 'right');
+  }
 }
 
 /**
@@ -455,8 +496,33 @@ WPilotClient.prototype.draw_hud = function() {
     ctx.fillStyle = 'rgba(255, 215,0,' + alpha + ')';
     draw_label(ctx, center_w, viewport.h - 50, this.hud_message, 'center', 100);
   }
-  
+
 }
+
+/**
+ *  Updates the netstat object
+ *  @return {undefined} Nothing
+ */
+WPilotClient.prototype.update_netstat = function() {
+  var netstat = this.netstat;
+  if (netstat.start_time) {
+    var now = get_time();
+    if (now - netstat.last_update >= 1000) {
+      var diff = now - netstat.last_update - 1000;
+      var secs = ((now - netstat.start_time) / 1000) + (diff / 1000);
+      var fa = netstat.frequence;
+      var fb = 1 - netstat.frequence;
+      netstat.last_update = now + diff;
+      netstat.bps_in = fa * netstat.bps_in + fb * netstat.bytes_received / secs;
+      netstat.bps_out = fa * netstat.bps_out + fb * netstat.bytes_sent / secs;
+      netstat.mps_in = fa * netstat.mps_in + fb * netstat.messages_received / secs;
+      netstat.mps_out = fa * netstat.mps_out + fb * netstat.messages_sent / secs;
+      netstat.peek_in = netstat.bps_in > netstat.peek_in ? netstat.bps_in : netstat.peek_in;
+      netstat.peek_out = netstat.bps_out > netstat.peek_out ? netstat.bps_out : netstat.peek_out;
+    }
+  }
+}
+
 
 
 /**
@@ -647,11 +713,6 @@ Viewport.prototype.draw = function() {
   ctx.save();
   ctx.translate(0, 0);
   this.ondraw(ctx);
-  if (this.options.show_fps) {
-    ctx.font = LOG_FONT;
-    ctx.fillStyle = LOG_COLOR;
-    draw_label(ctx, this.w - 6, 12, 'FPS count: ' + parseInt(this.average_fps), 'right');
-  }
   ctx.restore();
 }
 
@@ -784,8 +845,8 @@ var PROCESS_MESSAGE = Match (
   [[ENTITY + SPAWN, {'type =': SHIP}], _],
   function(data, client) {
     var entity = new Ship(data);
-    // session.world.players[entity.pid] = entity;
     client.world.append(entity);
+    client.world.players[entity.pid] = entity;
   },
 
   /**
@@ -1025,3 +1086,12 @@ function get_time() {
   return new Date().getTime();
 }
 
+/**
+ *  Returns a number with specified decimals
+ *  @param {Number} value The number to round
+ *  @param {Number} decimals The no of deciamls.
+ *  @return {Number} A rounded number.
+ */
+function round_number(value, decimals) {
+	return Math.round(value * Math.pow(10, decimals)) / Math.pow(10, decimals);
+}
