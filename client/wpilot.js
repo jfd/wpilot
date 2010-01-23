@@ -293,12 +293,6 @@ WPilotClient.prototype.start_gameloop = function(initial_tick) {
     viewport.refresh(alpha);
   }
 
-  // self.gameloop.loop_callback = function(t, step, alpha) {
-  //     var curtime = new Date().getTime();
-  //     session.env.cur_sps = parseInt(1000 / ((curtime - session.world.start_time) / (t / step)));  
-  //     session.draw(session, alpha);
-  //   }
-  // }
   this.viewport.set_autorefresh(false);
   this.netstat.start_time = this.netstat.last_update = get_time();
   gameloop.start();
