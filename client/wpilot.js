@@ -98,12 +98,16 @@ function WPilotClient(options) {
   this.hud_message_alpha  = 0.2;
 
   this.netstat            = { 
-    start_time:     null,
-    last_update:    0,
-    bytes_received: 0, 
-    bytes_sent:     0,
-    bps_in:         0,
-    bps_out:        0
+    start_time:         null,
+    last_update:        0,
+    bytes_received:     0, 
+    bytes_sent:         0,
+    bps_in:             0,
+    bps_out:            0,
+    messages_received:  0, 
+    messages_sent:      0,
+    mps_in:             0,
+    mps_out:            0,
   };
   
   // Status variables
@@ -340,16 +344,17 @@ WPilotClient.prototype.join = function(url) {
      */
     self.conn.onmessage = function(event) {
       var graph = JSON.parse(event.data);
-      
-      if (self.netstat.start_time) {
-        self.netstat.bytes_received += event.data.length;
-      }
 
       // Check if message is  aso called MULTIPART message. MULTIPART messages
       // is handled a little bit different then single messages.
       var messages = graph[0] == MULTIPART ? graph[1] : [graph];
       for (var i = 0; i < messages.length; i++) {
         PROCESS_MESSAGE([messages[i], self]);
+      }
+      
+      if (self.netstat.start_time) {
+        self.netstat.bytes_received += event.data.length;
+        self.netstat.messages_received += 1;
       }
     }
 
@@ -386,6 +391,7 @@ WPilotClient.prototype.post = function(msg) {
   var data = JSON.stringify(msg);
   if (this.netstat.start_time) {
     this.netstat.bytes_sent += data.length;
+    this.netstat.messages_sent += 1;
   }
   this.conn.send(data);
 }
@@ -423,7 +429,10 @@ WPilotClient.prototype.draw_message_log = function() {
     ctx.fillStyle = LOG_COLOR;
     var in_kps = round_number(this.netstat.bps_in / 1024, 2);
     var out_kps = round_number(this.netstat.bps_out / 1024, 2);
-    var text = 'Netstat: in: ' + in_kps + 'kb/s, out: ' + out_kps + 'kb/s';
+    var in_mps = round_number(this.netstat.mps_in, 2);
+    var out_mps = round_number(this.netstat.mps_out, 2);
+    var text = 'Netstat: in: ' + in_kps + 'kb/s, out: ' + out_kps + 'kb/s, ' +
+               'in: ' + in_mps + '/mps, out: ' + out_mps + '/mps';
     draw_label(ctx, 6, 12, text, 'left');
   }
 }
@@ -502,6 +511,8 @@ WPilotClient.prototype.update_netstat = function() {
       netstat.last_update = now + diff;
       netstat.bps_in = netstat.bytes_received / secs;
       netstat.bps_out = netstat.bytes_sent / secs;
+      netstat.mps_in = netstat.messages_received / secs;
+      netstat.mps_out = netstat.messages_sent / secs;
     }
   }
 }
