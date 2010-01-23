@@ -846,7 +846,7 @@ var PROCESS_MESSAGE = Match (
   function(data, client) {
     var entity = new Ship(data);
     client.world.append(entity);
-    client.world.players[entity.pid] = entity;
+    entity = client.world.players[entity.pid];
   },
 
   /**
