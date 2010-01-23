@@ -18,7 +18,7 @@ var _         = match.incl;
 
 process.mixin(require('./lib/gameobjects'));
 
-const SERVER_VERSION       = '0.1';
+const SERVER_VERSION       = '0.5.1';
 
 const RE_POLICY_REQ = /<\s*policy\-file\-request\s*\/>/i,
       POLICY_RES    = "<cross-domain-policy><allow-access-from domain=\"*\" to-ports=\"*\" /></cross-domain-policy>";
@@ -467,6 +467,7 @@ function start_gameserver(options, state) {
         sys.debug('Malformed message recieved');
         require('sys').debug(sys.inspect(data));
         conn.kill('Malformed message sent by client');
+        return;
       }
 
       // Check if message is  aso called MULTIPART message. MULTIPART messages
