@@ -432,6 +432,12 @@ WPilotClient.prototype.draw_logs = function() {
                'in: ' + in_mps + '/mps, out: ' + out_mps + '/mps';
     draw_label(ctx, 6, 12, text, 'left');
   }
+  
+  if (this.options.show_fps) {
+    ctx.font = LOG_FONT;
+    ctx.fillStyle = LOG_COLOR;
+    draw_label(ctx, this.viewport.w - 6, 12, 'FPS count: ' + parseInt(this.viewport.average_fps), 'right');
+  }
 }
 
 /**
@@ -707,11 +713,6 @@ Viewport.prototype.draw = function() {
   ctx.save();
   ctx.translate(0, 0);
   this.ondraw(ctx);
-  if (this.options.show_fps) {
-    ctx.font = LOG_FONT;
-    ctx.fillStyle = LOG_COLOR;
-    draw_label(ctx, this.w - 6, 12, 'FPS count: ' + parseInt(this.average_fps), 'right');
-  }
   ctx.restore();
 }
 
