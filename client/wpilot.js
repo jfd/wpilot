@@ -740,11 +740,11 @@ var PROCESS_MESSAGE = Match (
   function(player_id, tick, world_data, entities, players, client) {
     var world = new World(world_data);
     client.world = world;
-    for (var i = 0; i < entities.length; i++) {
-      PROCESS_MESSAGE([[ENTITY + SPAWN, entities[i]], client]);
-    }
     for (var i = 0; i < players.length; i++) {
       world.players[players[i].id] = new Player(players[i]);
+    }
+    for (var i = 0; i < entities.length; i++) {
+      PROCESS_MESSAGE([[ENTITY + SPAWN, entities[i]], client]);
     }
     client.server_state.no_players++
     client.set_world(world);
@@ -846,7 +846,7 @@ var PROCESS_MESSAGE = Match (
   function(data, client) {
     var entity = new Ship(data);
     client.world.append(entity);
-    entity = client.world.players[entity.pid];
+    entity.player = client.world.players[entity.pid];
   },
 
   /**
@@ -997,6 +997,7 @@ Ship.prototype.before_init = function() {
   this.visible = true;
   this.is_me = false;
   this.shield_pulse_alpha = 0.3;
+  this.player = null;
 }
 
 /**
@@ -1013,7 +1014,7 @@ Ship.prototype.draw = function(ctx) {
   ctx.lineTo(-(this.w / 2), this.h);
   ctx.lineTo(0, -this.h);
   ctx.fill();
-  if(this.sd) {
+  if (this.sd) {
     ctx.beginPath();
     var alpha = Math.abs(Math.sin((this.shield_pulse_alpha += 0.06)));
     if (alpha < 0.3) alpha = 0.3;
