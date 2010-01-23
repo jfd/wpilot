@@ -845,8 +845,8 @@ var PROCESS_MESSAGE = Match (
   [[ENTITY + SPAWN, {'type =': SHIP}], _],
   function(data, client) {
     var entity = new Ship(data);
-    // session.world.players[entity.pid] = entity;
     client.world.append(entity);
+    client.world.players[entity.pid] = entity;
   },
 
   /**
