@@ -96,6 +96,15 @@ function WPilotClient(options) {
   this.message_log        = [];
   this.hud_message        = null;
   this.hud_message_alpha  = 0.2;
+
+  this.netstat            = { 
+    start_time:     null,
+    last_update:    0,
+    bytes_received: 0, 
+    bytes_sent:     0,
+    bps_in:         0,
+    bps_out:        0
+  };
   
   // Status variables
   this.state              = CLIENT_DISCONNECTED;
@@ -273,6 +282,7 @@ WPilotClient.prototype.start_gameloop = function(initial_tick) {
   
   // Is called when loop is about to start over.
   gameloop.ondone = function(t, dt, alpha) {
+    self.update_netstat();
     viewport.refresh(alpha);
   }
 
@@ -283,6 +293,7 @@ WPilotClient.prototype.start_gameloop = function(initial_tick) {
   //   }
   // }
   this.viewport.set_autorefresh(false);
+  this.netstat.start_time = this.netstat.last_update = get_time();
   gameloop.start();
   self.gameloop = gameloop;
   return gameloop;
@@ -329,6 +340,10 @@ WPilotClient.prototype.join = function(url) {
      */
     self.conn.onmessage = function(event) {
       var graph = JSON.parse(event.data);
+      
+      if (self.netstat.start_time) {
+        self.netstat.bytes_received += event.data.length;
+      }
 
       // Check if message is  aso called MULTIPART message. MULTIPART messages
       // is handled a little bit different then single messages.
@@ -368,7 +383,11 @@ WPilotClient.prototype.leave = function(reason) {
  *  @return {undefined} Nothing
  */
 WPilotClient.prototype.post = function(msg) {
-  this.conn.send(JSON.stringify(msg));
+  var data = JSON.stringify(msg);
+  if (this.netstat.start_time) {
+    this.netstat.bytes_sent += data.length;
+  }
+  this.conn.send(data);
 }
 
 /**
@@ -399,6 +418,14 @@ WPilotClient.prototype.draw_message_log = function() {
       draw_label(ctx, log_x, (log_y -= 12), msg.text, 'left');
     }
   }  
+  
+  if (this.options.show_netstat && this.netstat.start_time) {
+    ctx.fillStyle = LOG_COLOR;
+    var in_kps = round_number(this.netstat.bps_in / 1024, 2);
+    var out_kps = round_number(this.netstat.bps_out / 1024, 2);
+    var text = 'Netstat: in: ' + in_kps + 'kb/s, out: ' + out_kps + 'kb/s';
+    draw_label(ctx, 6, 12, text, 'left');
+  }
 }
 
 /**
@@ -459,6 +486,26 @@ WPilotClient.prototype.draw_hud = function() {
   }
   
 }
+
+/**
+ *  Updates the netstat object
+ *  @return {undefined} Nothing
+ */
+WPilotClient.prototype.update_netstat = function() {
+  var netstat = this.netstat;
+  if (netstat.start_time) {
+    var now = get_time();
+    if (now - netstat.last_update >= 1000) {
+      var diff = now - netstat.last_update - 1000;
+      var secs = ((now - netstat.start_time) / 1000) + (diff / 1000);
+      console.log('udpate diff' + diff);
+      netstat.last_update = now + diff;
+      netstat.bps_in = netstat.bytes_received / secs;
+      netstat.bps_out = netstat.bytes_sent / secs;
+    }
+  }
+}
+
 
 
 /**
@@ -1027,3 +1074,12 @@ function get_time() {
   return new Date().getTime();
 }
 
+/**
+ *  Returns a number with specified decimals
+ *  @param {Number} value The number to round
+ *  @param {Number} decimals The no of deciamls.
+ *  @return {Number} A rounded number.
+ */
+function round_number(value, decimals) {
+	return Math.round(value * Math.pow(10, decimals)) / Math.pow(10, decimals);
+}
