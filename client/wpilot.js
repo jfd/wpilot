@@ -99,6 +99,7 @@ function WPilotClient(options) {
 
   this.netstat            = { 
     start_time:         null,
+    frequence:          0.4,
     last_update:        0,
     bytes_received:     0, 
     bytes_sent:         0,
@@ -509,14 +510,15 @@ WPilotClient.prototype.update_netstat = function() {
     if (now - netstat.last_update >= 1000) {
       var diff = now - netstat.last_update - 1000;
       var secs = ((now - netstat.start_time) / 1000) + (diff / 1000);
-      console.log('udpate diff' + diff);
+      var fa = netstat.frequence;
+      var fb = 1 - netstat.frequence;
       netstat.last_update = now + diff;
-      netstat.bps_in = netstat.bytes_received / secs;
-      netstat.bps_out = netstat.bytes_sent / secs;
-      netstat.mps_in = netstat.messages_received / secs;
-      netstat.mps_out = netstat.messages_sent / secs;
-      netstat.peek_in = netstat.bps_in > netstat.bps.peek_in ? netstat.bps_in : netstat.peek_in;
-      netstat.peek_out = netstat.bps_out > netstat.bps.peek_out ? netstat.bps_out : netstat.peek_out;
+      netstat.bps_in = fa * netstat.bps_in + fb * netstat.bytes_received / secs;
+      netstat.bps_out = fa * netstat.bps_out + fb * netstat.bytes_sent / secs;
+      netstat.mps_in = fa * netstat.mps_in + fb * netstat.messages_received / secs;
+      netstat.mps_out = fa * netstat.mps_out + fb * netstat.messages_sent / secs;
+      netstat.peek_in = netstat.bps_in > netstat.peek_in ? netstat.bps_in : netstat.peek_in;
+      netstat.peek_out = netstat.bps_out > netstat.peek_out ? netstat.bps_out : netstat.peek_out;
     }
   }
 }
