@@ -104,7 +104,9 @@ function WPilotClient(options) {
     bytes_sent:         0,
     bps_in:             0,
     bps_out:            0,
-    messages_received:  0, 
+    peek_in:            0,
+    peek_out:           0,
+    messages_received:  0,
     messages_sent:      0,
     mps_in:             0,
     mps_out:            0,
@@ -493,7 +495,7 @@ WPilotClient.prototype.draw_hud = function() {
     ctx.fillStyle = 'rgba(255, 215,0,' + alpha + ')';
     draw_label(ctx, center_w, viewport.h - 50, this.hud_message, 'center', 100);
   }
-  
+
 }
 
 /**
@@ -513,6 +515,8 @@ WPilotClient.prototype.update_netstat = function() {
       netstat.bps_out = netstat.bytes_sent / secs;
       netstat.mps_in = netstat.messages_received / secs;
       netstat.mps_out = netstat.messages_sent / secs;
+      netstat.peek_in = netstat.bps_in > netstat.bps.peek_in ? netstat.bps_in : netstat.peek_in;
+      netstat.peek_out = netstat.bps_out > netstat.bps.peek_out ? netstat.bps_out : netstat.peek_out;
     }
   }
 }
