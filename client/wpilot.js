@@ -162,6 +162,9 @@ WPilotClient.prototype.set_viewport = function(viewport) {
   var self = this;
   viewport.ondraw = function() {
     if (self.state == CLIENT_CONNECTED) {
+      if (self.player.entity) {
+        viewport.set_camera_pos(self.player.entity);
+      }
       self.world.draw(viewport);
       self.draw_hud();
     }
@@ -484,6 +487,11 @@ WPilotClient.prototype.draw_hud = function() {
     if (opt.hud_energy_v) {
       draw_v_bar(ctx, center_w + 62, center_h - 37, 7, 78, this.player.e);
     }
+    
+    ctx.save();
+    ctx.translate(center_w, center_h);
+    player_entity.draw(ctx);
+    ctx.restore();
     
   }
 
@@ -917,10 +925,7 @@ World.prototype.draw = function(viewport, alpha) {
   this.draw_grid(ctx, camera);
   for (var id in entities) {
     var entity = entities[id], pos = { x: entity.x, y: entity.y };
-    if (intersects(entity, camera)) {
-      if (entity.is_me) {
-        viewport.set_camera_pos(entity);
-      }
+    if (!entity.is_me && intersects(entity, camera)) {
       var point = viewport.translate(pos);
       ctx.save();
       ctx.translate(point.x, point.y);
