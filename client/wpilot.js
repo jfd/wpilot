@@ -794,28 +794,30 @@ var PROCESS_MESSAGE = Match (
         killer  = client.world.players[killer_id],
         text    = '';
     
-    player.entity = null;
-    
-    if (player.is_me) {
-      if (death_cause == DEATH_CAUSE_KILLED) {
-        text = 'You where killed by ' + killer.name;
+    if (player) {
+      player.entity = null;
+
+      if (player.is_me) {
+        if (death_cause == DEATH_CAUSE_KILLED) {
+          text = 'You where killed by ' + killer.name;
+        } else {
+          text = 'You took your own life, you suck!';
+        }
+        client.hud_message = 'Relax, you will respawn soon';
       } else {
-        text = 'You took your own life, you suck!';
+        if (death_cause == DEATH_CAUSE_KILLED) {
+          if (killer.is_me) {
+            // This is a temporary solution to player score. When game rules are
+            // in place, server will handle this.
+            killer.s++;
+          } 
+          text = player.name + ' was killed by ' + (killer.is_me ? 'you' : killer.name) + '.';
+        } else {
+          text = player.name + ' killed him self.';
+        }
       }
-      client.hud_message = 'Relax, you will respawn soon';
-    } else {
-      if (death_cause == DEATH_CAUSE_KILLED) {
-        if (killer.is_me) {
-          // This is a temporary solution to player score. When game rules are
-          // in place, server will handle this.
-          killer.s++;
-        } 
-        text = player.name + ' was killed by ' + (killer.is_me ? 'you' : killer.name) + '.';
-      } else {
-        text = player.name + ' killed him self.';
-      }
+      client.log(text);      
     }
-    client.log(text);
   },
   
   /**
