@@ -246,8 +246,7 @@ function start_gameserver(options, state) {
    *  @return {undefined} Nothing
    */
   function post_state_updates(t, dt) {
-    var time = parseInt(t * 1000);
-    if (time % update_rate == 0) {
+    if (parseInt(t * 1000) % update_rate == 0) {
       world.each_uncommited(function(item) {
         var connection = null;
         if (item.player) {
