@@ -1016,7 +1016,7 @@ Ship.prototype.draw = function(ctx) {
   ctx.fill();
   if(!this.is_me){  
     ctx.rotate(-this.a);
-  	ctx.fillStyle = this.player.color;
+  	ctx.fillStyle = 'rgb(' + this.player.color + ')';
     draw_label(ctx, -this.w, this.h+10, this.player.name, 'left', 100);	
   }
   if (this.sd) {
