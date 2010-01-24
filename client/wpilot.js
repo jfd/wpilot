@@ -995,6 +995,7 @@ World.prototype.draw_grid = function(ctx, camera) {
 Ship.prototype.before_init = function() {
   this.visible = true;
   this.is_me = false;
+  this.position_lights_alpha = 0.3;
   this.shield_pulse_alpha = 0.3;
   this.player = null;
 }
@@ -1013,6 +1014,21 @@ Ship.prototype.draw = function(ctx) {
   ctx.lineTo(this.w / 2, (this.h / 2));
   ctx.lineTo(-(this.w / 2), (this.h / 2));
   ctx.lineTo(0, -(this.h / 2));
+  ctx.fill();
+  //posistion lights
+  var pos_alpha = Math.abs(Math.sin((this.position_lights_alpha += 0.06)));
+  ctx.beginPath();
+  ctx.fillStyle = 'rgba(' + this.player.color + ',' + pos_alpha +')';
+  ctx.arc(this.w / 2, this.h,1,0, 2*Math.PI,true)
+  ctx.fill();
+  ctx.beginPath();
+  ctx.fillStyle = 'rgba(' + this.player.color + ',' + pos_alpha +')';
+  ctx.arc(-(this.w / 2), this.h,1,0, 2* Math.PI,true)
+  ctx.fill();
+  //ship window
+  ctx.beginPath();
+  ctx.fillStyle = 'rgb(' + this.player.color + ')';
+  ctx.arc(0,0,2,0, Math.PI,true)
   ctx.fill();
   if(!this.is_me){  
     ctx.rotate(-this.a);
