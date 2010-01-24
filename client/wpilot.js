@@ -27,12 +27,13 @@ var HUD_SMALL_FONT      = 'bold 9px Arial',
     HUD_WHITE_COLOR     = 'rgba(255,255,255,0.8)',
     HUD_GREY_COLOR      = 'rgba(255,255,255,0.4)';
 
-
 // Message log related constants.
 var LOG_AGE_LIMIT       = 100,
     LOG_HISTORY_COUNT   = 20,
     LOG_FONT            = '9px Arial',
     LOG_COLOR           = 'rgba(255,255,255,0.4)';
+
+var SHIP_FONT           = '9px Arial';
 
 // WPilotClient states
 var CLIENT_DISCONNECTED     = 0,
@@ -1032,8 +1033,9 @@ Ship.prototype.draw = function(ctx) {
   ctx.fill();
   if(!this.is_me){  
     ctx.rotate(-this.a);
+    ctx.font = SHIP_FONT;
   	ctx.fillStyle = 'rgb(' + this.player.color + ')';
-    draw_label(ctx, -this.w, this.h+10, this.player.name, 'left', 100);	
+    draw_label(ctx, 0, this.h + 10, this.player.name, 'center', 100);	
   }
   if (this.sd) {
     ctx.beginPath();
