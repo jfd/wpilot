@@ -258,8 +258,8 @@ function start_gameserver(options, state) {
           } else {
             broadcast([item._subject + STATE, item.id, item.changed_values()]);
           }
+          item.commit();
         }
-        item.commit();
       });
     } 
   }
