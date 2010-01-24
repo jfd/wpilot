@@ -820,7 +820,7 @@ var PROCESS_MESSAGE = Match (
           // in place, server will handle this.
           killer.s++;
         } 
-        text = player.name + ' was killed by' + (killer.is_me ? 'you' : killer.name) + '.';
+        text = player.name + ' was killed by ' + (killer.is_me ? 'you' : killer.name) + '.';
       } else {
         text = player.name + ' killed him self.';
       }
@@ -1014,6 +1014,11 @@ Ship.prototype.draw = function(ctx) {
   ctx.lineTo(-(this.w / 2), (this.h / 2));
   ctx.lineTo(0, -(this.h / 2));
   ctx.fill();
+  if(!this.is_me){  
+    ctx.rotate(-this.a);
+  	ctx.fillStyle = this.player.color;
+    draw_label(ctx, -this.w, this.h+10, this.player.name, 'left', 100);	
+  }
   if (this.sd) {
     ctx.beginPath();
     var alpha = Math.abs(Math.sin((this.shield_pulse_alpha += 0.06)));
