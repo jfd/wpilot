@@ -1009,10 +1009,10 @@ Ship.prototype.draw = function(ctx) {
   ctx.lineWidth = 1;
   ctx.fillStyle = "white";
   ctx.beginPath();
-  ctx.moveTo(0, -this.h);
-  ctx.lineTo(this.w / 2, this.h);
-  ctx.lineTo(-(this.w / 2), this.h);
-  ctx.lineTo(0, -this.h);
+  ctx.moveTo(0, -(this.h / 2));
+  ctx.lineTo(this.w / 2, (this.h / 2));
+  ctx.lineTo(-(this.w / 2), (this.h / 2));
+  ctx.lineTo(0, -(this.h / 2));
   ctx.fill();
   if (this.sd) {
     ctx.beginPath();
@@ -1021,7 +1021,7 @@ Ship.prototype.draw = function(ctx) {
     ctx.strokeStyle = 'rgba(255, 255, 255,' + alpha + ')';    
     ctx.arc(0, 0, 20, 0, Math.PI / 180, true);
     ctx.stroke();
-  }  
+  }
 }
 
 /**
@@ -1040,7 +1040,7 @@ Bullet.prototype.before_init = function() {
 Bullet.prototype.draw = function(ctx) {
   ctx.rotate(this.a);
   ctx.fillStyle = "white";
-  ctx.fillRect(0, 0, this.w, this.h);
+  ctx.fillRect(-(this.w / 2), -(this.h / 2), this.w, this.h);
 }
 
 /**
