@@ -811,17 +811,11 @@ Player.prototype.die = function(death_cause, killed_by) {
  *  Spawns a new bullet.
  *  @return {gameobjects.Bullet} The newly created Bullet instance.
  */
-Player.prototype.spawn_bullet = function(reason) {
-  var ship = this.get_entity();
-  var entity = this.world.spawn_entity('bullet', {
-    oid: ship.id,
-    x: ship.x + Math.cos(ship.a - Math.PI/2) * ship.w * 2,
-    y: ship.y + Math.sin(ship.a - Math.PI/2) * ship.w * 2,
-    a: ship.a
-  });
-  entity.player = this;
-  this.events.emit('spawn', entity);
-  return entity;
+Player.prototype.spawn_bullet = function() {
+  var bullet = this.world.spawn_bullet(this.entity);
+  bullet.player = this;
+  this.events.emit('spawn', bullet);
+  return bullet;
 }
 
 /**
