@@ -246,15 +246,18 @@ function start_gameserver(options, state) {
    *  @return {undefined} Nothing
    */
   function post_state_updates(t, dt) {
-    if (parseInt(t * 1000) % update_rate == 0) {
+    var time = parseInt(t * 1000);
+    if (time % update_rate == 0) {
       world.each_uncommited(function(item) {
-        var connection = null;
-        if (item.player) {
-          connection = item.player.connection;
-          connection.queue([item._subject + STATE, item.id, item.changed_values('dynamic')]);
-          broadcast_exclude(connection, [item._subject + STATE, item.id, item.changed_values()]);
-        } else {
-          broadcast([item._subject + STATE, item.id, item.changed_values()]);
+        if (item.update_interval && time % item.update_interval == 0) {
+          var connection = null;
+          if (item.player) {
+            connection = item.player.connection;
+            connection.queue([item._subject + STATE, item.id, item.changed_values('dynamic')]);
+            broadcast_exclude(connection, [item._subject + STATE, item.id, item.changed_values()]);
+          } else {
+            broadcast([item._subject + STATE, item.id, item.changed_values()]);
+          }
         }
         item.commit();
       });
