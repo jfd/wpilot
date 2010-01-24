@@ -872,16 +872,6 @@ World.prototype.build = function() {
 }
 
 /**
- *  Returns a random value from an array.
- *  @param {Array} src Source array.
- *  @return {Object} The value
- */
-function get_random_value(src) {
-  var no = Math.floor(Math.random()*src.length);
-  return src[no];
-}
-
-/**
  *  Starts a webserver that serves WPilot client related files.
  *  @param {Object} options Web server options.
  *  @return {http.Server} Returns the HTTP server instance.
@@ -962,6 +952,28 @@ function get_rules(options) {
   }
   return rules; 
 }
+
+/**
+ *  Returns a random value from an array and discards values that is already
+ *  picked. 
+ *  @param {Array} src Source array.
+ *  @param {Array} list An array that contains objects that already has been  
+                        assigned a value.
+ *  @param {String} prop_name The name of the property to check against. 
+ *  @return {Object} The value
+ */
+function get_random_value(src, list, prop_name) {
+  var value = null, count = 0;
+  while (!value && count++ <= src.length) {
+    value = src[Math.floor(Math.random() * src.length)];
+    src.forEach(function(item){
+      if (item[prop_name] == value) value = null;
+    });
+    if (value) return value;
+  }
+  return src[0];
+}
+
 
 /**
  *  Parses and returns server options from ARGV.
