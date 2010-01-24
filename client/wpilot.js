@@ -68,21 +68,6 @@ var DEFAULT_OPTIONS         = {
   }
 }
 
-// Keyboard bindings
-var KEYBOARD_BINDINGS = {
-  27:         BACK,           // Trigger: ESC
-  
-  37:         ROTATE_W,       // Trigger: Left arrow
-  39:         ROTATE_E,       // Trigger: Right arrow
-  38:         THRUST,         // Trigger: Up arrow
-  32:         SHOOT,          // Trigger: Space
-  40:         SHIELD,         // Trigger: Down arrow
-
-  49:         TOGGLE_FPS,     // Trigger: f
-  50:         TOGGLE_POS,     // Trigger: p
-  51:         TOGGLE_FLOCK    // Trigger: l
-}
-
 /**
  *  Represents the WPilot client.
  */
@@ -246,12 +231,12 @@ WPilotClient.prototype.set_state = function(state) {
 WPilotClient.prototype.process_user_input = function(t, dt) {
   var player        = this.player,
       input        = this.input;
-  
+
   player.update({
-    't': input.on(THRUST),
-    'r': input.on(ROTATE_E) ? 1 : input.on(ROTATE_W) ? 2 : 0,
-    'sh': input.on(SHOOT),
-    'sd': input.on(SHIELD)
+    't': input.on('thrust'),
+    'r': input.on('rotate_east') ? 1 : input.on('rotate_west') ? 2 : 0,
+    'sh': input.on('shoot'),
+    'sd': input.on('shield')
   });
 
   if (player.is_changed('actions')) {
@@ -532,37 +517,31 @@ WPilotClient.prototype.update_netstat = function() {
   }
 }
 
-
-
 /**
  *  Represents a keyboard device. 
  *  @param {DOMElement} target The element to read input from.
- *  @param {Object} bindings A dict with keycode bindings.
+ *  @param {Object} options Options with .bindings
  */
-function Keyboard(target, bindings) {
+function Keyboard(target, options) {
+  var key_states = this.key_states = {};
   this.target = target;
-  var state = this.state = {};
+  this.bindings = options.bindings
   
-  for (var key in bindings) {
-    this.state[bindings[key]] = 0;
-  } 
-  
-  function get_name(e) {
-    if (bindings[e.keyCode]) return bindings[e.keyCode];
-    if (!name && e.shiftKey) return bindings['<shift>'];
-    if (!name && e.ctrlKey) return bindings['<ctrl>'];
-    if (!name && e.altKey) return bindings['<alt>'];
-    if (!name && e.metaKey) return bindings['<meta>'];
+  for (var i=16; i < 128; i++) {
+    key_states[i] = 0;
   }
-
-  target.onkeydown = function(event) {
-    var name = get_name(event);
-    if(name) state[name] = 1;
+  
+  key_states['shift'] = 0;
+  key_states['ctrl'] = 0;
+  key_states['alt'] = 0;
+  key_states['meta'] = 0;
+  
+  target.onkeydown = function(e) {
+    if(key_states[e.keyCode] == 0) key_states[e.keyCode] = 1;
   };
 
-  target.onkeyup = function(event) {
-    var name = get_name(event);
-    if(name) state[name] = 0;
+  target.onkeyup = function(e) {
+    if(key_states[e.keyCode] == 1) key_states[e.keyCode] = 0;
   };
 }
 
@@ -572,7 +551,8 @@ function Keyboard(target, bindings) {
  *  @return {NUmber} 1 if down else 0.
  */
 Keyboard.prototype.on = function(name) {
-  return this.state[name];
+  var key = this.bindings[name];
+  return this.key_states[key];
 }
 
 /**
@@ -582,8 +562,9 @@ Keyboard.prototype.on = function(name) {
  *  @return {NUmber} 1 if down else 0.
  */
 Keyboard.prototype.toggle = function(name) {
-  if (this.state[name]) {
-    this.state[name] = 0;
+  var key = this.bindings[name];
+  if (this.state[key]) {
+    this.state[key] = 0;
     return 1;
   }
   return 0;

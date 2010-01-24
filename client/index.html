@@ -25,7 +25,7 @@
 			  var options = $.extend({}, DEFAULT_OPTIONS);
 			  var canvas = $('#viewport canvas');
 			  var viewport  = new Viewport(canvas[0], canvas.width(), canvas.height(), options),
-			      keyboard  = new Keyboard(document, KEYBOARD_BINDINGS);
+			      keyboard  = new Keyboard(document, options);
 
 			  wpilot = new WPilotClient(options);
 			  wpilot.set_viewport(viewport)
