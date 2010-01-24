@@ -1,0 +1,12 @@
+Version 0.5.2
+- (game) Better Bullet physics 
+- (game) Bug: Bounding boxes is now correct.
+
+- (client) Added a netstat module. Activate by entering
+ 					 "wpilot.options.show_netstat = true" in the javascript console.
+- (client) Names under opponent ships
+- (client) Controls are now customizable from the console. Type:
+ 					 "wpilot.options.bindings[ACTION] = KEYCODE" to change.
+
+- (server) Bug: Fixed server-crash caused by malformed client message. 
+- (server) Update rate is now customizable (will make as much bandwidth). 
