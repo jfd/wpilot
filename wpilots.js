@@ -814,7 +814,7 @@ Player.prototype.spawn_bullet = function(reason) {
     oid: ship.id,
     x: ship.x + Math.cos(ship.a - Math.PI/2) * ship.w * 2,
     y: ship.y + Math.sin(ship.a - Math.PI/2) * ship.w * 2,
-    a: ship.a,
+    a: ship.a
   });
   entity.player = this;
   this.events.emit('spawn', entity);
@@ -853,16 +853,16 @@ World.prototype.before_init = function() {
  */
 World.prototype.build = function() {
   this.spawn_entity('wall', {
-    x: 0, y: 0, w: this.w + 2, h:2
+    x: 0, y: 0, w: this.w + 10, h: 10, o: 'n'
   });
   this.spawn_entity('wall', {
-    x: this.w, y: 0, w: 2, h: this.h + 2
+    x: this.w, y: 0, w: 10, h: this.h + 10, o: 'e'
   });
   this.spawn_entity('wall', {
-    x: 0, y: this.h , w: this.w + 2, h: 2
+    x: 0, y: this.h , w: this.w + 10, h: 10, o: 's'
   });
   this.spawn_entity('wall', {
-    x: 0, y: 0, w: 2, h: this.h + 2
+    x: 0, y: 0, w: 10, h: this.h + 10, o: 'w'
   });
 }
 

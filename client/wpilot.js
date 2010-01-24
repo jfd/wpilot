@@ -1054,9 +1054,25 @@ Wall.prototype.before_init = function() { }
  *  Draws Wall instance on the specified GraphicsContext.
  */
 Wall.prototype.draw = function(ctx, world) {
-  ctx.rotate(this.a);
-  ctx.fillStyle = "red";
+  var t = Math.min(this.w, this.h) * 0.2,
+      o = Math.min(this.w, this.h) * 0.8;
+  ctx.fillStyle = "black";
   ctx.fillRect(0, 0, this.w, this.h);
+  ctx.fillStyle = "red";
+  switch (this.o) {
+    case 'n':
+      ctx.fillRect(o, this.h - t, this.w - o * 2, t);
+      break;
+    case 'e':
+      ctx.fillRect(0, o, t, this.h - o * 2);
+      break;
+    case 's':
+      ctx.fillRect(o, 0, this.w - o * 2, t);
+      break;
+    case 'w':
+      ctx.fillRect(this.w - t, o, t, this.h - o * 2);
+      break;
+  }
 }
 
 /**
