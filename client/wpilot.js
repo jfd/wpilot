@@ -923,7 +923,6 @@ World.prototype.draw = function(viewport, alpha) {
       var point = viewport.translate(pos);
       ctx.save();
       ctx.translate(point.x, point.y);
-      ctx.rotate(entity.a);
       entity.draw(ctx);
       ctx.restore();
     }
@@ -1005,6 +1004,7 @@ Ship.prototype.before_init = function() {
  *  Draws the Ship instance on the specified GraphicsContext.
  */
 Ship.prototype.draw = function(ctx) {
+  ctx.rotate(this.a);
   ctx.strokeStyle = "white";
   ctx.lineWidth = 1;
   ctx.fillStyle = "white";
@@ -1038,6 +1038,7 @@ Bullet.prototype.before_init = function() {
  *  Draws the Bullet instance on the specified GraphicsContext.
  */
 Bullet.prototype.draw = function(ctx) {
+  ctx.rotate(this.a);
   ctx.fillStyle = "white";
   ctx.fillRect(0, 0, this.w, this.h);
 }
@@ -1053,6 +1054,7 @@ Wall.prototype.before_init = function() { }
  *  Draws Wall instance on the specified GraphicsContext.
  */
 Wall.prototype.draw = function(ctx, world) {
+  ctx.rotate(this.a);
   ctx.fillStyle = "red";
   ctx.fillRect(0, 0, this.w, this.h);
 }
