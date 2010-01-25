@@ -3,10 +3,6 @@ Roadmap for WPilot server and client
 This is the roadmap for WPilot. The list may change over time.
 
 
-Release 0.6
------------
-- (Server/Client) Implement game rules. You should be able to complete a game round.
-
 Release 0.7
 -----------
 - (Client) Implement network interpolation
