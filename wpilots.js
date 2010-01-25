@@ -306,7 +306,7 @@ function start_gameserver(options, state) {
       }
 
       if (player.entity) {
-        var entity = player.entity, recover_energy = true;
+        var entity = player.entity;
 
         entity.update_field(THRUST, player[THRUST]);
         entity.update_field(ROTATE, player[ROTATE]);
@@ -315,7 +315,6 @@ function start_gameserver(options, state) {
           player.update({
             e: player.e - rules.shield_cost * dt
           });
-          recover_energy = false;
           entity.update_field(SHIELD, 1);
         } else {
           entity.update_field(SHIELD, 0);
@@ -332,12 +331,11 @@ function start_gameserver(options, state) {
           });
           player.reload_time = t + rules.reload_time * dt;
           player.spawn_bullet();
-          recover_energy = false;
         } else {
           entity.update_field(SHOOT, 0);
         }
         
-        if (player.e <= 100 && recover_energy) {
+        if (player.e <= 100 && !player[SHIELD] && !player[SHOOT]) {
           player.update({
             e: player.e + rules.energy_recovery * dt
           });
