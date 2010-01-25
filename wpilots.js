@@ -53,7 +53,11 @@ const SWITCHES = [
   ['--r_reload_time NUMBER',      'Rule: The reload time after fire. (Default: 15)'],
   ['--r_shoot_cost NUMBER',       'Rule: Energy cost of shooting a bullet. (Default: 800)'],
   ['--r_shield_cost NUMBER',      'Rule: Energy cost of using the shield. (Default: 70)'],
-  ['--r_energy_recovery NUMBER',  'Rule: Energy recovery unit (Default: 40)']
+  ['--r_energy_recovery NUMBER',  'Rule: Energy recovery unit (Default: 40)'],
+  ['--r_round_limit NUMBER',      'Rule: Round score limit (Default: 10)'],
+  ['--r_round_rs_time NUMBER',    'Rule: Restart time after round finished (Default: 600)'],
+  ['--r_penelty_score NUMBER',    'Rule: The cost of suicides (Default: 1)'],
+  ['--r_kill_score NUMBER',       'Rule: The price of a kill (Default: 1)']
 ];
 
 // Default server options
