@@ -1,12 +1,23 @@
+Version 0.6
+	- (game) Implement game rules. The winner is a player that reaches the round
+	 				 limit. The round limit is decided by server owner (use the
+	 				 --r_round_limit switch to change value). 
+	
+	- (server) Added switches: --r_round_limit, --r_round_rs_time, 
+						 --r_penelty_score and --r_kill_score.
+
+	- (client) Optimized the HUD message
+
+
 Version 0.5.2
-- (game) Better Bullet physics 
-- (game) Bug: Bounding boxes is now correct.
+	- (game) Better Bullet physics 
+	- (game) Bug: Bounding boxes is now correct.
 
-- (client) Added a netstat module. Activate by entering
- 					 "wpilot.options.show_netstat = true" in the javascript console.
-- (client) Names under opponent ships
-- (client) Controls are now customizable from the console. Type:
- 					 "wpilot.options.bindings[ACTION] = KEYCODE" to change.
+	- (client) Added a netstat module. Activate by entering
+	 					 "wpilot.options.show_netstat = true" in the javascript console.
+	- (client) Names under opponent ships
+	- (client) Controls are now customizable from the console. Type:
+	 					 "wpilot.options.bindings[ACTION] = KEYCODE" to change.
 
-- (server) Bug: Fixed server-crash caused by malformed client message. 
-- (server) Update rate is now customizable (will make as much bandwidth). 
+	- (server) Bug: Fixed server-crash caused by malformed client message. 
+	- (server) Update rate is now customizable (will make as much bandwidth
