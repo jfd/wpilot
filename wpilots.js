@@ -18,7 +18,7 @@ var _         = match.incl;
 
 process.mixin(require('./lib/gameobjects'));
 
-const SERVER_VERSION       = '(develop version)';
+const SERVER_VERSION       = '0.6';
 
 const RE_POLICY_REQ = /<\s*policy\-file\-request\s*\/>/i,
       POLICY_RES    = "<cross-domain-policy><allow-access-from domain=\"*\" to-ports=\"*\" /></cross-domain-policy>";

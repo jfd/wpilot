@@ -6,7 +6,7 @@
 //  
 //  Copyright (c) 2010 Johan Dahlberg 
 //
-var CLIENT_VERSION = '(develop version)';
+var CLIENT_VERSION = '0.6';
 
 var _ = Match.incl;
 
