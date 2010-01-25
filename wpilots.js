@@ -169,6 +169,7 @@ function start_gameserver(options, state) {
                             (options.pub_ws_port || options.ws_port) + '/';
   state.max_players       = options.max_players;
   state.no_players        = 0;
+  state.no_ready_players  = 0;
   state.update_rate       = options.update_rate;
   state.flash_compatible  = options.serve_flash_policy;
   state.world_width       = options.world_width;
@@ -345,6 +346,55 @@ function start_gameserver(options, state) {
   }
   
   /**
+   *  Check game rules 
+   *  @param {Number} t Current world time.
+   *  @param {Number} dt Current delta time,
+   *  @return {undefined} Nothing
+   */
+  function check_rules(t, dt) {
+    
+    switch (world.state) {
+      
+      // The world is waiting for players to be "ready". The game starts when 
+      // 60% of the players are ready.
+      case 'waiting':
+        if (state.no_ready_players / state.no_players >= 0.6) {
+          world.update_field('state', 'starting');
+          world.start_at = t + rules.start_delay * dt;
+          world.each('players', function(player) {
+            if (player.entity) {
+              world.delete_by_id(player.entity.id);
+              broadcast([ENTITY + DESTROY, player.entity.id]);
+            }
+          });
+          
+        }
+        break;
+        
+      // The world is waiting for players to be "ready". The game starts when 
+      // 60% of the players are ready.
+      case 'starting':
+        if (state.no_ready_players / state.no_players < 0.6) {
+          world.update_field('state', 'waiting');
+          world.each('players', function(player) {
+            player.spawn_ship();
+          });
+          return;
+        }
+        break;
+        
+      case 'running':
+      
+        break;
+
+      case 'finished':
+        world.ready_count == world.player_count
+        break;
+    }
+    
+  }
+  
+  /**
    *  Broadcasts specified message to all current connections.
    *  @param {String} msg The message to broadcast.
    *  @return {undefined} Nothing
@@ -517,6 +567,11 @@ function start_gameserver(options, state) {
         }
       });
       
+      player.events.addListener('ready', function() {
+        state.no_ready_players = state.no_ready_players + 1;
+        broadcast([PLAYER + READY, player.id]);
+      });
+      
       player.events.addListener('dead', function(death_cause, killer_id) {
         broadcast([PLAYER + DESTROY, player.id, death_cause, killer_id]);
       });
@@ -542,6 +597,7 @@ function start_gameserver(options, state) {
           delete world.players[connection_id];
 
           state.no_players = state.no_players - 1;
+          state.no_ready_players = state.no_ready_players - 1;
 
           if (state.no_players == 0) {
             stop_gameloop();
@@ -617,21 +673,12 @@ var PROCESS_MESSAGE = match (
   },
 
   /**
-   * PLAYER READY
-   * Indicates that the player is ready for some action.  
-   *
-   * The game is automaticly started if 60% of the players are ready.
+   *  Indicates that player is ready to start the round
    */
-  [[PLAYER + READY], _], function(session) {
-    var world = game.world;
-    var player = session.player;
-
-    // Set player state to ´´ready´´
-    player.update({ st: READY });
-
-    if(world.no_players / world.max_players >= 0.6) {
-      for(var id in world.players) if(!world.players[id].st != READY) return;
-      return start_game(world);
+  [[PLAYER + COMMAND, READY], { 'state =': OK }], function(session) {
+    if (player.st != READY) {
+      player.update({ st: READY });
+      player.events.emit('ready');
     }
   },
 
@@ -820,7 +867,17 @@ Player.prototype.spawn_bullet = function() {
 }
 
 /**
+ *  Is called upon before init.
+ *  @return {undefined} Nothing
+ */
+World.prototype.before_init = function() {
+  this.start_at = null;
+  this.entity_count = 1;
+}
+
+/**
  *  Find's a position to respawn on. 
+ *  @return {x, y} A point to a location where it's safe to spawn.
  */
 World.prototype.find_respawn_pos = function() {
   var bounds = { x: 0, y: 0, w: 60, h: 60};
@@ -838,16 +895,8 @@ World.prototype.find_respawn_pos = function() {
 }
 
 /**
- *  method World.prototype.before_init
- *  Is called upon before init.
- */
-World.prototype.before_init = function() {
-  this.entity_count = 1;
-}
-
-/**
- *  method World.prototype.build
- *  Is called when World is ready to be built.
+ *  Builds the world
+ *  @return {undefined} Nothing
  */
 World.prototype.build = function() {
   this.spawn_entity('wall', {
