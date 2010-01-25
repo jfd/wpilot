@@ -8,19 +8,11 @@
 //
 var CLIENT_VERSION = '0.5.1';
 
-// Keyboard Constants
-var BACK                = 'back',
-    ROTATE_W            = 'ccw',
-    ROTATE_E            = 'cw',
-    TOGGLE_FPS          = 'toggle_fps',
-    TOGGLE_POS          = 'toggle_pos',
-    TOGGLE_FLOCK        = 'toggle_flock';
+var _ = Match.incl;
 
 var GRID_CELL_SIZE      = 250;
     GRID_CELL_COLOR     = 'rgba(255,255,255,0.2)';
     
-var _ = Match.incl;
-
 // GUI Fonts used in the client.
 var HUD_SMALL_FONT      = 'bold 9px Arial',
     HUD_LARGE_FONT      = 'bold 11px Arial',
