@@ -21,7 +21,7 @@ var _  = match.incl;
 
 process.mixin(require('./lib/gameobjects'));
 
-const SERVER_VERSION       = '(develop version)';
+const SERVER_VERSION       = '0.6';
 
 // Message priorities. High priority messages are sent to client no mather
 // what. Low priority messages are sent only if client can afford them.
