@@ -196,7 +196,7 @@ WPilotClient.prototype.set_state = function(state) {
     case CLIENT_CONNECTED:
       this.log('Joined server ' + this.conn.URL + '...');
       this.hud_message = 'Waiting for more players to connect';
-      this.post([PLAYER + HANDSHAKE]);  
+      this.post([CLIENT + HANDSHAKE]);  
       break;
       
     case CLIENT_DISCONNECTED:    

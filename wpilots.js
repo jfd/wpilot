@@ -571,14 +571,19 @@ function start_gameserver(options, state) {
  */
 var PROCESS_MESSAGE = match (
 
-  //
-  //  Message CLIENT CONNECT 
-  //
-  //  MUST be sent by the client when connected to server. It's used to validate
-  //  the session.
-  //
+  /**
+   *  MUST be sent by the client when connected to server. It's used to validate
+   *  the session.
+   */
   [[CLIENT + CONNECT], {'is_game_conn =': true}], function(conn) {
     conn.emit('client-join');
+  },
+  
+  /**
+   *  Client has received world data. Client is now a player of the world.
+   */
+  [[CLIENT + HANDSHAKE], {'state =': CONNECTING}], function(player) {
+    player.set_state(OK);
   },
 
   /**
@@ -611,16 +616,6 @@ var PROCESS_MESSAGE = match (
   [[CLIENT + COMMAND, SHIELD, Number], { 'state =': OK }],
   function(value, player) {
     player[SHIELD] = value;
-  },
-
-  //
-  //  Message PLAYER HANDSHAKE
-  //
-  //  Is recived when client has downloaded world state. A player ship is 
-  //  spawned into the world.
-  //
-  [[PLAYER + HANDSHAKE], {'state =': CONNECTING}], function(player) {
-    player.set_state(OK);
   },
 
   /**
