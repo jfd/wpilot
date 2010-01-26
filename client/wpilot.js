@@ -1094,6 +1094,29 @@ Ship.prototype.before_init = function() {
   this.player = null;
 }
 
+Ship.prototype.after_init = function() {
+  this.animations = {
+    'plight': new PositionLightAnimation(this),
+    't':      new ThrustAnimation(),
+    'sd':     new ShieldAnimation()
+  }
+}
+
+Ship.prototype.on_propchange = function(prop, new_value, old_value) {
+  if (this.animations[prop]) {
+    this.animations[prop].set_active(new_value);
+  }
+}
+
+/**
+ *  Prepare properties for a draw call
+ */
+Ship.prototype.update = function(t, dt) {
+  for (var anim in this.animations) {
+    this.animations[anim].update(t, dt);
+  }
+}
+
 /**
  *  Method Ship.draw
  *  Draws the Ship instance on the specified GraphicsContext.
@@ -1109,34 +1132,16 @@ Ship.prototype.draw = function(ctx) {
   ctx.lineTo(-(this.w / 2), (this.h / 2));
   ctx.lineTo(0, -(this.h / 2));
   ctx.fill();
-  //posistion lights
-  var pos_alpha = Math.abs(Math.sin((this.position_lights_alpha += 0.06)));
-  ctx.beginPath();
-  ctx.fillStyle = 'rgba(' + this.player.color + ',' + pos_alpha +')';
-  ctx.arc(this.w / 2, this.h / 2,1,0, 2*Math.PI,true)
-  ctx.fill();
-  ctx.beginPath();
-  ctx.fillStyle = 'rgba(' + this.player.color + ',' + pos_alpha +')';
-  ctx.arc(-(this.w / 2), this.h / 2,1,0, 2* Math.PI,true)
-  ctx.fill();
-  //ship window
-  ctx.beginPath();
-  ctx.fillStyle = 'rgb(' + this.player.color + ')';
-  ctx.arc(0,0,2,0, Math.PI,true)
-  ctx.fill();
+  for (var anim in this.animations) {
+    ctx.save();
+    this.animations[anim].draw(ctx);
+    ctx.restore();
+  }
   if(!this.is_me){  
     ctx.rotate(-this.a);
     ctx.font = SHIP_FONT;
   	ctx.fillStyle = 'rgb(' + this.player.color + ')';
     draw_label(ctx, 0, this.h + 10, this.player.name, 'center', 100);	
-  }
-  if (this.sd) {
-    ctx.beginPath();
-    var alpha = Math.abs(Math.sin((this.shield_pulse_alpha += 0.06)));
-    if (alpha < 0.3) alpha = 0.3;
-    ctx.strokeStyle = 'rgba(255, 255, 255,' + alpha + ')';    
-    ctx.arc(0, 0, 20, 0, Math.PI / 180, true);
-    ctx.stroke();
   }
 }
 
@@ -1172,6 +1177,7 @@ Wall.prototype.before_init = function() { }
 Wall.prototype.draw = function(ctx, world) {
   var t = Math.min(this.w, this.h) * 0.2,
       o = Math.min(this.w, this.h) * 0.8;
+  ctx.save();
   ctx.fillStyle = "black";
   ctx.fillRect(0, 0, this.w, this.h);
   ctx.fillStyle = "red";
@@ -1189,6 +1195,150 @@ Wall.prototype.draw = function(ctx, world) {
       ctx.fillRect(this.w - t, o, t, this.h - o * 2);
       break;
   }
+  ctx.restore();
+}
+
+/**
+ *  Creates a new instance of the ThrustAnimation class.
+ */
+function ThrustAnimation() {
+  var particles = new cParticleSystem();
+  particles.active = false;
+  particles.position = Vector.create(0, 12);	
+  particles.positionRandom = Vector.create( 0, 0 );
+  particles.gravity = Vector.create( 0.4, 0.2 );
+  particles.speed = 2;
+  particles.lifeSpan = 15;
+  particles.lifeSpan = 9;
+  particles.size = 2;
+  particles.sizeRandom = 1;
+  particles.angle = 120;
+  particles.angleRandom = 15;
+  particles.maxParticles = 120;
+  particles.init();
+  this.particles = particles; 
+}
+
+/**
+ *  Sets if the animation should be active or not
+ *  @param {Boolean} active True if the animation should be active else false
+ *  @return {undefined} Nothing
+ */
+ThrustAnimation.prototype.set_active = function(active) {
+  this.particles.active = active;
+}
+
+/**
+ *  Updates the ThrustAnimation instance.
+ *  @param {Number} t Current world time.
+ *  @param {Number} dt Current delta time,
+ *  @return {undefined} Nothing
+ */
+ThrustAnimation.prototype.update = function(t, dt) {
+  this.particles.update(65 * dt);
+}
+
+/**
+ *  Draws the ThrustAnimation instance on specified context.
+ *  @param {Context2D} ctx The context to draw on.
+ *  @return {undefined} Nothing
+ */
+ThrustAnimation.prototype.draw = function(ctx) {
+  this.particles.render(ctx);
+}
+
+/**
+ *  Creates a new instance of the ShieldAnimation class.
+ */
+function ShieldAnimation() {
+  this.active = false;
+  this.value = 0;
+}
+
+/**
+ *  Sets if the animation should be active or not
+ *  @param {Boolean} active True if the animation should be active else false
+ *  @return {undefined} Nothing
+ */
+ShieldAnimation.prototype.set_active = function(active) {
+  this.active = active;
+  if (this.active) {
+    this.value = 0.01;
+  } 
+}
+
+/**
+ *  Updates the ShieldAnimation instance.
+ *  @param {Number} t Current world time.
+ *  @param {Number} dt Current delta time,
+ *  @return {undefined} Nothing
+ */
+ShieldAnimation.prototype.update = function(t, dt) {
+  if (this.value > 0) {
+    var value = this.active ? this.value + dt * 4 : this.value - dt * 4;
+    if (value > 1) {
+      value = 1;
+    }
+    this.value = value;
+  }
+}
+
+/**
+ *  Draws the ShieldAnimation instance on specified context.
+ *  @param {Context2D} ctx The context to draw on.
+ *  @return {undefined} Nothing
+ */
+ShieldAnimation.prototype.draw = function(ctx) {
+  if (this.value > 0) {
+    ctx.beginPath();
+    ctx.strokeStyle = 'rgba(255, 255, 255,' + this.value + ')';    
+    ctx.arc(0, 0, 20, 0, Math.PI / 180, true);
+    ctx.stroke();
+  }
+}
+
+/**
+ *  Creates a new instance of the PositionLightAnimation class.
+ */
+function PositionLightAnimation(origin) {
+  this.active = true;
+  this.x = origin.w / 2;
+  this.y = origin.h / 2;
+  this.origin = origin;
+  this.value = 0;
+}
+
+/**
+ *  Sets if the animation should be active or not
+ *  @param {Boolean} active True if the animation should be active else false
+ *  @return {undefined} Nothing
+ */
+PositionLightAnimation.prototype.set_active = function(active) {
+  this.active = active;
+}
+
+/**
+ *  Updates the PositionLightAnimation instance.
+ *  @param {Number} t Current world time.
+ *  @param {Number} dt Current delta time,
+ *  @return {undefined} Nothing
+ */
+PositionLightAnimation.prototype.update = function(t, dt) {
+  this.value += dt * 4;
+}
+
+/**
+ *  Draws the PositionLightAnimation instance on specified context.
+ *  @param {Context2D} ctx The context to draw on.
+ *  @return {undefined} Nothing
+ */
+PositionLightAnimation.prototype.draw = function(ctx) {
+  var alpha = Math.abs(Math.sin((this.value)));
+  if (alpha < 0.3) alpha = 0.3;   
+  ctx.beginPath();
+  ctx.fillStyle = 'rgba(' + this.origin.player.color + ',' + alpha +')';
+  ctx.arc(this.x, this.y, 1, 0, 2 * Math.PI, true);
+  ctx.fill();
 }
 
 /**
