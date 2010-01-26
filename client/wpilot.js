@@ -1089,8 +1089,6 @@ World.prototype.draw_grid = function(ctx, camera) {
 Ship.prototype.before_init = function() {
   this.visible = true;
   this.is_me = false;
-  this.position_lights_alpha = 0.3;
-  this.shield_pulse_alpha = 0.3;
   this.player = null;
 }
 
