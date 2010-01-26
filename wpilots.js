@@ -90,16 +90,17 @@ const DEFAULT_OPTIONS = {
 // Paths to all files that should be server to client.
 const CLIENT_DATA = [
   'client/index.html',
-  'client/logo.png',
   'client/style.css',
+  'client/logo.png',
+  'client/space.jpg',
   'client/wpilot.js',
   'lib/gameobjects.js',
   'lib/match.js',
-  'client/space.jpg',
-  'client/WebSocketMain.swf',
   'client/web_socket.js',
   'client/swfobject.js',
   'client/FABridge.js',
+  'client/particle.js',
+  'client/WebSocketMain.swf',
   'client/crossdomain.xml' 
 ];
 
