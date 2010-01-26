@@ -193,7 +193,7 @@ function start_gameserver(options, state) {
    */
   function gameloop_tick(t, dt) {
     do_game_logic(t, dt);
-    world.step(t, dt);
+    world.update(t, dt);
     check_collisions(t, dt);
     check_rules(t, dt);
     post_state_updates(t, dt);

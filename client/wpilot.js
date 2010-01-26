@@ -273,7 +273,7 @@ WPilotClient.prototype.start_gameloop = function(initial_tick) {
   // Is called on each game tick.
   gameloop.ontick = function(t, dt) {
     self.process_user_input(t, dt);
-    self.world.step(t, dt);
+    self.world.update(t, dt);
   }
   
   // Is called when loop is about to start over.
