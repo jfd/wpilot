@@ -479,9 +479,7 @@ WPilotClient.prototype.draw_hud = function() {
     ctx.translate(center_w, center_h);
     player_entity.draw(ctx);
     ctx.restore();
-    
   }
-
   
   // Draw HUD message
   // Fixme: Find a better way to cycle between alpha values
@@ -1028,58 +1026,59 @@ World.prototype.draw = function(viewport, alpha) {
  *  Draw's the background grid of the viewport.
  */
 World.prototype.draw_grid = function(ctx, camera) {
-//ctx.save();
-   ctx.fillStyle = 'black';
-   ctx.strokeStyle = GRID_CELL_COLOR;
-   ctx.lineWidth = 0.5;
-   ctx.beginPath();
-   var x, y;
+  ctx.save();
+  ctx.fillStyle = 'black';
+  ctx.strokeStyle = GRID_CELL_COLOR;
+  ctx.lineWidth = 0.5;
+  ctx.beginPath();
+  var x, y;
 
-   if (camera.x < 0) {
-     x = -camera.x;
-   } else {
-     x = GRID_CELL_SIZE - camera.x % GRID_CELL_SIZE;
-   }
+  if (camera.x < 0) {
+    x = -camera.x;
+  } else {
+    x = GRID_CELL_SIZE - camera.x % GRID_CELL_SIZE;
+  }
 
-   while(x < camera.w) {
-     ctx.moveTo(x, 0);
-     ctx.lineTo(x, camera.h);
-     x += GRID_CELL_SIZE;
-   }
+  while(x < camera.w) {
+    ctx.moveTo(x, 0);
+    ctx.lineTo(x, camera.h);
+    x += GRID_CELL_SIZE;
+  }
 
-   if (camera.y < 0) {
-     y = -camera.y;
-   } else {
-     y = GRID_CELL_SIZE - camera.y % GRID_CELL_SIZE
-   }
+  if (camera.y < 0) {
+    y = -camera.y;
+  } else {
+    y = GRID_CELL_SIZE - camera.y % GRID_CELL_SIZE
+  }
 
-   while(y < camera.h) {
-     ctx.moveTo(0, y);
-     ctx.lineTo(camera.w, y);
-     y += GRID_CELL_SIZE;
-   }
+  while(y < camera.h) {
+    ctx.moveTo(0, y);
+    ctx.lineTo(camera.w, y);
+    y += GRID_CELL_SIZE;
+  }
    
-   ctx.stroke();
+  ctx.stroke();
 
-   // Left Edge
-   if (camera.x < 0) {
-     ctx.fillRect(0, 0, -camera.x, camera.h);
-   }
+  // Left Edge
+  if (camera.x < 0) {
+    ctx.fillRect(0, 0, -camera.x, camera.h);
+  }
 
-   // Right Edge
-   if (camera.x + camera.w > this.w) {
-     ctx.fillRect(this.w - camera.x, 0, camera.x + camera.w - this.w, camera.h);
-   }
+  // Right Edge
+  if (camera.x + camera.w > this.w) {
+    ctx.fillRect(this.w - camera.x, 0, camera.x + camera.w - this.w, camera.h);
+  }
 
-   // Top Edge
-   if (camera.y < 0) {
-     ctx.fillRect(0, 0, camera.w, -camera.y);
-   }
+  // Top Edge
+  if (camera.y < 0) {
+    ctx.fillRect(0, 0, camera.w, -camera.y);
+  }
 
-   // Bottom Edge
-   if (camera.y + camera.h > this.h) {
-     ctx.fillRect(0, this.h - camera.y, camera.w, camera.y - camera.h + this.h);
-   }
+  // Bottom Edge
+  if (camera.y + camera.h > this.h) {
+    ctx.fillRect(0, this.h - camera.y, camera.w, camera.y - camera.h + this.h);
+  }
+  ctx.restore();
 }
 
 /**
