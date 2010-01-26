@@ -277,10 +277,10 @@ function start_gameserver(options, state) {
           var connection = null;
           if (item.player) {
             connection = item.player.connection;
-            connection.queue([item._subject + STATE, item.id, item.changed_values('dynamic')]);
-            broadcast_exclude(connection, [item._subject + STATE, item.id, item.changed_values()]);
+            connection.queue([item.subject + STATE, item.id, item.changed_values('dynamic')]);
+            broadcast_exclude(connection, [item.subject + STATE, item.id, item.changed_values()]);
           } else {
-            broadcast([item._subject + STATE, item.id, item.changed_values()]);
+            broadcast([item.subject + STATE, item.id, item.changed_values()]);
           }
           item.commit();
         }
@@ -866,7 +866,7 @@ var COLLISSION_RESOLVER = match (
  *  GameObject.dump
  *  Extends the GameObject with a "print-to-stdout" method.
  */
-GameObject._proto.dump = function() {
+GameObject.dump = function() {
   var item = this.repr();
   var result = this.type + '#' + this.id + ': { ';
   for (var name in item) {
