@@ -1165,12 +1165,6 @@ Bullet.prototype.draw = function(ctx) {
 }
 
 /**
- *  Class Wall
- *  Local constructor for the Wall Entity class. 
- */
-Wall.prototype.before_init = function() { }
-
-/**
  *  Method Wall.draw
  *  Draws Wall instance on the specified GraphicsContext.
  */
