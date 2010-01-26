@@ -228,7 +228,7 @@ WPilotClient.prototype.process_user_input = function(t, dt) {
   var player        = this.player,
       input        = this.input;
 
-  player.update({
+  player.set_props({
     't': input.on('thrust'),
     'r': input.on('rotate_east') ? 1 : input.on('rotate_west') ? 2 : 0,
     'sh': input.on('shoot'),
@@ -845,7 +845,7 @@ var PROCESS_MESSAGE = Match (
         player = world.players[id],
         player_pos = client.server_state.no_players;
     if (player) {
-      player.update(data);
+      player.set_props(data);
       player.commit();
       world.each('players', function(opponent) {
         if (client.player.s > opponent.s) {
@@ -927,7 +927,7 @@ var PROCESS_MESSAGE = Match (
   [[WORLD + STATE, Object], _], 
   function(state, client) {
     console.log(state);
-    client.world.update(state);
+    client.world.set_props(state);
     client.world.winners = null;
   },
 
@@ -968,7 +968,7 @@ var PROCESS_MESSAGE = Match (
   function(id, data, client) {
     var entity = client.world.find(id);
     if (entity) {
-      entity.update(data);
+      entity.set_props(data);
       entity.commit();
     } 
   },

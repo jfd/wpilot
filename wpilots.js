@@ -329,16 +329,16 @@ function start_gameserver(options, state) {
       if (player.entity) {
         var entity = player.entity;
 
-        entity.update_field(THRUST, player[THRUST]);
-        entity.update_field(ROTATE, player[ROTATE]);
+        entity.set_prop(THRUST, player[THRUST]);
+        entity.set_prop(ROTATE, player[ROTATE]);
 
         if (player[SHIELD] && player.e >= rules.shield_cost * dt) {
-          player.update({
+          player.set_props({
             e: player.e - rules.shield_cost * dt
           });
-          entity.update_field(SHIELD, 1);
+          entity.set_prop(SHIELD, 1);
         } else {
-          entity.update_field(SHIELD, 0);
+          entity.set_prop(SHIELD, 0);
         }
 
         if (player.reload_time && t >= player.reload_time) {
@@ -346,18 +346,18 @@ function start_gameserver(options, state) {
         } 
         
         if (player[SHOOT] && !player.reload_time && player.e >= rules.shoot_cost * dt) {
-          entity.update_field(SHOOT, 1);
-          player.update({
+          entity.set_prop(SHOOT, 1);
+          player.set_props({
             e: player.e - rules.shoot_cost * dt
           });
           player.reload_time = t + rules.reload_time * dt;
           player.spawn_bullet();
         } else {
-          entity.update_field(SHOOT, 0);
+          entity.set_prop(SHOOT, 0);
         }
         
         if (player.e <= 100 && !player[SHIELD] && !player[SHOOT]) {
-          player.update({
+          player.set_props({
             e: player.e + rules.energy_recovery * dt
           });
         }
@@ -378,7 +378,7 @@ function start_gameserver(options, state) {
       // 60% of the players are ready.
       case 'waiting':
         if (state.no_players > 1 && state.no_ready_players >= (state.no_players * 0.6)) {
-          world.update({
+          world.set_props({
             r_state: 'starting',
             r_start_at: t + rules.start_delay * dt
           });
@@ -394,7 +394,7 @@ function start_gameserver(options, state) {
       // Round is starting. Server aborts if a player leaves the game.
       case 'starting':
         if (state.no_ready_players < (state.no_players * 0.6)) {
-          world.update({
+          world.set_props({
             r_state: 'waiting',
             r_start_at: 0
           });
@@ -404,12 +404,12 @@ function start_gameserver(options, state) {
           return;
         }
         if (t >= world.r_start_at) {
-          world.update({
+          world.set_props({
             r_state: 'running',
             r_start_at: 0
           });
           world.each('players', function(player) {
-            player.update({st: 0, s: 0});
+            player.set_props({st: 0, s: 0});
             player.spawn_ship(world.find_respawn_pos());
           });
           state.no_ready_players = 0;
@@ -425,7 +425,7 @@ function start_gameserver(options, state) {
           }
         });
         if (winners.length) {
-          world.update({
+          world.set_props({
             r_state: 'finished',
             r_restart_at: t + rules.round_rs_time * dt,
             r_winners: winners
@@ -444,13 +444,13 @@ function start_gameserver(options, state) {
       // The round is finished. Wait for restart
       case 'finished':
         if (t >= world.r_restart_at) {
-          world.update({
+          world.set_props({
             r_state: 'waiting',
             r_restart_at: 0,
             r_winners: []
           });
           world.each('players', function(player) {
-            player.update({
+            player.set_props({
               s: 0,
               e: 100
             });
@@ -644,10 +644,10 @@ function start_gameserver(options, state) {
       player.events.addListener('dead', function(death_cause, killer) {
         switch (death_cause) {
           case DEATH_CAUSE_SUICDE:
-            player.update_field('s', player.s - rules.penelty_score < 0 ? 0 : player.s - rules.penelty_score);
+            player.set_prop('s', player.s - rules.penelty_score < 0 ? 0 : player.s - rules.penelty_score);
             break;
           case DEATH_CAUSE_KILLED:
-            killer.update_field('s', killer.s + rules.kill_score);
+            killer.set_prop('s', killer.s + rules.kill_score);
             break;
         }
         broadcast([PLAYER + DESTROY, player.id, death_cause, killer ? killer.id : -1]);
@@ -754,7 +754,7 @@ var PROCESS_MESSAGE = match (
    */
   [[CLIENT + COMMAND, READY], { 'state =': OK }], function(player) {
     if (player.st != READY) {
-      player.update({ st: READY });
+      player.set_props({ st: READY });
       player.events.emit('ready');
     }
   },
@@ -809,11 +809,11 @@ var COLLISSION_RESOLVER = match (
   [Ship, Wall, Array], function(ship, wall, trash) {
     if (ship[SHIELD]) {
       if (wall.w > wall.h) {
-        ship.update({
+        ship.set_props({
           sy: -ship.sy
         });
       } else {
-        ship.update({
+        ship.set_props({
           sx: -ship.sx
         });
       }
@@ -840,11 +840,11 @@ var COLLISSION_RESOLVER = match (
       trash.push(ship_a);
       trash.push(ship_b);
     } else if(ship_a[SHIELD] && ship_b[SHIELD]) {
-      ship_a.update({
+      ship_a.set_props({
         sx: -ship_a.sx,
         sy: -ship_a.sy
       });
-      ship_b.update({
+      ship_b.set_props({
         sx: -ship_b.sx,
         sy: -ship_b.sy
       });
@@ -913,7 +913,7 @@ Player.prototype.spawn_ship = function(pos) {
   entity.player = this;
   this.is_dead = false;
   this.events.emit('spawn', entity);
-  this.update({ eid: entity.id });
+  this.set_prop('eid', entity.id);
   this.entity = entity;
   return entity;
 }
