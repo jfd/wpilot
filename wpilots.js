@@ -50,6 +50,7 @@ const SWITCHES = [
   ['--update_rate NUMBER',        'Represent the frame no where updates are sent to clients. (Default: 10)'],
   ['--r_start_delay NUMBER',      'Rule: Time before game starts after warmup (Default: 300)'],
   ['--r_respawn_time NUMBER',     'Rule: Player respawn time after death. (Default: 500)'],
+  ['--r_w_respawn_time NUMBER',   'Rule: Warm-up respawn time after death. (Default: 100)'],
   ['--r_reload_time NUMBER',      'Rule: The reload time after fire. (Default: 15)'],
   ['--r_shoot_cost NUMBER',       'Rule: Energy cost of shooting a bullet. (Default: 800)'],
   ['--r_shield_cost NUMBER',      'Rule: Energy cost of using the shield. (Default: 70)'],
@@ -77,6 +78,7 @@ const DEFAULT_OPTIONS = {
   update_rate:          10,
   r_start_delay:        200,
   r_respawn_time:       400,
+  r_w_respawn_time:     100,
   r_reload_time:        15,
   r_shoot_cost:         300,
   r_shield_cost:        70,
@@ -322,7 +324,7 @@ function start_gameserver(options, state) {
         if (world.r_state == 'running') {
           player.respawn_time = t + rules.respawn_time * dt;
         } else {
-          player.respawn_time = t + 10 * dt;
+          player.respawn_time = t + rules.w_respawn_time * dt;
         }
       }
 
