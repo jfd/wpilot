@@ -228,12 +228,21 @@ WPilotClient.prototype.process_user_input = function(t, dt) {
   var player        = this.player,
       input        = this.input;
 
-  player.set_props({
-    't': input.on('thrust'),
-    'r': input.on('rotate_east') ? 1 : input.on('rotate_west') ? 2 : 0,
-    'sh': input.on('shoot'),
-    'sd': input.on('shield')
-  });
+  if (player.entity && !player.entity.dead && !player.entity.spawning) {
+    player.set_props({
+      't': input.on('thrust'),
+      'r': input.on('rotate_east') ? 1 : input.on('rotate_west') ? 2 : 0,
+      'sh': input.on('shoot'),
+      'sd': input.on('shield')
+    });
+  } else {
+    player.set_props({
+      't': 0,
+      'r': 0,
+      'sh': 0,
+      'sd': 0
+    });
+  }
   
   if (input.toggle('ready')) {
     this.post([CLIENT + COMMAND, READY]);
@@ -274,6 +283,7 @@ WPilotClient.prototype.start_gameloop = function(initial_tick) {
   gameloop.ontick = function(t, dt) {
     self.process_user_input(t, dt);
     self.world.update(t, dt);
+    self.remove_destroyed_entites();
   }
   
   // Is called when loop is about to start over.
@@ -299,6 +309,22 @@ WPilotClient.prototype.stop_gameloop = function() {
     this.gameloop.kill();
     this.gameloop = null;
     this.viewport.set_autorefresh(true);
+  }
+}
+
+/**
+ *  Removes all dead entities in the world.
+ *  @return {undefined} Nothing
+ */
+WPilotClient.prototype.remove_destroyed_entites = function() {
+  for (var entity_id in this.world.entities) {
+    var entity = this.world.entities[entity_id];
+    if (entity.destroyed) {
+      if (entity && entity.player) {
+        entity.player.entity = null;
+      }
+      this.world.delete_by_id(entity_id);
+    }
   }
 }
 
@@ -443,7 +469,7 @@ WPilotClient.prototype.draw_hud = function() {
       player_entity   = this.player.entity,
       opt             = this.options;
   
-  if (player_entity) {
+  if (player_entity && !player_entity.dead) {
     ctx.textAlign = 'center';
 
     ctx.font = HUD_SMALL_FONT;
@@ -473,12 +499,14 @@ WPilotClient.prototype.draw_hud = function() {
     
     if (opt.hud_energy_v) {
       draw_v_bar(ctx, center_w + 62, center_h - 37, 7, 78, this.player.e);
-    }
-    
+    }    
+  }
+  
+  if (player_entity && !player_entity.destroyed) {
     ctx.save();
     ctx.translate(center_w, center_h);
     player_entity.draw(ctx);
-    ctx.restore();
+    ctx.restore();    
   }
   
   // Draw HUD message
@@ -924,7 +952,6 @@ var PROCESS_MESSAGE = Match (
    */
   [[WORLD + STATE, Object], _], 
   function(state, client) {
-    console.log(state);
     client.world.set_props(state);
     client.world.winners = null;
   },
@@ -944,8 +971,6 @@ var PROCESS_MESSAGE = Match (
    */
   [[ENTITY + SPAWN, {'type =': BULLET}], _],
   function(data, client) {
-    console.log('Spawn bullet');
-    console.log(data);
     var entity = new Bullet(data);
     client.world.append(entity);
   },
@@ -977,10 +1002,7 @@ var PROCESS_MESSAGE = Match (
   [[ENTITY + DESTROY, Number], _],
   function(entity_id,  client) {
     var entity = client.world.find(entity_id);
-    if (entity && entity.player) {
-      entity.player.entity = null;
-    }
-    client.world.delete_by_id(entity_id);
+    entity.destroy();
   },
 
   //
@@ -1088,15 +1110,25 @@ World.prototype.draw_grid = function(ctx, camera) {
  */
 Ship.prototype.before_init = function() {
   this.visible = true;
+  this.spawning = true;
   this.is_me = false;
   this.player = null;
 }
 
 Ship.prototype.after_init = function() {
+  var self = this;
   this.animations = {
     'plight': new PositionLightAnimation(this),
     't':      new ThrustAnimation(),
-    'sd':     new ShieldAnimation()
+    'sd':     new ShieldAnimation(),
+    'spawn':  new SpawnAnimation(function() {
+                self.spawning = false;
+                delete self.animations['spawn']
+              }),
+    'die':    new DieAnimation(function() {
+                self.destroyed = true;
+                delete self.animations['die']
+              }),
   }
 }
 
@@ -1116,20 +1148,30 @@ Ship.prototype.update = function(t, dt) {
 }
 
 /**
+ *  Override the EntityBase.destroy method.
+ */
+Ship.prototype.destroy = function() {
+  this.dead = true;
+  this.animations['die'].set_active(true);
+}
+
+/**
  *  Method Ship.draw
  *  Draws the Ship instance on the specified GraphicsContext.
  */
 Ship.prototype.draw = function(ctx) {
-  ctx.rotate(this.a);
-  ctx.strokeStyle = "white";
-  ctx.lineWidth = 1;
-  ctx.fillStyle = "white";
-  ctx.beginPath();
-  ctx.moveTo(0, -(this.h / 2));
-  ctx.lineTo(this.w / 2, (this.h / 2));
-  ctx.lineTo(-(this.w / 2), (this.h / 2));
-  ctx.lineTo(0, -(this.h / 2));
-  ctx.fill();
+  if (!this.spawning && !this.dead) {
+    ctx.rotate(this.a);
+    ctx.strokeStyle = "white";
+    ctx.lineWidth = 1;
+    ctx.fillStyle = "white";
+    ctx.beginPath();
+    ctx.moveTo(0, -(this.h / 2));
+    ctx.lineTo(this.w / 2, (this.h / 2));
+    ctx.lineTo(-(this.w / 2), (this.h / 2));
+    ctx.lineTo(0, -(this.h / 2));
+    ctx.fill();
+  }
   for (var anim in this.animations) {
     ctx.save();
     this.animations[anim].draw(ctx);
@@ -1325,12 +1367,120 @@ PositionLightAnimation.prototype.update = function(t, dt) {
  *  @return {undefined} Nothing
  */
 PositionLightAnimation.prototype.draw = function(ctx) {
-  var alpha = Math.abs(Math.sin((this.value)));
-  if (alpha < 0.3) alpha = 0.3;   
-  ctx.beginPath();
-  ctx.fillStyle = 'rgba(' + this.origin.player.color + ',' + alpha +')';
-  ctx.arc(this.x, this.y, 1, 0, 2 * Math.PI, true);
-  ctx.fill();
+  if (!this.origin.dead && !this.origin.spawning) {
+    var alpha = Math.abs(Math.sin((this.value)));
+    if (alpha < 0.3) alpha = 0.3;   
+    ctx.beginPath();
+    ctx.fillStyle = 'rgba(' + this.origin.player.color + ',' + alpha +')';
+    ctx.arc(this.x, this.y, 1, 0, 2 * Math.PI, true);
+    ctx.fill();
+  }
+}
+
+/**
+ *  Creates a new instance of the SpawnAnimation class.
+ */
+function SpawnAnimation(callback) {
+  var particles = new cParticleSystem();
+  particles.active = true;
+  particles.position = Vector.create( 0, 0 );
+  particles.positionRandom = Vector.create( 3, 3 );
+  particles.startColour = [ 123, 180, 255, 1 ];
+  particles.finishColour = [59,116,191, 0 ];
+  particles.startColourRandom = [80,20,20,0 ];
+  particles.finishColourRandom = [60,10,10,0.1];
+  particles.size = 15;
+  particles.sizeRandom = 3;
+  particles.maxParticles = 100;
+  particles.duration = 1;
+  particles.gravity = Vector.create( 0.4, 0.2 );
+  particles.lifeSpan = 7;
+  particles.lifeSpanRandom = 0;
+  particles.init();
+  this.particles = particles;
+  this.ondone = callback;
+}
+
+/**
+ *  Updates the SpawnAnimation instance.
+ *  @param {Number} t Current world time.
+ *  @param {Number} dt Current delta time,
+ *  @return {undefined} Nothing
+ */
+SpawnAnimation.prototype.update = function(t, dt) {
+  this.particles.update(5 * dt);
+  if (this.particles.particleCount == 0) {
+    this.ondone();
+  }
+}
+
+/**
+ *  Draws the SpawnAnimation instance on specified context.
+ *  @param {Context2D} ctx The context to draw on.
+ *  @return {undefined} Nothing
+ */
+SpawnAnimation.prototype.draw = function(ctx) {
+  this.particles.render(ctx);
+}
+
+/**
+ *  Creates a new instance of the DieAnimation class.
+ */
+function DieAnimation(callback) {
+  var particles = new cParticleSystem();
+  particles.active = false;  
+  particles.position = Vector.create( 0, 0 );
+  particles.positionRandom = Vector.create( 0, 0 );
+  particles.startColour = [ 255, 255, 255, 1 ];
+  particles.finishColour = [0, 0, 0, 1 ];
+  particles.startColourRandom = [0,0,0,0 ];
+  particles.finishColourRandom = [0,0,0,0];
+  particles.size = 3;
+  particles.sizeRandom = 2;
+  particles.angle = 0;
+  particles.angleRandom = 360;
+  particles.maxParticles = 200;
+  particles.duration = 5;
+  particles.lifeSpan = 4;
+  particles.lifeSpanRandom = 2;
+  particles.init();
+  this.particles = particles;
+  this.ondone = callback;
+}
+
+/**
+ *  Sets if the animation should be active or not
+ *  @param {Boolean} active True if the animation should be active else false
+ *  @return {undefined} Nothing
+ */
+DieAnimation.prototype.set_active = function(active) {
+  this.particles.active = active;
+}
+
+/**
+ *  Updates the DieAnimation instance.
+ *  @param {Number} t Current world time.
+ *  @param {Number} dt Current delta time,
+ *  @return {undefined} Nothing
+ */
+DieAnimation.prototype.update = function(t, dt) {
+  if (this.particles.active) {
+    this.particles.update(15 * dt);
+    if (this.particles.elapsedTime == 0) {
+      this.ondone();
+    }
+  }
+}
+
+/**
+ *  Draws the DieAnimation instance on specified context.
+ *  @param {Context2D} ctx The context to draw on.
+ *  @return {undefined} Nothing
+ */
+DieAnimation.prototype.draw = function(ctx) {
+  if (this.particles.active) {
+    this.particles.render(ctx);
+  }
 }
 
 /**
