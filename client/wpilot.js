@@ -144,7 +144,7 @@ WPilotClient.prototype.set_viewport = function(viewport) {
   viewport.ondraw = function() {
     if (self.state == CLIENT_CONNECTED) {
       if (self.player.entity) {
-        viewport.set_camera_pos(self.player.entity);
+        viewport.set_camera_pos(self.player.entity.pos);
       }
       self.world.draw(viewport);
       self.draw_hud();
@@ -226,44 +226,27 @@ WPilotClient.prototype.set_state = function(state) {
  */
 WPilotClient.prototype.process_user_input = function(t, dt) {
   var player        = this.player,
-      input        = this.input;
+      input         = this.input,
+      new_commands  = 0;
 
   if (player.entity && !player.entity.dead && !player.entity.spawning) {
-    player.set_props({
-      't': input.on('thrust'),
-      'r': input.on('rotate_east') ? 1 : input.on('rotate_west') ? 2 : 0,
-      'sh': input.on('shoot'),
-      'sd': input.on('shield')
-    });
+    if (input.on('thrust')) new_commands |= THRUST;
+    if (input.on('rotate_west')) new_commands |= ROTATE_W;
+    if (input.on('rotate_east')) new_commands |= ROTATE_E;
+    if (input.on('shoot')) new_commands |= SHOOT;
+    if (input.on('shield')) new_commands |= SHIELD;
   } else {
-    player.set_props({
-      't': 0,
-      'r': 0,
-      'sh': 0,
-      'sd': 0
-    });
+    new_commands = 0;
+  }
+  
+  if (new_commands != player.commands) {
+    player.commands = new_commands;
+    this.post([CLIENT + COMMAND, new_commands]);
   }
   
   if (input.toggle('ready')) {
     this.post([CLIENT + COMMAND, READY]);
   }
-
-  if (player.is_changed('actions')) {
-    var fields = player.changed_fields_in('actions');
-    if (fields.length == 1) {
-      var action = fields[0];
-      this.post([CLIENT + COMMAND, action, player[action]]);
-    } else {
-      var messages = [];
-      for (var i = 0; i < fields.length; i++) {
-        var action = fields[i];
-        messages.push([CLIENT + COMMAND, action, player[action]]);
-      }
-      this.post([MULTIPART, messages]);
-    }
-    player.commit();
-  }    
-  
 }
 
 /**
@@ -323,7 +306,7 @@ WPilotClient.prototype.remove_destroyed_entites = function() {
       if (entity && entity.player) {
         entity.player.entity = null;
       }
-      this.world.delete_by_id(entity_id);
+      this.world.delete_entity_by_id(entity_id);
     }
   }
 }
@@ -477,7 +460,7 @@ WPilotClient.prototype.draw_hud = function() {
     if(opt.hud_player_score_v) {
       var limit = this.world.r_state == 'waiting' ? '-' : this.server_state.rules.round_limit;
       ctx.fillStyle = HUD_GREY_COLOR;
-      draw_label(ctx, center_w + 72, center_h + 55, 'Score: ' + this.player.s + '/' + limit, 'right', 45);
+      draw_label(ctx, center_w + 72, center_h + 55, 'Score: ' + this.player.score + '/' + limit, 'right', 45);
     }
 
     if (opt.hud_player_name_v) {
@@ -494,11 +477,11 @@ WPilotClient.prototype.draw_hud = function() {
     
     if (opt.hud_coords_v)  {
       ctx.fillStyle = HUD_GREY_COLOR;
-      draw_label(ctx, center_w - 72, center_h + 55, parseInt(player_entity.x) + ' x ' + parseInt(player_entity.y));
+      draw_label(ctx, center_w - 72, center_h + 55, parseInt(player_entity.pos[0]) + ' x ' + parseInt(player_entity.pos[1]));
     }    
     
     if (opt.hud_energy_v) {
-      draw_v_bar(ctx, center_w + 62, center_h - 37, 7, 78, this.player.e);
+      draw_v_bar(ctx, center_w + 62, center_h - 37, 7, 78, this.player.energy);
     }    
   }
   
@@ -532,7 +515,7 @@ WPilotClient.prototype.update_client = function(t, dt) {
       sec     = dt * 60;
   
   switch(world.r_state) {
-    case 'waiting':
+    case ROUND_WAITING:
       this.hud_message_type = HUD_MESSAGE_SMALL;
       if (server.no_players == 1) {
         this.hud_message = 'Waiting for more players to join...';
@@ -544,7 +527,7 @@ WPilotClient.prototype.update_client = function(t, dt) {
       }
       break;
 
-    case 'starting':
+    case ROUND_STARTING:
       server.no_ready_players = 0;
       no = parseInt((world.r_start_at - t) / sec);
       this.hud_message_type = HUD_MESSAGE_LARGE;
@@ -555,7 +538,7 @@ WPilotClient.prototype.update_client = function(t, dt) {
       }
       break;
 
-    case 'running':
+    case ROUND_RUNNING:
       if (!player.entity) {
         if (!this.respawn_at) {
           this.respawn_at = t + server.rules.respawn_time * dt;
@@ -572,7 +555,7 @@ WPilotClient.prototype.update_client = function(t, dt) {
       }
       break;
 
-    case 'finished':
+    case ROUND_FINISHED:
       if (!world.winners) {
         var winners = [];
         for (var i = 0; i < world.r_winners.length; i++) {
@@ -678,7 +661,7 @@ Keyboard.prototype.toggle = function(name) {
 function Viewport(target, width, height, options) {
   this.target       = target;
   this.ctx          = target.getContext('2d');
-  this.camera       = { x: 0, y: 0, w: 0, h: 0, scale: 1};
+  this.camera       = { pos: [0, 0], size: [0, 0], scale: 1};
   this.w            = width;
   this.h            = height;
   this.options      = options;
@@ -725,16 +708,24 @@ Viewport.prototype.set_autorefresh = function(autorefresh) {
 
 /**
  *  Moves the camera focus to the specified point. 
- *  @param {x, y} A point representing the position of the camera
+ *  @param {Vector} A vector representing the position of the camera
  *  @returns {undefined} Nothing
  */
-Viewport.prototype.set_camera_pos = function(point) {
-   this.camera.x = point.x - (this.w / 2);
-   this.camera.y = point.y - (this.h / 2);
-   this.camera.w = this.w;
-   this.camera.h = this.h;
-   this.camera.scale = 1;
+Viewport.prototype.set_camera_pos = function(vector) {
+  this.camera.pos = [vector[0] - (this.w / 2), vector[1] - (this.h / 2)];
+  this.camera.size = [this.w, this.h];
+  this.camera.scale = 1;
 }
+
+Viewport.prototype.get_camera_box = function() {
+  return {
+    x: this.camera.pos[0],
+    y: this.camera.pos[1],
+    w: this.camera.size[0],
+    h: this.camera.size[1]
+  }
+}
+
 
 /**
  *  Moves the camera focus to the specified point. 
@@ -747,14 +738,11 @@ Viewport.prototype.set_world = function(world) {
   
 /**
  *  Translate a point into a camera pos.
- *  @param {x, y} The point that should be translated into camera pos
+ *  @param {Vector} The point that should be translated into camera pos
  *  @return The translated Point
  */
-Viewport.prototype.translate = function(point) {
-  return {
-    x: point.x - this.camera.x,
-    y: point.y - this.camera.y
-  };
+Viewport.prototype.translate = function(vector) {
+  return vector_sub(vector, this.camera.pos);
 }
 
 /**
@@ -826,17 +814,16 @@ var PROCESS_MESSAGE = Match (
    *  contains all data necessary to set up the game world.
    */
   [[SERVER + HANDSHAKE, Number, Number, Object, Array, Array], _], 
-  function(player_id, tick, world_data, entities, players, client) {
+  function(player_id, tick, world_data, players, entities, client) {
     var world = new World(world_data);
-    client.world = world;
+    client.set_world(world);
     for (var i = 0; i < players.length; i++) {
-      world.players[players[i].id] = new Player(players[i]);
+      PROCESS_MESSAGE([[players[i].shift() + CONNECT].concat(players[i]), client]);
     }
     for (var i = 0; i < entities.length; i++) {
-      PROCESS_MESSAGE([[ENTITY + SPAWN, entities[i]], client]);
+      PROCESS_MESSAGE([[entities[i].shift() + SPAWN].concat(entities[i]), client]);
     }
-    client.server_state.no_players++
-    client.set_world(world);
+    // client.server_state.no_players++
     client.set_player(world.players[player_id]);
     client.start_gameloop(tick);
     client.set_state(CLIENT_CONNECTED);
@@ -854,9 +841,13 @@ var PROCESS_MESSAGE = Match (
   /**
    * Is recived when a new player has connected to the server.
    */
-  [[PLAYER + CONNECT, Object], _], 
-  function(player_data, client) {
-    var player = new Player(player_data);
+  [[PLAYER + CONNECT, Number, String, String], _], 
+  function(id, name, color, client) {
+    var player = new Player({
+      id:     id,
+      name:   name,
+      color:  color
+    });
     client.world.players[player.id] = player;
     client.server_state.no_players++;
     client.log('Player "' + player.name + ' joined the world...');
@@ -873,11 +864,11 @@ var PROCESS_MESSAGE = Match (
     if (player) {
       player.set_props(data);
       player.commit();
-      world.each('players', function(opponent) {
-        if (client.player.s > opponent.s) {
+      for (var pid in world.players) {
+        if (client.player.score > world.players[pid].score) {
           player_pos--;
         }
-      });
+      }
       client.player.pos = player_pos;
       if (data.eid) {
         var entity = world.find(data.eid);
@@ -885,7 +876,7 @@ var PROCESS_MESSAGE = Match (
         if (player.is_me) {
           entity.is_me = true;
           client.respawn_at = 0;
-          client.viewport.set_camera_pos(entity);
+          client.viewport.set_camera_pos(entity.pos);
         }
       }
     }
@@ -950,52 +941,58 @@ var PROCESS_MESSAGE = Match (
   /**
    * Is recived when world state changes.
    */
-  [[WORLD + STATE, Object], _], 
-  function(state, client) {
-    client.world.set_props(state);
+  [[WORLD + STATE, Number, Number, Object], _], 
+  function(state, timer, winners, client) {
+    client.world.set_round_state(state, timer, winners);
     client.world.winners = null;
   },
 
   /**
    * Is recived when a ship has been created
    */
-  [[ENTITY + SPAWN, {'type =': SHIP}], _],
-  function(data, client) {
-    var entity = new Ship(data);
-    client.world.append(entity);
-    entity.player = client.world.players[entity.pid];
-  },
-
-  /**
-   * Is recived when a bullet has been created
-   */
-  [[ENTITY + SPAWN, {'type =': BULLET}], _],
-  function(data, client) {
-    var entity = new Bullet(data);
+  [[SHIP + SPAWN, Number, Number, Array], _],
+  function(id, pid, pos, client) {
+    var player = client.world.players[pid];
+    var entity = new Ship({
+      id:   id,
+      pid:  pid,
+      pos:  pos
+    });
+    entity.is_me = player.is_me;
+    player.entity = entity;
+    entity.player = player
     client.world.append(entity);
   },
 
   /**
    * Is recived when a bullet has been created
    */
-  [[ENTITY + SPAWN, {'type =': WALL}], _],
-  function(data, client) {
-    var entity = new Wall(data);
+  [[BULLET + SPAWN, Number, Number, Array, Array, Number], _],
+  function(id, oid, pos, vel, angle, client) {
+    var entity = new Bullet({
+      id:   id,
+      oid:  oid,
+      pos:  pos,
+      vel:  vel,
+      angle: angle
+    });
+    client.world.append(entity);
+  },
+
+  /**
+   * Is recived when a bullet has been created
+   */
+  [[WALL + SPAWN, Number, Array, Array, String], _],
+  function(id, pos, size, orientation, client) {
+    var entity = new Wall({
+      id:   id, 
+      pos:  pos,
+      size: size,
+      o:    orientation      
+    });
     client.world.append(entity);
   },
   
-  /**
-   * Is recived when an entity's state has changed.
-   */
-  [[ENTITY + STATE, Number, Object], _],
-  function(id, data, client) {
-    var entity = client.world.find(id);
-    if (entity) {
-      entity.set_props(data);
-      entity.commit();
-    } 
-  },
-
   /**
    * Is recived when an entity is destroyed
    */
@@ -1003,6 +1000,20 @@ var PROCESS_MESSAGE = Match (
   function(entity_id,  client) {
     var entity = client.world.find(entity_id);
     entity.destroy();
+  },
+
+  /**
+   * Is recived when an entity's state has changed.
+   */
+  [[SHIP + STATE, Number, Number, Number, Array, Array], _],
+  function(id, angle, commands, pos, vel, client) {
+    var entity = client.world.find(id);
+    if (entity) {
+      entity.angle    = angle;
+      entity.commands = commands
+      entity.pos      = pos;
+      entity.vel      = vel;
+    } 
   },
 
   //
@@ -1017,7 +1028,7 @@ var PROCESS_MESSAGE = Match (
 
 );
 
-Player.prototype.before_init = function() {
+Player.prototype.on_before_init = function() {
   this.pos = 1;
   this.is_me = false;
   this.winners = null;
@@ -1033,11 +1044,11 @@ World.prototype.draw = function(viewport, alpha) {
       camera    = viewport.camera;
   this.draw_grid(ctx, camera);
   for (var id in entities) {
-    var entity = entities[id], pos = { x: entity.x, y: entity.y };
-    if (!entity.is_me && intersects(entity, camera)) {
-      var point = viewport.translate(pos);
+    var entity = entities[id];
+    if (!entity.is_me && intersects(entity.get_bounds(), viewport.get_camera_box())) {
+      var point = viewport.translate(entity.pos);
       ctx.save();
-      ctx.translate(point.x, point.y);
+      ctx.translate(point[0], point[1]);
       entity.draw(ctx);
       ctx.restore();
     }
@@ -1048,57 +1059,61 @@ World.prototype.draw = function(viewport, alpha) {
  *  Draw's the background grid of the viewport.
  */
 World.prototype.draw_grid = function(ctx, camera) {
+  var x, y;
+  var camx = camera.pos[0];
+  var camy = camera.pos[1];
+  var camw = camera.size[0];
+  var camh = camera.size[1];
   ctx.save();
   ctx.fillStyle = 'black';
   ctx.strokeStyle = GRID_CELL_COLOR;
   ctx.lineWidth = 0.5;
   ctx.beginPath();
-  var x, y;
 
-  if (camera.x < 0) {
-    x = -camera.x;
+  if (camx < 0) {
+    x = -camx;
   } else {
-    x = GRID_CELL_SIZE - camera.x % GRID_CELL_SIZE;
+    x = GRID_CELL_SIZE - camx % GRID_CELL_SIZE;
   }
 
-  while(x < camera.w) {
+  while(x < camw) {
     ctx.moveTo(x, 0);
-    ctx.lineTo(x, camera.h);
+    ctx.lineTo(x, camh);
     x += GRID_CELL_SIZE;
   }
 
-  if (camera.y < 0) {
-    y = -camera.y;
+  if (camy < 0) {
+    y = -camy;
   } else {
-    y = GRID_CELL_SIZE - camera.y % GRID_CELL_SIZE
+    y = GRID_CELL_SIZE - camy % GRID_CELL_SIZE
   }
 
-  while(y < camera.h) {
+  while(y < camh) {
     ctx.moveTo(0, y);
-    ctx.lineTo(camera.w, y);
+    ctx.lineTo(camw, y);
     y += GRID_CELL_SIZE;
   }
    
   ctx.stroke();
 
   // Left Edge
-  if (camera.x < 0) {
-    ctx.fillRect(0, 0, -camera.x, camera.h);
+  if (camx < 0) {
+    ctx.fillRect(0, 0, -camx, camh);
   }
 
   // Right Edge
-  if (camera.x + camera.w > this.w) {
-    ctx.fillRect(this.w - camera.x, 0, camera.x + camera.w - this.w, camera.h);
+  if (camx + camw > this.w) {
+    ctx.fillRect(this.w - camx, 0, camx + camw - this.w, camh);
   }
 
   // Top Edge
-  if (camera.y < 0) {
-    ctx.fillRect(0, 0, camera.w, -camera.y);
+  if (camy < 0) {
+    ctx.fillRect(0, 0, camw, -camy);
   }
 
   // Bottom Edge
-  if (camera.y + camera.h > this.h) {
-    ctx.fillRect(0, this.h - camera.y, camera.w, camera.y - camera.h + this.h);
+  if (camy + camh > this.h) {
+    ctx.fillRect(0, this.h - camy, camw, camy - camh + this.h);
   }
   ctx.restore();
 }
@@ -1108,19 +1123,19 @@ World.prototype.draw_grid = function(ctx, camera) {
  *  Local constructor for the Entity class. Add a visible property that 
  *  indiciates that the Entity is visible or not.
  */
-Ship.prototype.before_init = function() {
+Ship.prototype.on_before_init = function() {
   this.visible = true;
   this.spawning = true;
   this.is_me = false;
   this.player = null;
 }
 
-Ship.prototype.after_init = function() {
+Ship.prototype.on_after_init = function() {
   var self = this;
   this.animations = {
     'plight': new PositionLightAnimation(this),
-    't':      new ThrustAnimation(),
-    'sd':     new ShieldAnimation(),
+    'thrust': new ThrustAnimation(),
+    'shield': new ShieldAnimation(),
     'spawn':  new SpawnAnimation(function() {
                 self.spawning = false;
                 delete self.animations['spawn']
@@ -1132,16 +1147,12 @@ Ship.prototype.after_init = function() {
   }
 }
 
-Ship.prototype.on_propchange = function(prop, new_value, old_value) {
-  if (this.animations[prop]) {
-    this.animations[prop].set_active(new_value);
-  }
-}
-
 /**
  *  Prepare properties for a draw call
  */
 Ship.prototype.update = function(t, dt) {
+  this.animations['shield'].set_active(this.is(SHIELD));
+  this.animations['thrust'].set_active(this.is(THRUST));
   for (var anim in this.animations) {
     this.animations[anim].update(t, dt);
   }
@@ -1160,16 +1171,18 @@ Ship.prototype.destroy = function() {
  *  Draws the Ship instance on the specified GraphicsContext.
  */
 Ship.prototype.draw = function(ctx) {
+  var centerx = this.size[0] / 2,
+      centery = this.size[1] / 2;
   if (!this.spawning && !this.dead) {
-    ctx.rotate(this.a);
+    ctx.rotate(this.angle);
     ctx.strokeStyle = "white";
     ctx.lineWidth = 1;
     ctx.fillStyle = "white";
     ctx.beginPath();
-    ctx.moveTo(0, -(this.h / 2));
-    ctx.lineTo(this.w / 2, (this.h / 2));
-    ctx.lineTo(-(this.w / 2), (this.h / 2));
-    ctx.lineTo(0, -(this.h / 2));
+    ctx.moveTo(0, -centery);
+    ctx.lineTo(centerx, centery);
+    ctx.lineTo(-centerx, centery);
+    ctx.lineTo(0, -centery);
     ctx.fill();
   }
   for (var anim in this.animations) {
@@ -1178,10 +1191,10 @@ Ship.prototype.draw = function(ctx) {
     ctx.restore();
   }
   if(!this.is_me){  
-    ctx.rotate(-this.a);
+    ctx.rotate(-this.angle);
     ctx.font = SHIP_FONT;
   	ctx.fillStyle = 'rgb(' + this.player.color + ')';
-    draw_label(ctx, 0, this.h + 10, this.player.name, 'center', 100);	
+    draw_label(ctx, 0, this.size[1] + 10, this.player.name, 'center', 100);	
   }
 }
 
@@ -1190,7 +1203,7 @@ Ship.prototype.draw = function(ctx) {
  *  Local constructor for the Entity class. Add a visible property that 
  *  indiciates that the Entity is visible or not.
  */
-Bullet.prototype.before_init = function() {
+Bullet.prototype.on_before_init = function() {
   this.visible = true;
 }
 
@@ -1199,9 +1212,11 @@ Bullet.prototype.before_init = function() {
  *  Draws the Bullet instance on the specified GraphicsContext.
  */
 Bullet.prototype.draw = function(ctx) {
-  ctx.rotate(this.a);
+  var w = this.size[0],
+      h = this.size[1];
+  ctx.rotate(this.angle);
   ctx.fillStyle = "white";
-  ctx.fillRect(-(this.w / 2), -(this.h / 2), this.w, this.h);
+  ctx.fillRect(-(w / 2), -(h / 2), w, h);
 }
 
 /**
@@ -1209,24 +1224,26 @@ Bullet.prototype.draw = function(ctx) {
  *  Draws Wall instance on the specified GraphicsContext.
  */
 Wall.prototype.draw = function(ctx, world) {
-  var t = Math.min(this.w, this.h) * 0.2,
-      o = Math.min(this.w, this.h) * 0.8;
+  var w = this.size[0],
+      h = this.size[1],
+      t = Math.min(w, h) * 0.2,
+      o = Math.min(w, h) * 0.8;
   ctx.save();
   ctx.fillStyle = "black";
-  ctx.fillRect(0, 0, this.w, this.h);
+  ctx.fillRect(0, 0, w, h);
   ctx.fillStyle = "red";
   switch (this.o) {
     case 'n':
-      ctx.fillRect(o, this.h - t, this.w - o * 2, t);
+      ctx.fillRect(o, h - t, w - o * 2, t);
       break;
     case 'e':
-      ctx.fillRect(0, o, t, this.h - o * 2);
+      ctx.fillRect(0, o, t, h - o * 2);
       break;
     case 's':
-      ctx.fillRect(o, 0, this.w - o * 2, t);
+      ctx.fillRect(o, 0, w - o * 2, t);
       break;
     case 'w':
-      ctx.fillRect(this.w - t, o, t, this.h - o * 2);
+      ctx.fillRect(w - t, o, t, h - o * 2);
       break;
   }
   ctx.restore();
@@ -1336,8 +1353,8 @@ ShieldAnimation.prototype.draw = function(ctx) {
  */
 function PositionLightAnimation(origin) {
   this.active = true;
-  this.x = origin.w / 2;
-  this.y = origin.h / 2;
+  this.x = origin.size[0] / 2;
+  this.y = origin.size[1] / 2;
   this.origin = origin;
   this.value = 0;
 }

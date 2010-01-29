@@ -14,7 +14,9 @@ var sys       = require('sys'),
     optparse  = require('./lib/optparse'),
     match     = require('./lib/match').Match;
 
-var _         = match.incl;
+
+// Define aliases
+var _  = match.incl;
 
 process.mixin(require('./lib/gameobjects'));
 
@@ -102,6 +104,7 @@ const CLIENT_DATA = [
   'client/swfobject.js',
   'client/FABridge.js',
   'client/particle.js',
+  'lib/sylvester.js',
   'client/WebSocketMain.swf',
   'client/crossdomain.xml' 
 ];
@@ -208,12 +211,38 @@ function start_gameserver(options, state) {
    */
   function start_gameloop() {
     log('Creating server World...');
+
     world = new World({
-      id: 1,
-      state: 'waiting',
-      w: options.world_width,
-      h: options.world_height
+      size: [options.world_width, options.world_height]
     });
+    
+    world.on_round_state_changed = function(state, timer, winners) {
+      broadcast(WORLD + STATE, state, timer, winners);
+    }
+
+    world.on_entity_destroy = function(id) {
+      broadcast(ENTITY + DESTROY, id);
+    }
+    
+    world.on_entity_spawn = function(entity) {
+      if (entity.constructor == Ship)
+        broadcast(
+          SHIP + SPAWN, 
+          entity.id,
+          entity.pid,
+          entity.pos
+        );
+      else if (entity.constructor == Bullet)
+        broadcast(
+          BULLET + SPAWN, 
+          entity.id,
+          entity.oid,
+          entity.pos,
+          entity.vel,
+          entity.angle
+        );
+    }
+    
     world.build();
 
     gameloop = new GameLoop();
@@ -234,7 +263,7 @@ function start_gameserver(options, state) {
       connections[id].kill('Server is shutting down')
     }
     
-    world.r_state = 'waiting';
+    world.set_round_state(ROUND_WAITING);
 
     gameloop.kill();
     gameloop = null;
@@ -260,8 +289,7 @@ function start_gameserver(options, state) {
     index = trash.length;
     while (index--) {
       var entity = trash[index];
-      world.delete_by_id(entity.id);
-      broadcast([ENTITY + DESTROY, entity.id]);
+      world.delete_entity_by_id(entity.id);
     }
   }
   
@@ -274,23 +302,21 @@ function start_gameserver(options, state) {
   function post_state_updates(t, dt) {
     var time = parseInt(t * 1000);
     if (time % update_rate == 0) {
-      world.each_uncommited(function(item) {
-        if (item.update_interval && time % item.update_interval == 0) {
-          var connection = null;
-          if (item.player) {
-            connection = item.player.connection;
-            connection.queue([item.subject + STATE, item.id, item.changed_values('dynamic')]);
-            broadcast_exclude(connection, [item.subject + STATE, item.id, item.changed_values()]);
-          } else {
-            broadcast([item.subject + STATE, item.id, item.changed_values()]);
-          }
-          item.commit();
+      for (var id in world.players) {
+        var player = world.players[id],
+            entity = player.entity,
+            connection = player.connection;
+        if (entity) {
+          broadcast(
+            SHIP + STATE,
+            entity.id,
+            entity.angle,
+            entity.commands,
+            entity.pos,
+            entity.vel
+          );
         }
-      });
-    }
-    if (world.is_changed('round')) {
-      broadcast([WORLD + STATE, world.changed_values()]);
-      world.commit();
+      }
     }
   }
   
@@ -331,37 +357,32 @@ function start_gameserver(options, state) {
       if (player.entity) {
         var entity = player.entity;
 
-        entity.set_prop(THRUST, player[THRUST]);
-        entity.set_prop(ROTATE, player[ROTATE]);
+        entity.set(THRUST, player.is(THRUST));
+        entity.set(ROTATE_W, player.is(ROTATE_W));
+        entity.set(ROTATE_E, player.is(ROTATE_E));
 
-        if (player[SHIELD] && player.e >= rules.shield_cost * dt) {
-          player.set_props({
-            e: player.e - rules.shield_cost * dt
-          });
-          entity.set_prop(SHIELD, 1);
+        if (player.is(SHIELD) && player.energy >= rules.shield_cost * dt) {
+          player.energy -= rules.shield_cost * dt;
+          entity.set(SHIELD, true);
         } else {
-          entity.set_prop(SHIELD, 0);
+          entity.set(SHIELD, false);
         }
 
         if (player.reload_time && t >= player.reload_time) {
           player.reload_time = 0;
         } 
         
-        if (player[SHOOT] && !player.reload_time && player.e >= rules.shoot_cost * dt) {
-          entity.set_prop(SHOOT, 1);
-          player.set_props({
-            e: player.e - rules.shoot_cost * dt
-          });
+        if (player.is(SHOOT) && !player.reload_time && player.energy >= rules.shoot_cost * dt) {
+          entity.set(SHOOT, true);
+          player.energy -= rules.shoot_cost * dt;
           player.reload_time = t + rules.reload_time * dt;
           player.spawn_bullet();
         } else {
-          entity.set_prop(SHOOT, 0);
+          entity.set(SHOOT, false);
         }
         
-        if (player.e <= 100 && !player[SHIELD] && !player[SHOOT]) {
-          player.set_props({
-            e: player.e + rules.energy_recovery * dt
-          });
+        if (player.energy <= 100 && !player.is(SHIELD) && !player.is(SHOOT)) {
+          player.energy += rules.energy_recovery * dt
         }
       }
     }
@@ -378,86 +399,75 @@ function start_gameserver(options, state) {
       
       // The world is waiting for players to be "ready". The game starts when 
       // 60% of the players are ready.
-      case 'waiting':
+      case ROUND_WAITING:
         if (state.no_players > 1 && state.no_ready_players >= (state.no_players * 0.6)) {
-          world.set_props({
-            r_state: 'starting',
-            r_start_at: t + rules.start_delay * dt
-          });
-          world.each('players', function(player) {
+          world.set_round_state(ROUND_STARTING, t + rules.start_delay * dt);
+          for (var pid in world.players) {
+            player = world.players[id];
             if (player.entity) {
-              world.delete_by_id(player.entity.id);
-              broadcast([ENTITY + DESTROY, player.entity.id]);
+              world.delete_entity_by_id(player.entity.id);
             }
-          });
+          }
         }
         break;
         
       // Round is starting. Server aborts if a player leaves the game.
-      case 'starting':
+      case ROUND_STARTING:
         if (state.no_ready_players < (state.no_players * 0.6)) {
-          world.set_props({
-            r_state: 'waiting',
-            r_start_at: 0
-          });
-          world.each('players', function(player) {
+          world.set_round_state(ROUND_WAITING, 0);
+          for (var pid in world.players) {
+            player = world.players[id];
             player.spawn_ship(world.find_respawn_pos());
-          });
+          }
           return;
         }
-        if (t >= world.r_start_at) {
-          world.set_props({
-            r_state: 'running',
-            r_start_at: 0
-          });
-          world.each('players', function(player) {
-            player.set_props({st: 0, s: 0});
+        if (t >= world.r_timer) {
+          world.set_round_state(ROUND_RUNNING, 0);
+          for (var pid in world.players) {
+            player = world.players[id];
+            player.ready = false;
+            player.score = 0;
             player.spawn_ship(world.find_respawn_pos());
-          });
+          }
           state.no_ready_players = 0;
         }
         break;
         
       // The round is running. Wait for a winner.
-      case 'running':
-        var winners = [];
-        world.each('players', function(player) {
+      case ROUND_RUNNING:
+        var winners = [],
+            player;
+        for (var pid in world.players) {
+          player = world.players[id];
           if (player.s == rules.round_limit) {
             winners.push(player.id);
           }
-        });
+        }
         if (winners.length) {
-          world.set_props({
-            r_state: 'finished',
-            r_restart_at: t + rules.round_rs_time * dt,
-            r_winners: winners
-          });
-          world.each('players', function(player) {
-            if (player.entity) {
-              world.delete_by_id(player.entity.id);
-              broadcast([ENTITY + DESTROY, player.entity.id]);
+          world.set_round_state(ROUND_FINISHED, t + rules.round_rs_time * dt, winners);
+          for (var pid in world.players) {
+            player = world.players[id];
+            if (player.s == rules.round_limit) {
+              if (player.entity) {
+                world.delete_entity_by_id(player.entity.id);
+              }
+              player.is_dead = false;
+              player.respawn_time = 0;
             }
-            player.is_dead = false;
-            player.respawn_time = 0;
-          });
+          }
         }
         break;
 
       // The round is finished. Wait for restart
-      case 'finished':
-        if (t >= world.r_restart_at) {
-          world.set_props({
-            r_state: 'waiting',
-            r_restart_at: 0,
-            r_winners: []
-          });
-          world.each('players', function(player) {
-            player.set_props({
-              s: 0,
-              e: 100
-            });
+      case ROUND_FINISHED:
+        if (t >= world.r_timer) {
+          world.set_round_state(ROUND_WAITING, 0, []);
+          for (var pid in world.players) {
+            player = world.players[id];
+            player.score = 0;
+            playyer.energy = 100;
             player.spawn_ship(world.find_respawn_pos());
-          });
+          }
         }
         break;
     }
@@ -468,7 +478,8 @@ function start_gameserver(options, state) {
    *  @param {String} msg The message to broadcast.
    *  @return {undefined} Nothing
    */
-  function broadcast(msg) {
+  function broadcast() {
+    var msg = Array.prototype.slice.call(arguments);
     for(var id in connections) {
       connections[id].queue(msg);
     }
@@ -481,7 +492,9 @@ function start_gameserver(options, state) {
    *  @param {String} msg The message to broadcast.
    *  @return {undefined} Nothing
    */
-  function broadcast_exclude(exclude, msg) {
+  function broadcast_exclude() {
+    var msg = Array.prototype.slice.call(arguments);
+    var exclude = msg.shift();
     for(var id in connections) {
       if (exclude.id != id) {
         connections[id].queue(msg);
@@ -535,7 +548,7 @@ function start_gameserver(options, state) {
     //
     conn.kill = function(reason) {
       disconnect_reason = reason || 'Unknown Reason';
-      this.queue([SERVER + DISCONNECT, disconnect_reason]);
+      this.queue(SERVER + DISCONNECT, disconnect_reason);
       this.flush_queue();
       this.close();
     }
@@ -622,14 +635,10 @@ function start_gameserver(options, state) {
 
       player = new Player({ id: connection_id }, conn, world);
 
-      player.events.addListener('spawn', function(entity) {
-        broadcast([ENTITY + SPAWN, entity.repr()])
-      });
-      
       player.events.addListener('state_changed', function(state) {
         switch (state) {
           case OK:
-            broadcast_exclude(conn, [PLAYER + CONNECT, player.repr()]);
+            broadcast_exclude(conn, PLAYER + CONNECT, player.id, player.name, player.color);
             player.spawn_ship(world.find_respawn_pos());
             log(conn + ' joined the game.');
             break;
@@ -637,22 +646,22 @@ function start_gameserver(options, state) {
       });
       
       player.events.addListener('ready', function() {
-        if (world.r_state == 'waiting') {
+        if (world.r_state == ROUND_WAITING) {
           state.no_ready_players = state.no_ready_players + 1;
-          broadcast([PLAYER + READY, player.id]);
+          broadcast(PLAYER + READY, player.id);
         }
       });
       
       player.events.addListener('dead', function(death_cause, killer) {
         switch (death_cause) {
           case DEATH_CAUSE_SUICDE:
-            player.set_prop('s', player.s - rules.penelty_score < 0 ? 0 : player.s - rules.penelty_score);
+            player.score -= rules.penelty_score < 0 ? 0 : player.s - rules.penelty_score;
             break;
           case DEATH_CAUSE_KILLED:
-            killer.set_prop('s', killer.s + rules.kill_score);
+            killer.score += rules.kill_score;
             break;
         }
-        broadcast([PLAYER + DESTROY, player.id, death_cause, killer ? killer.id : -1]);
+        broadcast(PLAYER + DESTROY, player.id, death_cause, killer ? killer.id : -1);
       });
 
       world.players[connection_id] = player;
@@ -660,7 +669,7 @@ function start_gameserver(options, state) {
       state.no_players = state.no_players + 1
 
       log(conn + ' connected to server. Sending handshake...');
-      conn.post([SERVER + HANDSHAKE, connection_id, gameloop.tick, world.repr(), world.list_repr('entities'), world.list_repr('players')]);
+      conn.post([SERVER + HANDSHAKE, connection_id, gameloop.tick].concat(world.get_repr()));
     });
 
     //
@@ -683,7 +692,7 @@ function start_gameserver(options, state) {
           }
         }
 
-        broadcast([PLAYER + DISCONNECT, connection_id, disconnect_reason]);    
+        broadcast(PLAYER + DISCONNECT, connection_id, disconnect_reason);
       }
       
       log(conn + ' disconnected (Reason: ' + disconnect_reason + ')');
@@ -720,35 +729,11 @@ var PROCESS_MESSAGE = match (
   },
 
   /**
-   *  Indicates that the player state ROTATE is changed
+   *  Indicates that the player state ROTATE_E is changed
    */
-  [[CLIENT + COMMAND, ROTATE, Number], { 'state =': OK }], 
+  [[CLIENT + COMMAND, Number], { 'state =': OK }], 
   function(value, player) {
-    player[ROTATE] = value;
-  },
-
-  /**
-   *  Indicates that the player state THRUST is changed
-   */
-  [[CLIENT + COMMAND, THRUST, Number], { 'state =': OK }], 
-  function(value, player) {
-    player[THRUST] = value;
-  },
-
-  /**
-   *  Indicates that the player state SHOOT is changed
-   */
-  [[CLIENT + COMMAND, SHOOT, Number], { 'state =': OK }],
-  function(value, player) {
-    player[SHOOT] = value;
-  },
-
-  /**
-   *  Indicates that the player state SHIELD is changed
-   */
-  [[CLIENT + COMMAND, SHIELD, Number], { 'state =': OK }],
-  function(value, player) {
-    player[SHIELD] = value;
+    player.commands = value;
   },
 
   /**
@@ -756,7 +741,7 @@ var PROCESS_MESSAGE = match (
    */
   [[CLIENT + COMMAND, READY], { 'state =': OK }], function(player) {
     if (player.st != READY) {
-      player.set_props({ st: READY });
+      player.ready = true;
       player.events.emit('ready');
     }
   },
@@ -793,7 +778,7 @@ var COLLISSION_RESOLVER = match (
    *  Check collission between Ship and Bullet
    */
   [Ship, Bullet, Array], function(ship, bullet, trash) {  
-    if (ship[SHIELD]) {
+    if (ship.is(SHIELD)) {
       trash.push(bullet);
     } else if (ship.id != bullet.oid) {
       ship.player.die(DEATH_CAUSE_KILLED, bullet.player);
@@ -809,15 +794,11 @@ var COLLISSION_RESOLVER = match (
    * Check collission between Ship and Wall 
    */
   [Ship, Wall, Array], function(ship, wall, trash) {
-    if (ship[SHIELD]) {
-      if (wall.w > wall.h) {
-        ship.set_props({
-          sy: -ship.sy
-        });
+    if (ship.is(SHIELD)) {
+      if (wall.size[0] > wall.size[1]) {
+        ship.vel = [ship.vel[0], -ship.vel[1]];
       } else {
-        ship.set_props({
-          sx: -ship.sx
-        });
+        ship.vel = [-ship.vel[0], ship.vel[1]];
       }
     } else {
       ship.player.die(DEATH_CAUSE_SUICDE);
@@ -836,26 +817,20 @@ var COLLISSION_RESOLVER = match (
    * Check collission between Ship and Ship 
    */
   [Ship, Ship, Array], function(ship_a, ship_b, trash) {
-    if (!ship_a[SHIELD] && !ship_b[SHIELD]) {
+    if (!ship_a.is(SHIELD) && !ship_b.is(SHIELD)) {
       ship_a.player.die(DEATH_CAUSE_SUICDE);
       ship_b.player.die(DEATH_CAUSE_SUICDE);
       trash.push(ship_a);
       trash.push(ship_b);
-    } else if(ship_a[SHIELD] && ship_b[SHIELD]) {
-      ship_a.set_props({
-        sx: -ship_a.sx,
-        sy: -ship_a.sy
-      });
-      ship_b.set_props({
-        sx: -ship_b.sx,
-        sy: -ship_b.sy
-      });
+    } else if(ship_a.is(SHIELD) && ship_b.is(SHIELD)) {
+      ship_a.vel = [-ship.vel[0], -ship.vel[1]];
+      ship_b.vel = [-ship.vel[0], -ship.vel[1]];
     } else {
-      if (!ship_a[SHIELD]) {
+      if (!ship_a.is(SHIELD)) {
         ship_a.player.die(DEATH_CAUSE_KILLED, ship_b.player);
         trash.push(ship_a);
       } 
-      if (!ship_b[SHIELD]) {
+      if (!ship_b.is(SHIELD)) {
         ship_b.player.die(DEATH_CAUSE_KILLED, ship_a.player);
         trash.push(ship_b);
       } 
@@ -864,22 +839,7 @@ var COLLISSION_RESOLVER = match (
 
 );
 
-/**
- *  GameObject.dump
- *  Extends the GameObject with a "print-to-stdout" method.
- */
-GameObject.dump = function() {
-  var item = this.repr();
-  var result = this.type + '#' + this.id + ': { ';
-  for (var name in item) {
-    result += name + ': ' + item;
-  };
-  result += '}';
-  sys.debug(result);
-}
-
-
-Player.prototype.before_init = function(initials, connection, world) {
+Player.prototype.on_before_init = function(initial, connection, world) {
   this.events         = new process.EventEmitter(); 
   this.connection     = connection;
   this.world          = world;
@@ -887,8 +847,8 @@ Player.prototype.before_init = function(initials, connection, world) {
   this.reload_time    = 0;
   this.respawn_time   = 0;
   this.is_dead        = false;
-  initials.name       = get_random_value(PLAYER_NAMES);
-  initials.color      = get_random_value(PLAYER_COLORS);
+  initial.name        = get_random_value(PLAYER_NAMES);
+  initial.color       = get_random_value(PLAYER_COLORS);
 }
 
 Player.prototype.get_entity = function() {
@@ -909,13 +869,12 @@ Player.prototype.set_state = function(new_state) {
 Player.prototype.spawn_ship = function(pos) {
   var entity = this.world.spawn_entity('ship', {
     pid: this.id,
-    x: pos.x,
-    y: pos.y
+    pos: pos
   });
   entity.player = this;
   this.is_dead = false;
   this.events.emit('spawn', entity);
-  this.set_prop('eid', entity.id);
+  this.eid = entity.id;
   this.entity = entity;
   return entity;
 }
@@ -947,7 +906,7 @@ Player.prototype.spawn_bullet = function() {
  *  Is called upon before init.
  *  @return {undefined} Nothing
  */
-World.prototype.before_init = function() {
+World.prototype.on_before_init = function() {
   this.entity_count = 1;
 }
 
@@ -960,10 +919,10 @@ World.prototype.find_respawn_pos = function() {
       pos    = null;
 
   while (pos == null) {
-    bounds.x = 50 + (Math.random() * (this.w - 100));
-    bounds.y = 50 + (Math.random() * (this.h - 100));
+    bounds.x = 50 + (Math.random() * (this.size[0] - 100));
+    bounds.y = 50 + (Math.random() * (this.size[1] - 100));
     if (!this.bounds_intersects(bounds)) {
-      pos = {x: bounds.x + 30, y: bounds.y + 30};
+      pos = [bounds.x + 30, bounds.y + 30];
     }
   }
   
@@ -975,17 +934,27 @@ World.prototype.find_respawn_pos = function() {
  *  @return {undefined} Nothing
  */
 World.prototype.build = function() {
+  var w = this.size[0],
+      h = this.size[1];
   this.spawn_entity('wall', {
-    x: 0, y: 0, w: this.w + 10, h: 10, o: 'n'
+    pos: [0, 0],
+    size: [w + 10, 10],
+    o: 'n'
   });
   this.spawn_entity('wall', {
-    x: this.w, y: 0, w: 10, h: this.h + 10, o: 'e'
+    pos: [w, 0],
+    size: [10, h + 10],
+    o: 'e'
   });
   this.spawn_entity('wall', {
-    x: 0, y: this.h , w: this.w + 10, h: 10, o: 's'
+    pos: [0, h],
+    size: [w + 10, 10],
+    o: 's'
   });
   this.spawn_entity('wall', {
-    x: 0, y: 0, w: 10, h: this.h + 10, o: 'w'
+    pos: [0, 0],
+    size: [10, h + 10],
+    o: 'w'
   });
 }
 
