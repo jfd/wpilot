@@ -1102,8 +1102,8 @@ World.prototype.draw_grid = function(ctx, camera) {
   }
 
   // Right Edge
-  if (camx + camw > this.w) {
-    ctx.fillRect(this.w - camx, 0, camx + camw - this.w, camh);
+  if (camx + camw > this.size[0]) {
+    ctx.fillRect(this.size[0] - camx, 0, camx + camw - this.size[0], camh);
   }
 
   // Top Edge
@@ -1112,8 +1112,8 @@ World.prototype.draw_grid = function(ctx, camera) {
   }
 
   // Bottom Edge
-  if (camy + camh > this.h) {
-    ctx.fillRect(0, this.h - camy, camw, camy - camh + this.h);
+  if (camy + camh > this.size[1]) {
+    ctx.fillRect(0, this.size[1] - camy, camw, camy - camh + this.size[1]);
   }
   ctx.restore();
 }
