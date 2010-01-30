@@ -72,7 +72,7 @@ function WPilotClient(options) {
   this.viewport           = null;
   this.input              = null;
   this.world              = null;
-  this.player             = { entity: null };
+  this.player             = null;
   this.conn               = null;
   this.message_log        = [];
   this.hud_message        = null;
@@ -83,6 +83,7 @@ function WPilotClient(options) {
     start_time:         null,
     frequence:          0.4,
     last_update:        0,
+    last_received:      0, 
     bytes_received:     0, 
     bytes_sent:         0,
     bps_in:             0,
@@ -142,7 +143,7 @@ WPilotClient.prototype.set_world = function(world) {
 WPilotClient.prototype.set_viewport = function(viewport) {
   var self = this;
   viewport.ondraw = function() {
-    if (self.state == CLIENT_CONNECTED) {
+    if (self.player) {
       if (self.player.entity) {
         viewport.set_camera_pos(self.player.entity.pos);
       }
@@ -178,7 +179,7 @@ WPilotClient.prototype.set_server_state = function(state) {
   if (state.no_players != state.max_players) {
     this.server_state = state;
     this.log('Recived server state, now joining game...');
-    this.post([CLIENT + CONNECT]);
+    this.post_control_packet([CLIENT + CONNECT]);
   } else {
     this.log('Server is full');
   }
@@ -200,7 +201,7 @@ WPilotClient.prototype.set_state = function(state) {
     case CLIENT_CONNECTED:
       this.log('Joined server ' + this.conn.URL + '...');
       this.hud_message = 'Waiting for more players to connect';
-      this.post([CLIENT + HANDSHAKE]);  
+      this.post_control_packet([CLIENT + HANDSHAKE]);  
       break;
       
     case CLIENT_DISCONNECTED:    
@@ -229,6 +230,10 @@ WPilotClient.prototype.process_user_input = function(t, dt) {
       input         = this.input,
       new_commands  = 0;
 
+  if (input.toggle('ready')) {
+    this.post_game_packet([CLIENT + COMMAND, READY]);
+  } 
+
   if (player.entity && !player.entity.dead && !player.entity.spawning) {
     if (input.on('thrust')) new_commands |= THRUST;
     if (input.on('rotate_west')) new_commands |= ROTATE_W;
@@ -238,15 +243,12 @@ WPilotClient.prototype.process_user_input = function(t, dt) {
   } else {
     new_commands = 0;
   }
-  
+
   if (new_commands != player.commands) {
     player.commands = new_commands;
-    this.post([CLIENT + COMMAND, new_commands]);
+    this.post_game_packet([CLIENT + COMMAND, new_commands]);
   }
   
-  if (input.toggle('ready')) {
-    this.post([CLIENT + COMMAND, READY]);
-  }
 }
 
 /**
@@ -277,7 +279,7 @@ WPilotClient.prototype.start_gameloop = function(initial_tick) {
   }
 
   this.viewport.set_autorefresh(false);
-  this.netstat.start_time = this.netstat.last_update = get_time();
+  this.netstat.start_time = this.netstat.last_update = this.netstat.last_received = get_time();
   gameloop.start();
   self.gameloop = gameloop;
   return gameloop;
@@ -339,19 +341,42 @@ WPilotClient.prototype.join = function(url) {
      *  @returns {undefined} Nothing
      */
     self.conn.onmessage = function(event) {
-      var graph = JSON.parse(event.data);
-
-      // Check if message is  aso called MULTIPART message. MULTIPART messages
-      // is handled a little bit different then single messages.
-      var messages = graph[0] == MULTIPART ? graph[1] : [graph];
-      for (var i = 0; i < messages.length; i++) {
-        PROCESS_MESSAGE([messages[i], self]);
-      }
+      var packet = JSON.parse(event.data);
       
-      if (self.netstat.start_time) {
-        self.netstat.bytes_received += event.data.length;
-        self.netstat.messages_received += 1;
+      switch (packet[0]) {
+        
+        case CONTROL_PACKET:
+          process_control_message([packet[1], self]);
+          break;
+          
+        case GAME_PACKET:
+          var server_alpha = packet[1],
+              messages = packet[2];
+
+          if (self.netstat.start_time) {
+            var now = get_time(),
+                alpha = 0;//server_alpha;
+            if (self.netstat.last_received) {
+              var diff = now - self.netstat.last_received;
+              console.log(diff);
+              self.netstat.last_received = now;
+            }
+            self.netstat.last_received = now;
+            self.netstat.bytes_received += event.data.length;
+            self.netstat.messages_received += 1;
+          }
+          
+          for (var i = 0; i < messages.length; i++) {
+            process_game_message([messages[i], self]);
+          }
+        
+          break;
+          
+        default:
+          self.log('Recived bad packet header');
+          break;
       }
+
     }
 
     /**
@@ -379,18 +404,29 @@ WPilotClient.prototype.leave = function(reason) {
 }
 
 /**
- *  Post a jsonified message to the server 
+ *  Post a game packet to server 
  *  @param {String} msg The message that should be sent.
  *  @return {undefined} Nothing
  */
-WPilotClient.prototype.post = function(msg) {
-  var data = JSON.stringify(msg);
+WPilotClient.prototype.post_game_packet = function(msg) {
+  var packet = JSON.stringify([GAME_PACKET, msg]);
   if (this.netstat.start_time) {
-    this.netstat.bytes_sent += data.length;
+    this.netstat.bytes_sent += packet.length;
     this.netstat.messages_sent += 1;
   }
-  this.conn.send(data);
+  this.conn.send(packet);
 }
+
+/**
+ *  Post a control packet to server 
+ *  @param {String} msg The message that should be sent.
+ *  @return {undefined} Nothing
+ */
+WPilotClient.prototype.post_control_packet = function(msg) {
+  var packet = JSON.stringify([CONTROL_PACKET, msg]);
+  this.conn.send(packet);
+}
+
 
 /**
  *  Draws logs, which includes the message log, netstat log and fps counter.
@@ -794,12 +830,10 @@ Viewport.prototype.draw = function() {
 }
 
 /**
- *  PROCESS_MESSAGE
- *  Processes message recieved from server.
+ *  Processes control message recieved from server.
  *  
  */
-var PROCESS_MESSAGE = Match (
-
+var process_control_message = Match (
   /**
    *  The first message recieved from server on connect. Contains the 
    *  state of the server. 
@@ -813,22 +847,39 @@ var PROCESS_MESSAGE = Match (
    *  Is received after the client has sent a CLIENT CONNET message. The message
    *  contains all data necessary to set up the game world.
    */
-  [[SERVER + HANDSHAKE, Number, Number, Object, Array, Array], _], 
-  function(player_id, tick, world_data, players, entities, client) {
+  [[SERVER + HANDSHAKE, Object, Array, Array], _], 
+  function(world_data, players, entities, client) {
     var world = new World(world_data);
+
     client.set_world(world);
+
     for (var i = 0; i < players.length; i++) {
-      PROCESS_MESSAGE([[players[i].shift() + CONNECT].concat(players[i]), client]);
+      process_game_message([[players[i].shift() + CONNECT].concat(players[i]), client]);
     }
+
     for (var i = 0; i < entities.length; i++) {
-      PROCESS_MESSAGE([[entities[i].shift() + SPAWN].concat(entities[i]), client]);
+      process_game_message([[entities[i].shift() + SPAWN].concat(entities[i]), client]);
     }
+
     // client.server_state.no_players++
-    client.set_player(world.players[player_id]);
-    client.start_gameloop(tick);
     client.set_state(CLIENT_CONNECTED);
   },
+  
+  [[SERVER + CONNECT, Number, Number, String, String], _],
+  function(tick, id, name, color, client) {
+    var player = new Player({
+      id:     id,
+      name:   name,
+      color:  color
+    });
 
+    client.world.players[id] = player;
+    client.server_state.no_players++;
+    client.set_player(player);
+
+    client.start_gameloop(tick);
+  },
+  
   /**
    *  Is recieved when disconnected from server.
    */
@@ -836,8 +887,20 @@ var PROCESS_MESSAGE = Match (
   function(reason, client) {
     client.disconnect_reason = reason;
   },
-
   
+  function(msg) {
+    console.log('Unhandled message')
+    console.log(msg[0]);
+  }
+  
+);
+
+/**
+ *  Processes game message recieved from server.
+ *  
+ */
+var process_game_message = Match (
+
   /**
    * Is recived when a new player has connected to the server.
    */
@@ -1025,7 +1088,7 @@ var PROCESS_MESSAGE = Match (
     console.log('Unhandled message')
     console.log(msg[0]);
   }
-
+  
 );
 
 Player.prototype.on_before_init = function() {

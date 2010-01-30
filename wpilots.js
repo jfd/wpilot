@@ -31,8 +31,11 @@ const PRIO_HIGH     = 3,
       PRIO_LOW      = 1;
 
 // Player Connection states      
-const CONNECTING    = 1,
-      OK            = 2;
+const DISCONNECTED  = -1;
+      IDLE          = 0,
+      CONNECTED     = 1;
+      HANDSHAKING   = 3,
+      JOINED        = 4;      
 
 // Command line option parser switches
 const SWITCHES = [
@@ -49,7 +52,7 @@ const SWITCHES = [
   ['--max_players NUMBER',        'Max connected players allowed in server simultaneously (default: 8)'],
   ['--world_width NUMBER',        'The world width (Default: 1000)'],
   ['--world_height NUMBER',       'The world height (Default: 1000)'],
-  ['--update_rate NUMBER',        'Represent the frame no where updates are sent to clients. (Default: 10)'],
+  ['--update_rate NUMBER',        'Represent the frame no where updates are sent to clients. (Default: 200)'],
   ['--r_start_delay NUMBER',      'Rule: Time before game starts after warmup (Default: 300)'],
   ['--r_respawn_time NUMBER',     'Rule: Player respawn time after death. (Default: 500)'],
   ['--r_w_respawn_time NUMBER',   'Rule: Warm-up respawn time after death. (Default: 100)'],
@@ -65,7 +68,7 @@ const SWITCHES = [
 
 // Default server options
 const DEFAULT_OPTIONS = {
-  debug:                false, 
+  debug:                true, 
   name:                 'WPilot Server',
   host:                 '127.0.0.1',
   pub_host:             null,
@@ -77,7 +80,7 @@ const DEFAULT_OPTIONS = {
   serve_flash_policy:   false,
   world_width:          1000,
   world_height:         1000,
-  update_rate:          10,
+  update_rate:          200,
   r_start_delay:        200,
   r_respawn_time:       400,
   r_w_respawn_time:     100,
@@ -175,6 +178,7 @@ function start_gameserver(options, state) {
       delayed_actions = {},
       conn_id         = 1,
       update_rate     = options.update_rate,
+      last_flush      = 0,
       rules           = get_rules(options);
   
   // Represents a state object that is shared between game server and web server.
@@ -201,7 +205,6 @@ function start_gameserver(options, state) {
     world.update(t, dt);
     check_collisions(t, dt);
     check_rules(t, dt);
-    post_state_updates(t, dt);
     flush_queues();
   }
   
@@ -247,7 +250,9 @@ function start_gameserver(options, state) {
 
     gameloop = new GameLoop();
     gameloop.ontick = gameloop_tick;
-
+    
+    last_flush = get_time();
+    
     log('Starting game loop...');
     gameloop.start();
   }
@@ -294,18 +299,17 @@ function start_gameserver(options, state) {
   }
   
   /**
-   *  Post updates to connected clients. 
-   *  @param {Number} t Current world time.
-   *  @param {Number} dt Current delta time,
+   *  Flushes all connection queues.
    *  @return {undefined} Nothing
    */
-  function post_state_updates(t, dt) {
-    var time = parseInt(t * 1000);
-    if (time % update_rate == 0) {
+  function flush_queues() {
+    var now = get_time(),
+        diff = now - last_flush,
+        alpha = diff - update_rate;
+    if (alpha >= 0) {
       for (var id in world.players) {
         var player = world.players[id],
-            entity = player.entity,
-            connection = player.connection;
+            entity = player.entity;
         if (entity) {
           broadcast(
             SHIP + STATE,
@@ -317,17 +321,13 @@ function start_gameserver(options, state) {
           );
         }
       }
-    }
-  }
-  
-  /**
-   *  Flushes all connection queues.
-   *  @return {undefined} Nothing
-   */
-  function flush_queues() {
-    for (var id in connections) {
-      var connection = connections[id];
-      connection.flush_queue();
+      
+      for (var id in connections) {
+        var connection = connections[id];
+        connection.flush_queue(alpha);
+      }
+
+      last_flush = now;
     }
   }
   
@@ -465,7 +465,7 @@ function start_gameserver(options, state) {
           for (var pid in world.players) {
             player = world.players[id];
             player.score = 0;
-            playyer.energy = 100;
+            player.energy = 100;
             player.spawn_ship(world.find_respawn_pos());
           }
         }
@@ -474,7 +474,7 @@ function start_gameserver(options, state) {
   }
   
   /**
-   *  Broadcasts specified message to all current connections.
+   *  Broadcasts a game message to all current connections.
    *  @param {String} msg The message to broadcast.
    *  @return {undefined} Nothing
    */
@@ -486,7 +486,7 @@ function start_gameserver(options, state) {
   }
 
   /**
-   *  Broadcasts a message to all connections except to the one specified.
+   *  Broadcasts a game message to all connections except to the one specified.
    *  @param {tcp.Connection} exclude The connection to exclude from the 
    *                                  broadcast.
    *  @param {String} msg The message to broadcast.
@@ -523,179 +523,196 @@ function start_gameserver(options, state) {
         message_queue     = [],
         player            = null;
     
-    // Add connection to server's connection list.
-    connections[connection_id] = conn;
-
-    //  
-    //  const Connection.is_game_conn
-    //
     conn.is_game_conn = true;
-    
-    //  
-    //  const Connection.id
-    //  The unique id for this Connection instance.
-    //
     conn.id = connection_id;
-
-    //  
-    //  variable Connection.warnings
-    //
-    conn.warnings       = 0;
+    conn.state = IDLE;
+    conn.debug = options.debug;
     
-    // 
-    //  method Connection.kill
-    //  Forces a connection to be disconnected. 
-    //
+    /**
+     *  Forces a connection to be disconnected. 
+     */
     conn.kill = function(reason) {
       disconnect_reason = reason || 'Unknown Reason';
-      this.queue(SERVER + DISCONNECT, disconnect_reason);
-      this.flush_queue();
+      this.post([SERVER + DISCONNECT, disconnect_reason]);
       this.close();
+      message_queue = [];
     }
     
-    //
-    //  method Connection.queue
-    //  Queues the specified message and sends it on next flush.
-    // 
+    /**
+     *  Queues the specified message and sends it on next flush.
+     */
     conn.queue = function(data) {
       message_queue.push(data);
     }
 
-    //
-    //  method Connection.post
-    //  Stringify speicified object and sends it to remote part.
-    // 
+    /**
+     *  Stringify speicified object and sends it to remote part.
+     */
     conn.post = function(data) {
-      var msg = JSON.stringify(data);
-      this.send(msg);
+      var packet = JSON.stringify([CONTROL_PACKET, data]);
+      this.send(packet);
     }
 
-    //
-    //  method Connection.flush_queue
-    //  Post's specified data to this instances message queue
-    // 
-    conn.flush_queue = function() {
+    /**
+     *  Post's specified data to this instances message queue
+     */
+    conn.flush_queue = function(alpha) {
       if (message_queue.length) {
-        var msg = JSON.stringify([MULTIPART, message_queue]);
-        this.send(msg);
+        var packet = JSON.stringify([GAME_PACKET, alpha, message_queue]);
+        this.send(packet);
         message_queue = [];
       }
     }
     
-    //
-    //  method Connection.toString
-    //  Returns a String representation for this Connection
-    // 
+    /**
+     *  Sets the state of the connection
+     */
+    conn.set_state = function(new_state) {
+      switch (new_state) {
+        
+        case CONNECTED:
+          connections[connection_id] = conn;
+        
+          if (conn.debug) {
+            log('Debug: Sending server state to ' + conn);
+          }
+          
+          conn.post([SERVER + STATE, state]);
+          break;
+
+        case HANDSHAKING:
+          if (!gameloop) {
+            start_gameloop();
+          }
+                
+          state.no_players = state.no_players + 1
+                
+          if (state.no_players >= state.max_players) {
+            conn.kill('Server is full');
+          } else {
+            conn.post([SERVER + HANDSHAKE].concat(world.get_repr()));
+
+            if (conn.debug) {
+              log('Debug: ' + conn + ' connected to server. Sending handshake...');
+            }
+          }
+          break;
+        
+        case JOINED:
+          player = new Player({ id: connection_id }, conn, world);
+
+          player.events.addListener('ready', function() {
+            if (world.r_state == ROUND_WAITING) {
+              state.no_ready_players = state.no_ready_players + 1;
+              broadcast(PLAYER + READY, player.id);
+            }
+          });
+
+          player.events.addListener('dead', function(death_cause, killer) {
+            switch (death_cause) {
+
+              case DEATH_CAUSE_SUICDE:
+                player.score -= rules.penelty_score < 0 ? 0 : player.s - rules.penelty_score;
+                break;
+
+              case DEATH_CAUSE_KILLED:
+                killer.score += rules.kill_score;
+                break;
+                
+            }
+            broadcast(PLAYER + DESTROY, player.id, death_cause, killer ? killer.id : -1);
+          });
+
+          world.players[connection_id] = player;
+
+          conn.post([SERVER + CONNECT, gameloop.tick, player.id, player.name, player.color]);
+          broadcast_exclude(conn, PLAYER + CONNECT, player.id, player.name, player.color);
+
+          player.spawn_ship(world.find_respawn_pos());
+          
+          log(conn + ' joined the game.');
+          break;
+        
+        case DISCONNECT:
+          delete connections[connection_id];
+        
+          if (conn.state == HANDSHAKING || conn.state == JOINED) {
+            state.no_players = state.no_players - 1;
+
+            if (conn.state == JOINED) {
+              
+              // FIXME: Should remove entity as well.
+              delete world.players[connection_id];
+
+              state.no_ready_players = state.no_ready_players - 1;
+              
+              broadcast(PLAYER + DISCONNECT, connection_id, disconnect_reason);
+
+              log(conn + ' leaved the game (Reason: ' + disconnect_reason + ')');
+            }
+          }
+
+          if (state.no_players == 0) {
+            stop_gameloop();
+          } 
+          
+          if (conn.debug) {
+            log('Debug: ' + conn + ' disconnected (Reason: ' + disconnect_reason + ')');
+          }
+          break;
+      }
+      
+      conn.state = new_state;
+    }
+    
+    /**
+     *  Returns a String representation for this Connection
+     */
     conn.toString = function() {
       return this.remoteAddress + '(id: ' + this.id + ')';
     }
 
-    // 
-    //  event connect
-    //  Connection ´connect´ event handler. Challenge the player and creates 
-    //  a new PlayerSession.
-    //
+    // Connection ´connect´ event handler. Challenge the player and creates 
+    // a new PlayerSession.
     conn.addListener('connect', function(resource) {
-      conn.post([SERVER + STATE, state]);
+      conn.set_state(CONNECTED);
     });
 
-    // 
-    //  event receive
-    //  Connection ´recieve´ event handler. Occures each time that client sent
-    //  a message to the server.
-    //
+    // Connection ´recieve´ event handler. Occures each time that client sent
+    // a message to the server.
     conn.addListener('receive', function(data) {
+      var packet = null;
+
       try {
-        var graph = JSON.parse(data);        
+        packet = JSON.parse(data);        
       } catch(e) {
         sys.debug('Malformed message recieved');
-        require('sys').debug(sys.inspect(data));
+        sys.debug(sys.inspect(data));
         conn.kill('Malformed message sent by client');
         return;
       }
 
-      // Check if message is  aso called MULTIPART message. MULTIPART messages
-      // is handled a little bit different then single messages.
-      var messages = graph[0] == MULTIPART ? graph[1] : [graph];
-      for (var i = 0; i < messages.length; i++) {
-        PROCESS_MESSAGE([messages[i], player || conn]);
+      switch(packet[0]) {
+
+        case CONTROL_PACKET:
+          process_control_message([packet[1], conn]);
+          break;
+          
+        case GAME_PACKET:
+          process_game_message([packet[1], player]);
+          break;
+        
+        default:
+          conn.kill('Bad header');
+          break;
+          
       }
     });
 
-    // Custom event. Occures when a player try's to join the game.
-    // 
-    conn.addListener('client-join', function(data) {
-      if (!gameloop) {
-        start_gameloop();
-      }
-
-      if (state.no_players == state.max_players) {
-        return conn.kill('Server is full');
-      }
-
-      player = new Player({ id: connection_id }, conn, world);
-
-      player.events.addListener('state_changed', function(state) {
-        switch (state) {
-          case OK:
-            broadcast_exclude(conn, PLAYER + CONNECT, player.id, player.name, player.color);
-            player.spawn_ship(world.find_respawn_pos());
-            log(conn + ' joined the game.');
-            break;
-        }
-      });
-      
-      player.events.addListener('ready', function() {
-        if (world.r_state == ROUND_WAITING) {
-          state.no_ready_players = state.no_ready_players + 1;
-          broadcast(PLAYER + READY, player.id);
-        }
-      });
-      
-      player.events.addListener('dead', function(death_cause, killer) {
-        switch (death_cause) {
-          case DEATH_CAUSE_SUICDE:
-            player.score -= rules.penelty_score < 0 ? 0 : player.s - rules.penelty_score;
-            break;
-          case DEATH_CAUSE_KILLED:
-            killer.score += rules.kill_score;
-            break;
-        }
-        broadcast(PLAYER + DESTROY, player.id, death_cause, killer ? killer.id : -1);
-      });
-
-      world.players[connection_id] = player;
-
-      state.no_players = state.no_players + 1
-
-      log(conn + ' connected to server. Sending handshake...');
-      conn.post([SERVER + HANDSHAKE, connection_id, gameloop.tick].concat(world.get_repr()));
-    });
-
-    //
-    //  event close
-    //  Connection ´close´ event listener. Occures when the connection is 
-    //  closed by user or server.
-    //
+    // Connection ´close´ event listener. Occures when the connection is 
+    // closed by user or server.
     conn.addListener('close', function() {
-      if (connections[connection_id]) {
-        delete connections[connection_id];
-
-        if (player) {
-          delete world.players[connection_id];
-
-          state.no_players = state.no_players - 1;
-          state.no_ready_players = state.no_ready_players - 1;
-
-          if (state.no_players == 0) {
-            stop_gameloop();
-          }
-        }
-
-        broadcast(PLAYER + DISCONNECT, connection_id, disconnect_reason);
-      }
-      
-      log(conn + ' disconnected (Reason: ' + disconnect_reason + ')');
+      conn.set_state(DISCONNECTED);
     });
     
   });
@@ -707,31 +724,42 @@ function start_gameserver(options, state) {
 }
 
 /**
- *  PROCESS_MESSAGE
- *  Processes a message from specified session. 
- *  
+ *  Processes a control message from a connection. 
  */
-var PROCESS_MESSAGE = match (
+var process_control_message = match (
 
   /**
    *  MUST be sent by the client when connected to server. It's used to validate
    *  the session.
    */
-  [[CLIENT + CONNECT], {'is_game_conn =': true}], function(conn) {
-    conn.emit('client-join');
+  [[CLIENT + CONNECT], {'state =': CONNECTED}], function(conn) {
+    sys.debug('recived connect');
+    conn.set_state(HANDSHAKING);
   },
   
   /**
    *  Client has received world data. Client is now a player of the world.
    */
-  [[CLIENT + HANDSHAKE], {'state =': CONNECTING}], function(player) {
-    player.set_state(OK);
+  [[CLIENT + HANDSHAKE], {'state =': HANDSHAKING}], function(conn) {
+    sys.debug('recived');
+    conn.set_state(JOINED);
   },
+  
+  function(data) {
+    data[1].kill('Bad control message');
+  }
+  
+);
+
+/**
+ *  Processes a game message from specified player. 
+ */
+var process_game_message = match (
 
   /**
    *  Indicates that the player state ROTATE_E is changed
    */
-  [[CLIENT + COMMAND, Number], { 'state =': OK }], 
+  [[CLIENT + COMMAND, Number], _], 
   function(value, player) {
     player.commands = value;
   },
@@ -739,32 +767,26 @@ var PROCESS_MESSAGE = match (
   /**
    *  Indicates that player is ready to start the round
    */
-  [[CLIENT + COMMAND, READY], { 'state =': OK }], function(player) {
+  [[CLIENT + COMMAND, READY], _], function(player) {
     if (player.st != READY) {
       player.ready = true;
       player.events.emit('ready');
     }
   },
 
-  //
-  //  Default message handler.
-  //
-  //  The message sent by client could not be matched. The session get's a 
-  //  warning. The session is disconnected after three warnings.
-  //
+  /**
+   *  The message sent by client could not be matched. Kill the session
+   */
   function(obj) {
-    var message = obj[0]
-    var connection = obj[1].is_game_conn ? obj[1] : obj[1].connection;
+    sys.puts(sys.inspect(obj[0]));
+    var connection = obj[1].connection;
 
-    connection.warnings += 1;
-    
-    if (connection.warnings > 3) {
-      connection.kill('Too many malformed messages.');
+    if (connection.debug) {
+      sys.puts('Unhandled message:');
+      sys.puts(sys.inspect(obj[0]));
     }
-
-    sys.puts('Unhandled message:');
-    sys.puts(sys.inspect(message[0]));
-    // sys.puts(sys.inspect(msg));
+    
+    connection.kill('Bad game message');
   }
 
 );
@@ -843,7 +865,6 @@ Player.prototype.on_before_init = function(initial, connection, world) {
   this.events         = new process.EventEmitter(); 
   this.connection     = connection;
   this.world          = world;
-  this.state          = CONNECTING;
   this.reload_time    = 0;
   this.respawn_time   = 0;
   this.is_dead        = false;
@@ -853,13 +874,6 @@ Player.prototype.on_before_init = function(initial, connection, world) {
 
 Player.prototype.get_entity = function() {
   return this.world ? this.world.find(this.eid) : null;
-}
-
-Player.prototype.set_state = function(new_state) {
-  if (this.state != new_state) {
-    this.state = new_state;
-    this.events.emit('state_changed', new_state);
-  }
 }
 
 /**
@@ -1080,6 +1094,14 @@ function parse_options() {
   parser.parse(process.ARGV);
   return parser._halt ? null : process.mixin(DEFAULT_OPTIONS, result);
 }
+
+/**
+ *  Returns current time stamp
+ */
+function get_time() {
+  return new Date().getTime();
+}
+
 
 // Call programs entry point
 main();
