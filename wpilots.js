@@ -52,7 +52,6 @@ const SWITCHES = [
   ['--max_players NUMBER',        'Max connected players allowed in server simultaneously (default: 8)'],
   ['--world_width NUMBER',        'The world width (Default: 1000)'],
   ['--world_height NUMBER',       'The world height (Default: 1000)'],
-  ['--update_rate NUMBER',        'Represent the frame no where updates are sent to clients. (Default: 200)'],
   ['--r_start_delay NUMBER',      'Rule: Time before game starts after warmup (Default: 300)'],
   ['--r_respawn_time NUMBER',     'Rule: Player respawn time after death. (Default: 500)'],
   ['--r_w_respawn_time NUMBER',   'Rule: Warm-up respawn time after death. (Default: 100)'],
@@ -80,7 +79,6 @@ const DEFAULT_OPTIONS = {
   serve_flash_policy:   false,
   world_width:          1000,
   world_height:         1000,
-  update_rate:          1,
   r_start_delay:        200,
   r_respawn_time:       400,
   r_w_respawn_time:     100,
@@ -177,7 +175,6 @@ function start_gameserver(options, state) {
       server          = null,
       delayed_actions = {},
       conn_id         = 1,
-      update_rate     = options.update_rate,
       last_flush      = 0,
       rules           = get_rules(options);
   
@@ -188,7 +185,6 @@ function start_gameserver(options, state) {
   state.max_players       = options.max_players;
   state.no_players        = 0;
   state.no_ready_players  = 0;
-  state.update_rate       = options.update_rate;
   state.flash_compatible  = options.serve_flash_policy;
   state.world_width       = options.world_width;
   state.world_height      = options.world_height;
