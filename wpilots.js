@@ -80,7 +80,7 @@ const DEFAULT_OPTIONS = {
   serve_flash_policy:   false,
   world_width:          1000,
   world_height:         1000,
-  update_rate:          200,
+  update_rate:          1,
   r_start_delay:        200,
   r_respawn_time:       400,
   r_w_respawn_time:     100,
@@ -327,7 +327,7 @@ function start_gameserver(options, state) {
         connection.flush_queue(alpha);
       }
 
-      last_flush = now;
+      last_flush = now + alpha;
     }
   }
   

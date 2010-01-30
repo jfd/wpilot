@@ -341,7 +341,8 @@ WPilotClient.prototype.join = function(url) {
      *  @returns {undefined} Nothing
      */
     self.conn.onmessage = function(event) {
-      var packet = JSON.parse(event.data);
+      var packet        = JSON.parse(event.data),
+          update_rate   = self.server_state ? self.server_state.update_rate : 0;
       
       switch (packet[0]) {
         
@@ -350,15 +351,14 @@ WPilotClient.prototype.join = function(url) {
           break;
           
         case GAME_PACKET:
-          var server_alpha = packet[1],
-              messages = packet[2];
+          var server_alpha  = packet[1],
+              messages      = packet[2];
 
           if (self.netstat.start_time) {
             var now = get_time(),
-                alpha = 0;//server_alpha;
+                alpha = 0;
             if (self.netstat.last_received) {
               var diff = now - self.netstat.last_received;
-              console.log(diff);
               self.netstat.last_received = now;
             }
             self.netstat.last_received = now;
@@ -1216,6 +1216,9 @@ Ship.prototype.on_after_init = function() {
 Ship.prototype.update = function(t, dt) {
   this.animations['shield'].set_active(this.is(SHIELD));
   this.animations['thrust'].set_active(this.is(THRUST));
+  if (this.alpha) {
+    
+  }
   for (var anim in this.animations) {
     this.animations[anim].update(t, dt);
   }
