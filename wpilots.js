@@ -25,10 +25,12 @@ const SERVER_VERSION       = '(develop version)';
 const RE_POLICY_REQ = /<\s*policy\-file\-request\s*\/>/i,
       POLICY_RES    = "<cross-domain-policy><allow-access-from domain=\"*\" to-ports=\"*\" /></cross-domain-policy>";
 
-// Message priorities. Not supported in current version of server.
-const PRIO_HIGH     = 3,
-      PRIO_MID      = 2,
-      PRIO_LOW      = 1;
+// Message priorities. High priority messages are sent to client no mather
+// what. Low priority messages are sent only if client can afford it.
+const PRIO_PASS     = 0,
+      PRIO_LOW      = 'low',
+      PRIO_MED      = 'med',
+      PRIO_HIGH     = 'high';
 
 // Player Connection states      
 const DISCONNECTED  = -1;
@@ -49,6 +51,7 @@ const SWITCHES = [
   ['--ws_port PORT',              'Port number for the WebSocket server (default: 6115)'],
   ['--pub_ws_port PORT',          'Set if the public WebSocket port differs from the local one'],
   ['--policy_port PORT',          'Port number for the Flash Policy server (default: 843)'],
+  ['--max_rate NUMBER',           'The maximum rate per client and second (default: 1000)'],
   ['--max_players NUMBER',        'Max connected players allowed in server simultaneously (default: 8)'],
   ['--world_width NUMBER',        'The world width (Default: 1000)'],
   ['--world_height NUMBER',       'The world height (Default: 1000)'],
@@ -76,6 +79,7 @@ const DEFAULT_OPTIONS = {
   pub_ws_port:          null,
   max_players:          8,
   policy_port:          843,
+  max_rate:             1000,
   serve_flash_policy:   false,
   world_width:          1000,
   world_height:         1000,
@@ -201,6 +205,7 @@ function start_gameserver(options, state) {
     world.update(t, dt);
     check_collisions(t, dt);
     check_rules(t, dt);
+    post_update();
     flush_queues();
   }
   
@@ -294,36 +299,38 @@ function start_gameserver(options, state) {
     }
   }
   
+  function post_update() {
+    for (var id in connections) {
+      var connection = connections[id],
+          viewport_bounds = connection.get_viewport_bounds();
+      for (var id in world.players) {
+        var player = world.players[id],
+            entity = player.entity;
+        if (entity) {
+          connection.queue(
+            intersects(entity.cached_bounds, viewport_bounds) ? PRIO_MED : PRIO_LOW,
+            [
+              SHIP + STATE,
+              entity.id,
+              entity.angle,
+              entity.commands,
+              pack_vector(entity.pos),
+              pack_vector(entity.vel)
+            ]
+          );
+        }
+      }
+    }    
+  }
+  
   /**
    *  Flushes all connection queues.
    *  @return {undefined} Nothing
    */
   function flush_queues() {
-    var now = get_time(),
-        diff = now - last_flush,
-        alpha = diff - update_rate;
-    if (alpha >= 0) {
-      for (var id in world.players) {
-        var player = world.players[id],
-            entity = player.entity;
-        if (entity) {
-          broadcast(
-            SHIP + STATE,
-            entity.id,
-            entity.angle,
-            entity.commands,
-            entity.pos,
-            entity.vel
-          );
-        }
-      }
-      
-      for (var id in connections) {
-        var connection = connections[id];
-        connection.flush_queue(alpha);
-      }
-
-      last_flush = now + alpha;
+    for (var id in connections) {
+      var connection = connections[id];
+      connection.flush_queue();      
     }
   }
   
@@ -470,31 +477,28 @@ function start_gameserver(options, state) {
   }
   
   /**
-   *  Broadcasts a game message to all current connections.
+   *  Broadcasts a game message to all current connections. Broadcast always
+   *  set's message priority to HIGH.
    *  @param {String} msg The message to broadcast.
    *  @return {undefined} Nothing
    */
   function broadcast() {
     var msg = Array.prototype.slice.call(arguments);
     for(var id in connections) {
-      connections[id].queue(msg);
+      connections[id].queue(PRIO_HIGH, msg);
     }
   }
 
   /**
-   *  Broadcasts a game message to all connections except to the one specified.
-   *  @param {tcp.Connection} exclude The connection to exclude from the 
-   *                                  broadcast.
-   *  @param {String} msg The message to broadcast.
+   *  Broadcast, but calls specified callback for each connection
+   *  @param {Array} msg The message to broadcast.
+   *  @param {Function} callback A callback function to call for each connection
    *  @return {undefined} Nothing
    */
-  function broadcast_exclude() {
-    var msg = Array.prototype.slice.call(arguments);
-    var exclude = msg.shift();
+  function broadcast_each(msg, callback) {
     for(var id in connections) {
-      if (exclude.id != id) {
-        connections[id].queue(msg);
-      }
+      var prio = callback(msg, connections[id]);
+      if (prio) connections[id].queue(prio, msg);
     }
   }
   
@@ -516,13 +520,52 @@ function start_gameserver(options, state) {
   server = ws.createServer(function(conn) {
     var connection_id     = conn_id++,
         disconnect_reason = 'Closed by client',
-        message_queue     = [],
-        player            = null;
+        message_queue     = { low: [], med: [], high: [] },
+        player            = null,
+        current_vp_bounds = null;
     
     conn.is_game_conn = true;
     conn.id = connection_id;
+    conn.rate = 1000;
+    conn.update_rate = 100;
+    conn.dimensions = [640, 480];
     conn.state = IDLE;
     conn.debug = options.debug;
+    
+    /**
+     *  Set's information about client.
+     */
+    conn.set_client_info = function(info) {
+      conn.rate = info.rate;
+      conn.update_rate = info.update_rate;
+      conn.dimensions = info.dimensions;
+    }
+    
+    /**
+     *  Returns current bouds for viewport
+     */
+    conn.get_viewport_bounds = function() {
+      var dim = conn.dimensions;
+      if (player && player.entity) {
+        current_vp_bounds = {
+          x: player.entity - dim[0] / 2,
+          y: player.entity - dim[1] / 2,
+          w: dim[0],
+          h: dim[1]
+        } 
+      }
+      
+      if (current_vp_bounds == null) {
+        current_vp_bounds = {
+          x: 0,
+          y: 0,
+          w: dim[0],
+          h: dim[1]
+        } 
+      }
+
+      return current_vp_bounds
+    }
     
     /**
      *  Forces a connection to be disconnected. 
@@ -531,14 +574,14 @@ function start_gameserver(options, state) {
       disconnect_reason = reason || 'Unknown Reason';
       this.post([SERVER + DISCONNECT, disconnect_reason]);
       this.close();
-      message_queue = [];
+      message_queue = null;
     }
     
     /**
      *  Queues the specified message and sends it on next flush.
      */
-    conn.queue = function(data) {
-      message_queue.push(data);
+    conn.queue = function(prio, msg) {
+      message_queue[prio].push(msg);
     }
 
     /**
@@ -552,12 +595,34 @@ function start_gameserver(options, state) {
     /**
      *  Post's specified data to this instances message queue
      */
-    conn.flush_queue = function(alpha) {
-      if (message_queue.length) {
-        var packet = JSON.stringify([GAME_PACKET, alpha, message_queue]);
-        this.send(packet);
-        message_queue = [];
+    conn.flush_queue = function() {
+      var msg = null,
+          data_sent = 6,
+          packet_data = [],
+          rate = Math.min(conn.rate, options.max_rate) / 60;
+
+      while ((msg = message_queue[PRIO_HIGH].pop())) {
+        var data = JSON.stringify(msg);
+        packet_data.push(data);
+        data_sent +=  data.length;
       }
+      
+      while (data_sent < rate && (msg = message_queue[PRIO_MED].pop())) {
+        var data = JSON.stringify(msg);
+        packet_data.push(data);
+        data_sent +=  data.length;
+      }
+
+      while (data_sent < rate && (msg = message_queue[PRIO_LOW].pop())) {
+        var data = JSON.stringify(msg);
+        sys.debug(data);
+        packet_data.push(data);
+        data_sent +=  data.length;
+      }
+      
+      this.send('[2,[' + packet_data.join(',') + ']]');
+      
+      message_queue = { low: [], med: [], high: []};
     }
     
     /**
@@ -622,7 +687,16 @@ function start_gameserver(options, state) {
           world.players[connection_id] = player;
 
           conn.post([SERVER + CONNECT, gameloop.tick, player.id, player.name, player.color]);
-          broadcast_exclude(conn, PLAYER + CONNECT, player.id, player.name, player.color);
+
+          broadcast_each(
+            [PLAYER + CONNECT, player.id, player.name, player.color],
+            function(msg, conn) {
+              if (conn.id == connection_id) {
+                return PRIO_PASS;
+              } 
+              return PRIO_HIGH;
+            }
+          );
 
           player.spawn_ship(world.find_respawn_pos());
           
@@ -728,17 +802,18 @@ var process_control_message = match (
    *  MUST be sent by the client when connected to server. It's used to validate
    *  the session.
    */
-  [[CLIENT + CONNECT], {'state =': CONNECTED}], function(conn) {
-    sys.debug('recived connect');
+  [[CLIENT + CONNECT], {'state =': CONNECTED}], 
+  function(conn) {
     conn.set_state(HANDSHAKING);
   },
   
   /**
    *  Client has received world data. Client is now a player of the world.
    */
-  [[CLIENT + HANDSHAKE], {'state =': HANDSHAKING}], function(conn) {
-    sys.debug('recived');
+  [[CLIENT + HANDSHAKE, Object], {'state =': HANDSHAKING}], 
+  function(info, conn) {
     conn.set_state(JOINED);
+    conn.set_client_info(info);
   },
   
   function(data) {
@@ -1089,6 +1164,13 @@ function parse_options() {
   });      
   parser.parse(process.ARGV);
   return parser._halt ? null : process.mixin(DEFAULT_OPTIONS, result);
+}
+
+/**
+ *  Returns a packet vector
+ */
+function pack_vector(v) {
+  return [round_number(v[0], 2), round_number(v[1], 2)];
 }
 
 /**

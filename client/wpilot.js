@@ -42,6 +42,9 @@ var DEFAULT_OPTIONS         = {
   show_fps:             true,
   
   show_netstat:         false, 
+  
+  rate:                 1000,
+  update_rate:          100,
 
   hud_player_score_v:   true,
   hud_player_name_v:    true,
@@ -201,7 +204,11 @@ WPilotClient.prototype.set_state = function(state) {
     case CLIENT_CONNECTED:
       this.log('Joined server ' + this.conn.URL + '...');
       this.hud_message = 'Waiting for more players to connect';
-      this.post_control_packet([CLIENT + HANDSHAKE]);  
+      this.post_control_packet([CLIENT + HANDSHAKE, { 
+        rate: this.options.rate,
+        update_rate: this.options.update_rate,
+        dimensions: [this.viewport.w, this.viewport.h] 
+      }]);  
       break;
       
     case CLIENT_DISCONNECTED:    
@@ -341,8 +348,7 @@ WPilotClient.prototype.join = function(url) {
      *  @returns {undefined} Nothing
      */
     self.conn.onmessage = function(event) {
-      var packet        = JSON.parse(event.data),
-          update_rate   = self.server_state ? self.server_state.update_rate : 0;
+      var packet        = JSON.parse(event.data);
       
       switch (packet[0]) {
         
@@ -351,8 +357,7 @@ WPilotClient.prototype.join = function(url) {
           break;
           
         case GAME_PACKET:
-          var server_alpha  = packet[1],
-              messages      = packet[2];
+          var messages      = packet[1];
 
           if (self.netstat.start_time) {
             var now = get_time(),
@@ -1594,14 +1599,4 @@ function draw_label(ctx, x, y, text, align, width) {
  */
 function get_time() {
   return new Date().getTime();
-}
-
-/**
- *  Returns a number with specified decimals
- *  @param {Number} value The number to round
- *  @param {Number} decimals The no of deciamls.
- *  @return {Number} A rounded number.
- */
-function round_number(value, decimals) {
-	return Math.round(value * Math.pow(10, decimals)) / Math.pow(10, decimals);
 }
