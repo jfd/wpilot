@@ -11,6 +11,7 @@
 		<script type="text/javascript" src="gameobjects.js"></script>
 		<script type="text/javascript" src="wpilot.js"></script>
 		<script type="text/javascript" src="particle.js"></script>
+		<script type="text/javascript" src="devices.js"></script>
 		<script>
 			// The globallly defined wpilot client. It's global so that the player can
 			// access options from the webkit console (or FireBug).
@@ -25,8 +26,8 @@
 			$(document).ready(function() {
 			  var options = $.extend({}, DEFAULT_OPTIONS);
 			  var canvas = $('#viewport canvas');
-			  var viewport  = new Viewport(canvas[0], canvas.width(), canvas.height(), options),
-			      keyboard  = new Keyboard(document, options);
+			  var viewport  = new ViewportDevice(canvas[0], canvas.width(), canvas.height(), options),
+			      keyboard  = new KeyboardDevice(document, options);
 
 			  wpilot = new WPilotClient(options);
 			  wpilot.set_viewport(viewport)

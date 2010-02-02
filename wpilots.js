@@ -103,6 +103,7 @@ const CLIENT_DATA = [
   'client/logo.png',
   'client/space.jpg',
   'client/wpilot.js',
+  'client/devices.js',
   'lib/gameobjects.js',
   'lib/match.js',
   'client/web_socket.js',
@@ -615,7 +616,6 @@ function start_gameserver(options, state) {
 
       while (data_sent < rate && (msg = message_queue[PRIO_LOW].pop())) {
         var data = JSON.stringify(msg);
-        sys.debug(data);
         packet_data.push(data);
         data_sent +=  data.length;
       }
