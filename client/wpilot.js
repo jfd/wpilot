@@ -134,6 +134,7 @@ WPilotClient.prototype.log = function(msg) {
  *  @return {undefined} Nothing
  */
 WPilotClient.prototype.set_world = function(world) {
+  world.client = this;
   this.world = world;
   this.log('World data loaded...');
 }
@@ -235,25 +236,25 @@ WPilotClient.prototype.set_state = function(state) {
 WPilotClient.prototype.process_user_input = function(t, dt) {
   var player        = this.player,
       input         = this.input,
-      new_commands  = 0;
+      new_command  = 0;
 
   if (input.toggle('ready')) {
     this.post_game_packet([CLIENT + COMMAND, READY]);
   } 
 
   if (player.entity && !player.entity.dead && !player.entity.spawning) {
-    if (input.on('thrust')) new_commands |= THRUST;
-    if (input.on('rotate_west')) new_commands |= ROTATE_W;
-    if (input.on('rotate_east')) new_commands |= ROTATE_E;
-    if (input.on('shoot')) new_commands |= SHOOT;
-    if (input.on('shield')) new_commands |= SHIELD;
+    if (input.on('thrust')) new_command |= THRUST;
+    if (input.on('rotate_west')) new_command |= ROTATE_W;
+    if (input.on('rotate_east')) new_command |= ROTATE_E;
+    if (input.on('shoot')) new_command |= SHOOT;
+    if (input.on('shield')) new_command |= SHIELD;
   } else {
-    new_commands = 0;
+    new_command = 0;
   }
 
-  if (new_commands != player.commands) {
-    player.commands = new_commands;
-    this.post_game_packet([CLIENT + COMMAND, new_commands]);
+  if (new_command != player.command) {
+    player.command = new_command;
+    this.post_game_packet([CLIENT + COMMAND, new_command]);
   }
   
 }
@@ -563,7 +564,7 @@ WPilotClient.prototype.update_client = function(t, dt) {
       } else if (player.st != READY) {
         this.hud_message = 'Press (r) when ready';
       } else {
-        no = Math.ceil((server.no_players * 0.6) - server.no_ready_players);
+        no = Math.ceil((world.no_players * 0.6) - world.no_ready_players);
         this.hud_message = 'Waiting for ' + no + ' player' + (no == 1 ? '' : 's') + ' to press ready';
       }
       break;
@@ -713,21 +714,6 @@ var process_control_message = Match (
 var process_game_message = Match (
 
   /**
-   * Is recived when a new player has connected to the server.
-   */
-  [[PLAYER + CONNECT, Number, String, String], _], 
-  function(id, name, color, client) {
-    var player = new Player({
-      id:     id,
-      name:   name,
-      color:  color
-    });
-    client.world.players[player.id] = player;
-    client.server_state.no_players++;
-    client.log('Player "' + player.name + ' joined the world...');
-  },
-
-  /**
    * Is recived when the state of a player has changed
    */
   [[PLAYER + STATE, Number, Object], _],
@@ -787,40 +773,7 @@ var process_game_message = Match (
       client.log(text);      
     }
   },
-
-  /**
-   * Is recived when a player is ready
-   */
-  [[PLAYER + READY, Number], _], 
-  function(player_id, client) {
-    var player = client.world.players[player_id];
-    client.log(player.is_me ? 'You are now ready' : 'Player "' + player.name + ' is ready');
-    client.server_state.no_ready_players++;
-  },
   
-  /**
-   * Is recived when a player has disconnected from the server.
-   */
-  [[PLAYER + DISCONNECT, Number, String], _], 
-  function(player_id, reason, client) {
-    var player = client.world.players[player_id];
-    client.log('Player "' + player.name + ' disconnected. Reason: ' + reason);
-    delete client.world.players[player_id];
-    client.server_state.no_players--;
-    if (client.world.round_state == 'waiting') {
-      client.server_state.no_ready_players--;
-    }
-  },
-  
-  /**
-   * Is recived when world state changes.
-   */
-  [[WORLD + STATE, Number, Number, Object], _], 
-  function(state, timer, winners, client) {
-    client.world.set_round_state(state, timer, winners);
-    client.world.winners = null;
-  },
-
   /**
    * Is recived when a ship has been created
    */
@@ -880,11 +833,11 @@ var process_game_message = Match (
    * Is recived when an entity's state has changed.
    */
   [[SHIP + STATE, Number, Number, Number, Array, Array], _],
-  function(id, angle, commands, pos, vel, client) {
+  function(id, angle, command, pos, vel, client) {
     var entity = client.world.find(id);
     if (entity) {
       entity.angle    = angle;
-      entity.commands = commands
+      entity.command  = command
       entity.pos      = pos;
       entity.vel      = vel;
     } 
@@ -906,6 +859,47 @@ Player.prototype.on_before_init = function() {
   this.pos = 1;
   this.is_me = false;
   this.winners = null;
+}
+
+
+/**
+ * Is recived when a new player has joined to the game world.
+ */
+World.prototype.on_player_join = function(player) {
+  client.log('Player "' + player.name + ' joined the world...');
+}
+
+/**
+ * Is recived when a player has leaved the game world.
+ */
+World.prototype.on_player_leave = function(player, reason) {
+  client.log('Player "' + player.name + ' disconnected. Reason: ' + reason);
+}
+
+/**
+ * Is recived when a player player is ready
+ */
+World.prototype.on_player_ready = function(player) {
+  this.client.log(player.is_me ? 'You are now ready' : 'Player "' + player.name + ' is ready');
+}
+
+World.prototype.on_round_state_changed = function(state, winners) {
+  
+};
+
+World.prototype.on_after_init = function() {
+  this.PACKET_HANDLERS[ROUND + STATE] = this.set_player_ready;
+
+  this.PACKET_HANDLERS[PLAYER + CONNECT] = this.add_player;
+  this.PACKET_HANDLERS[PLAYER + DISCONNECT] = this.remove_player;
+  this.PACKET_HANDLERS[PLAYER + READY] = this.set_round_state;
+}
+
+World.prototype.process_world_packet = function() {
+  var args = Array.prototype.slice.call(arguments);
+  var id = args.shift();
+  var handler = this.PACKET_HANDLERS[id];
+  handler.apply(this, args);
 }
 
 /**
