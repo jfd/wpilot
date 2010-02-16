@@ -494,7 +494,7 @@ WPilotClient.prototype.draw_hud = function() {
       player_entity   = this.player.entity,
       opt             = this.options;
   
-  if (player_entity && !player_entity.dead) {
+  if (player_entity && !this.player.is_dead) {
     ctx.textAlign = 'center';
 
     ctx.font = HUD_SMALL_FONT;
@@ -527,7 +527,7 @@ WPilotClient.prototype.draw_hud = function() {
     }    
   }
   
-  if (player_entity && !player_entity.destroyed) {
+  if (player_entity && !this.player.is_dead) {
     ctx.save();
     ctx.translate(center_w, center_h);
     player_entity.draw(ctx);
