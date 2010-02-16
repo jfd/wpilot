@@ -741,39 +741,7 @@ var process_game_message = Match (
       }
     }
   },
-  
-  /**
-   * Is recived when a new player ship is spawned
-   */
-  [[PLAYER + DESTROY, Number, Number, Number], _], 
-  function(player_id, death_cause, killer_id, client) {
-    var player  = client.world.players[player_id],
-        killer  = client.world.players[killer_id],
-        text    = '';
     
-    if (player) {
-      if (player.is_me) {
-        if (death_cause == DEATH_CAUSE_KILLED) {
-          text = 'You where killed by ' + killer.name;
-        } else {
-          text = 'You took your own life, you suck!';
-        }
-      } else {
-        if (death_cause == DEATH_CAUSE_KILLED) {
-          if (killer.is_me) {
-            // This is a temporary solution to player score. When game rules are
-            // in place, server will handle this.
-            killer.s++;
-          } 
-          text = player.name + ' was killed by ' + (killer.is_me ? 'you' : killer.name) + '.';
-        } else {
-          text = player.name + ' killed him self.';
-        }
-      }
-      client.log(text);      
-    }
-  },
-  
   /**
    * Is recived when a ship has been created
    */
@@ -819,15 +787,6 @@ var process_game_message = Match (
     });
     client.world.append(entity);
   },
-  
-  /**
-   * Is recived when an entity is destroyed
-   */
-  [[ENTITY + DESTROY, Number], _],
-  function(entity_id,  client) {
-    var entity = client.world.find(entity_id);
-    entity.destroy();
-  },
 
   /**
    * Is recived when an entity's state has changed.
@@ -866,14 +825,34 @@ Player.prototype.on_before_init = function() {
  * Is recived when a new player has joined to the game world.
  */
 World.prototype.on_player_join = function(player) {
-  client.log('Player "' + player.name + ' joined the world...');
+  this.client.log('Player "' + player.name + ' joined the world...');
 }
 
 /**
  * Is recived when a player has leaved the game world.
  */
 World.prototype.on_player_leave = function(player, reason) {
-  client.log('Player "' + player.name + ' disconnected. Reason: ' + reason);
+  this.client.log('Player "' + player.name + ' disconnected. Reason: ' + reason);
+}
+
+/**
+ * Is recived when a new player ship is spawned
+ */
+World.prototype.on_player_died = function(player, death_cause, killer) { 
+  if (player.is_me) {
+    if (death_cause == DEATH_CAUSE_KILLED) {
+      text = 'You where killed by ' + killer.name;
+    } else {
+      text = 'You took your own life!';
+    }
+  } else {
+    if (death_cause == DEATH_CAUSE_KILLED) {
+      text = player.name + ' was killed by ' + (killer.is_me ? 'you' : killer.name) + '.';
+    } else {
+      text = player.name + ' killed him self.';
+    }
+  }
+  this.client.log(text);      
 }
 
 /**
@@ -893,6 +872,8 @@ World.prototype.on_after_init = function() {
   this.PACKET_HANDLERS[PLAYER + CONNECT] = this.add_player;
   this.PACKET_HANDLERS[PLAYER + DISCONNECT] = this.remove_player;
   this.PACKET_HANDLERS[PLAYER + READY] = this.set_round_state;
+  this.PACKET_HANDLERS[PLAYER + SPAWN] = this.spawn_player;
+  this.PACKET_HANDLERS[PLAYER + DIED] = this.kill_player;
 }
 
 World.prototype.process_world_packet = function() {

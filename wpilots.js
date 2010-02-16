@@ -213,7 +213,7 @@ function start_gameserver(options, state) {
   world = new World({
     rules: rules,
     size: [options.world_width, options.world_height],
-    is_server: true
+    serve_mode: true
   });
   
   // Listen for round state changes
@@ -221,10 +221,6 @@ function start_gameserver(options, state) {
     broadcast(ROUND + STATE, state, winners);
   }
 
-  world.on_entity_destroy = function(id) {
-    broadcast(ENTITY + DESTROY, id);
-  }
-  
   world.on_entity_spawn = function(entity) {
     if (entity.constructor == Ship)
       broadcast(
@@ -259,20 +255,7 @@ function start_gameserver(options, state) {
 
   // Listen for player that are ready
   world.on_player_died = function(death_cause, killer) {
-    player.events.addListener('dead', function(death_cause, killer) {
-      switch (death_cause) {
-
-        case DEATH_CAUSE_SUICDE:
-          player.score -= rules.penelty_score < 0 ? 0 : player.s - rules.penelty_score;
-          break;
-
-        case DEATH_CAUSE_KILLED:
-          killer.score += rules.kill_score;
-          break;
-          
-      }
-      broadcast(PLAYER + DESTROY, player.id, death_cause, killer ? killer.id : -1);
-    });    
+    broadcast(PLAYER + DIE, player.id, death_cause, killer ? killer.id : -1);
   }
   
   // Listen for player that are ready
