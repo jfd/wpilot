@@ -153,7 +153,7 @@ const PLAYER_NAMES = [
  */
 function main() {
   var options         = parse_options(),
-      state           = {},
+      shared          = { get_state: function() {} },
       webserver       = null,
       gameserver      = null,
       policy_server   = null;
@@ -162,8 +162,8 @@ function main() {
 
   sys.puts('WPilot server ' + SERVER_VERSION);
   
-  webserver = start_webserver(options, state);
-  gameserver = start_gameserver(options, state);
+  webserver = start_webserver(options, shared);
+  gameserver = start_gameserver(options, shared);
   policy_server = options.serve_flash_policy ? start_policy_server(options) : null;
 }
 
@@ -173,7 +173,7 @@ function main() {
  *  @returns {WebSocketServer} Returns the newly created WebSocket server 
  *                             instance.
  */
-function start_gameserver(options, state) {
+function start_gameserver(options, shared) {
   var connections     = {},
       gameloop        = null,
       world           = null,
@@ -183,17 +183,22 @@ function start_gameserver(options, state) {
       last_flush      = 0,
       rules           = get_rules(options);
   
-  // Represents a state object that is shared between game server and web server.
-  state.server_name       = options.name;
-  state.game_server_url   = 'ws://' + (options.pub_host || options.host) + ':' + 
-                            (options.pub_ws_port || options.ws_port) + '/';
-  state.max_players       = options.max_players;
-  state.no_players        = 0;
-  state.no_ready_players  = 0;
-  state.flash_compatible  = options.serve_flash_policy;
-  state.world_width       = options.world_width;
-  state.world_height      = options.world_height;
-  state.rules             = rules;
+  
+  // Is called by the web instance to get current state
+  shared.get_state = function() {
+    return {
+      server_name:      options.name,
+      game_server_url:  'ws://' + (options.pub_host || options.host) + ':' + 
+                                (options.pub_ws_port || options.ws_port) + '/',
+      max_players:      options.max_players,
+      no_players:       world.no_players,
+      no_ready_players: world.no_ready_players,
+      flash_compatible: options.serve_flash_policy,
+      world_width:      options.world_width,
+      world_height:     options.world_height,
+      rules:            rules
+    }
+  }
 
   /**
    *  The acutal game loop.
@@ -202,7 +207,6 @@ function start_gameserver(options, state) {
    *  @return {undefined} Nothing
    */
   function gameloop_tick(t, dt) {
-    do_game_logic(t, dt);
     world.update(t, dt);
     check_rules(t, dt);
     post_update();
@@ -213,31 +217,12 @@ function start_gameserver(options, state) {
   world = new World({
     rules: rules,
     size: [options.world_width, options.world_height],
-    serve_mode: true
+    server_mode: true
   });
   
   // Listen for round state changes
   world.on_round_state_changed = function(state, winners) {
     broadcast(ROUND + STATE, state, winners);
-  }
-
-  world.on_entity_spawn = function(entity) {
-    if (entity.constructor == Ship)
-      broadcast(
-        SHIP + SPAWN, 
-        entity.id,
-        entity.pid,
-        entity.pos
-      );
-    else if (entity.constructor == Bullet)
-      broadcast(
-        BULLET + SPAWN, 
-        entity.id,
-        entity.oid,
-        entity.pos,
-        entity.vel,
-        entity.angle
-      );
   }
 
   // Listen for events on player
@@ -252,21 +237,27 @@ function start_gameserver(options, state) {
       }
     );
   }
+  
+  world.on_player_spawn = function(player, pos) {
+    broadcast(PLAYER + SPAWN, player.id, pos);
+  }
 
-  // Listen for player that are ready
-  world.on_player_died = function(death_cause, killer) {
+  world.on_player_died = function(player, death_cause, killer) {
     broadcast(PLAYER + DIE, player.id, death_cause, killer ? killer.id : -1);
   }
   
-  // Listen for player that are ready
   world.on_player_ready = function(player) {
     broadcast(PLAYER + READY, player.id);
   }
   
-  World.on_player_command = function(player, command) {
+  world.on_player_command = function(player, command) {
     broadcast(PLAYER + COMMAND, player.id, command);
   }
 
+  world.on_player_fire = function(player) {
+   broadcast(PLAYER + FIRE, player.id);
+  }
+  
   world.on_player_leave = function(player, reason) {
     broadcast(PLAYER + DISCONNECT, player.id, reason);
     log(conn + ' leaved the game (Reason: ' + reason + ')');
@@ -313,16 +304,16 @@ function start_gameserver(options, state) {
       for (var id in world.players) {
         var player = world.players[id],
             entity = player.entity;
-        if (entity) {
+        if (entity && entity.cached_bounds) {
           connection.queue(
             intersects(entity.cached_bounds, viewport_bounds) ? PRIO_MED : PRIO_LOW,
             [
-              SHIP + STATE,
-              entity.id,
-              entity.angle,
-              entity.command,
+              PLAYER + STATE,
+              player.id,
               pack_vector(entity.pos),
-              pack_vector(entity.vel)
+              pack_vector(entity.vel),
+              entity.angle,
+              entity.command
             ]
           );
         }
@@ -342,63 +333,6 @@ function start_gameserver(options, state) {
   }
   
   /**
-   *  Do game logics
-   *  @param {Number} t Current world time.
-   *  @param {Number} dt Current delta time,
-   *  @return {undefined} Nothing
-   */
-  function do_game_logic(t, dt) {
-    for (var id in world.players) {
-      var player = world.players[id];
-
-      if (player.respawn_time && t >= player.respawn_time) {
-        player.respawn_time = 0;
-        player.spawn_ship(world.find_respawn_pos());
-      }
-    
-      if (player.is_dead && !player.respawn_time) {
-        if (world.r_state == 'running') {
-          player.respawn_time = t + rules.respawn_time * dt;
-        } else {
-          player.respawn_time = t + rules.w_respawn_time * dt;
-        }
-      }
-
-      if (player.entity) {
-        var entity = player.entity;
-
-        entity.set(THRUST, player.is(THRUST));
-        entity.set(ROTATE_W, player.is(ROTATE_W));
-        entity.set(ROTATE_E, player.is(ROTATE_E));
-
-        if (player.is(SHIELD) && player.energy >= rules.shield_cost * dt) {
-          player.energy -= rules.shield_cost * dt;
-          entity.set(SHIELD, true);
-        } else {
-          entity.set(SHIELD, false);
-        }
-
-        if (player.reload_time && t >= player.reload_time) {
-          player.reload_time = 0;
-        } 
-        
-        if (player.is(SHOOT) && !player.reload_time && player.energy >= rules.shoot_cost * dt) {
-          entity.set(SHOOT, true);
-          player.energy -= rules.shoot_cost * dt;
-          player.reload_time = t + rules.reload_time * dt;
-          player.spawn_bullet();
-        } else {
-          entity.set(SHOOT, false);
-        }
-        
-        if (player.energy <= 100 && !player.is(SHIELD) && !player.is(SHOOT)) {
-          player.energy += rules.energy_recovery * dt
-        }
-      }
-    }
-  }
-  
-  /**
    *  Check game rules 
    *  @param {Number} t Current world time.
    *  @param {Number} dt Current delta time,
@@ -410,7 +344,7 @@ function start_gameserver(options, state) {
       // The world is waiting for players to be "ready". The game starts when 
       // 60% of the players are ready.
       case ROUND_WAITING:
-        if (state.no_players > 1 && world.no_ready_players >= (world.no_players * 0.6)) {
+        if (world.no_players > 1 && world.no_ready_players >= (world.no_players * 0.6)) {
           world.set_round_state(ROUND_STARTING);
         }
         break;
@@ -481,7 +415,7 @@ function start_gameserver(options, state) {
    *  @return {undefined} Nothing
    */
   function log(msg) {
-    sys.puts(state.server_name + ': ' + msg);
+    sys.puts(options.server_name + ': ' + msg);
   }
   
   /**
@@ -610,7 +544,7 @@ function start_gameserver(options, state) {
             log('Debug: Sending server state to ' + conn);
           }
           
-          conn.post([SERVER + STATE, state]);
+          conn.post([SERVER + STATE, shared.get_state()]);
           break;
 
         case HANDSHAKING:
@@ -695,7 +629,9 @@ function start_gameserver(options, state) {
           break;
           
         case GAME_PACKET:
-          process_game_message([packet[1], player]);
+          if (world) {
+            process_game_message([packet[1], player, world]);
+          }
           break;
         
         default:
@@ -713,7 +649,7 @@ function start_gameserver(options, state) {
     
   });
   
-  sys.puts('Starting Game Server server at ' + state.game_server_url);
+  sys.puts('Starting Game Server server at ' + shared.get_state().game_server_url);
   server.listen(options.ws_port, options.host);
   
   return server;
@@ -756,15 +692,15 @@ var process_game_message = match (
   /**
    *  Players command state has changed.
    */
-  [[CLIENT + COMMAND, Number], _], 
-  function(value, player) {
+  [[CLIENT + COMMAND, Number], _, _], 
+  function(value, player, world) {
     world.set_player_command(player, value);
   },
 
   /**
    *  Indicates that player is ready to start the round
    */
-  [[CLIENT + COMMAND, READY], _], function(player) {
+  [[CLIENT + COMMAND, READY], _, _], function(player, world) {
     world.set_player_ready(player.id);
   },
 
@@ -785,59 +721,12 @@ var process_game_message = match (
 
 );
 
-Player.prototype.on_before_init = function(initial) {
-  this.events         = new process.EventEmitter(); 
-  this.reload_time    = 0;
-  this.respawn_time   = 0;
-  this.is_dead        = false;
-}
-
-/**
- *  Spawns a new bullet.
- *  @return {gameobjects.Bullet} The newly created Bullet instance.
- */
-Player.prototype.spawn_bullet = function() {
-  var bullet = this.world.spawn_bullet(this.entity);
-  bullet.player = this;
-  this.events.emit('spawn', bullet);
-  return bullet;
-}
-
-/**
- *  Builds the world
- *  @return {undefined} Nothing
- */
-World.prototype.build = function() {
-  var w = this.size[0],
-      h = this.size[1];
-  this.spawn_entity('wall', {
-    pos: [0, 0],
-    size: [w + 10, 10],
-    o: 'n'
-  });
-  this.spawn_entity('wall', {
-    pos: [w, 0],
-    size: [10, h + 10],
-    o: 'e'
-  });
-  this.spawn_entity('wall', {
-    pos: [0, h],
-    size: [w + 10, 10],
-    o: 's'
-  });
-  this.spawn_entity('wall', {
-    pos: [0, 0],
-    size: [10, h + 10],
-    o: 'w'
-  });
-}
-
 /**
  *  Starts a webserver that serves WPilot client related files.
  *  @param {Object} options Web server options.
  *  @return {http.Server} Returns the HTTP server instance.
  */
-function start_webserver(options, state) {
+function start_webserver(options, shared) {
   sys.puts('Starting HTTP server at http://' + options.host + ':' + options.http_port);
   var server = fu.listen(options.http_port, options.host);
 
@@ -849,7 +738,7 @@ function start_webserver(options, state) {
   
   fu.get('/state', function (req, res) {
     res.sendHeader(200, {'Content-Type': 'application/json'});
-    res.sendBody(JSON.stringify(state), 'utf8');
+    res.sendBody(JSON.stringify(shared.get_state()), 'utf8');
     res.finish();
   });
   

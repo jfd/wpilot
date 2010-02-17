@@ -8,8 +8,6 @@
 //
 var CLIENT_VERSION = '(develop version)';
 
-var _ = Match.incl;
-
 var GRID_CELL_SIZE      = 250;
     GRID_CELL_COLOR     = 'rgba(255,255,255,0.2)';
     
@@ -373,7 +371,7 @@ WPilotClient.prototype.join = function(url) {
           }
           
           for (var i = 0; i < messages.length; i++) {
-            process_game_message([messages[i], self]);
+            self.world.process_world_packet(messages[i]);
           }
         
           break;
@@ -494,7 +492,7 @@ WPilotClient.prototype.draw_hud = function() {
       player_entity   = this.player.entity,
       opt             = this.options;
   
-  if (player_entity && !this.player.is_dead) {
+  if (player_entity && !this.player.dead) {
     ctx.textAlign = 'center';
 
     ctx.font = HUD_SMALL_FONT;
@@ -527,7 +525,7 @@ WPilotClient.prototype.draw_hud = function() {
     }    
   }
   
-  if (player_entity && !this.player.is_dead) {
+  if (player_entity && !this.player.dead) {
     ctx.save();
     ctx.translate(center_w, center_h);
     player_entity.draw(ctx);
@@ -645,7 +643,7 @@ WPilotClient.prototype.update_netstat = function() {
  *  Processes control message recieved from server.
  *  
  */
-var process_control_message = Match (
+var process_control_message = match (
   /**
    *  The first message recieved from server on connect. Contains the 
    *  state of the server. 
@@ -659,36 +657,36 @@ var process_control_message = Match (
    *  Is received after the client has sent a CLIENT CONNET message. The message
    *  contains all data necessary to set up the game world.
    */
-  [[SERVER + HANDSHAKE, Object, Array, Array], _], 
-  function(world_data, players, entities, client) {
+  [[SERVER + HANDSHAKE, Object, Array], _], 
+  function(world_data, players_data, client) {
     var world = new World(world_data);
-
+    world.build();
+    
+    for (var i = 0; i < players_data.length; i++) {
+      var player_data = players_data[i];
+      var player = new Player(players_data);
+      world.players[player.id] = player;
+      if (!player_data.dead) {
+        var entity = new Ship({
+          pos:    player_data.pos,
+          vel:    player_data.vel,
+          angle:  player_data.angle,
+          player: player
+        });
+        world.add_entity(entity);
+        player.entity = entity;
+      }
+    }
+    
     client.set_world(world);
-
-    for (var i = 0; i < players.length; i++) {
-      process_game_message([[players[i].shift() + CONNECT].concat(players[i]), client]);
-    }
-
-    for (var i = 0; i < entities.length; i++) {
-      process_game_message([[entities[i].shift() + SPAWN].concat(entities[i]), client]);
-    }
-
-    // client.server_state.no_players++
+    
     client.set_state(CLIENT_CONNECTED);
   },
   
   [[SERVER + CONNECT, Number, Number, String, String], _],
   function(tick, id, name, color, client) {
-    var player = new Player({
-      id:     id,
-      name:   name,
-      color:  color
-    });
-
-    client.world.players[id] = player;
-    client.server_state.no_players++;
+    var player = client.world.add_player(id, name, color);
     client.set_player(player);
-
     client.start_gameloop(tick);
   },
   
@@ -707,136 +705,39 @@ var process_control_message = Match (
   
 );
 
-/**
- *  Processes game message recieved from server.
- *  
- */
-var process_game_message = Match (
-
-  /**
-   * Is recived when the state of a player has changed
-   */
-  [[PLAYER + STATE, Number, Object], _],
-  function(id, data, client) {
-    var world = client.world,
-        player = world.players[id],
-        player_pos = client.server_state.no_players;
-    if (player) {
-      player.set_props(data);
-      player.commit();
-      for (var pid in world.players) {
-        if (client.player.score > world.players[pid].score) {
-          player_pos--;
-        }
-      }
-      client.player.pos = player_pos;
-      if (data.eid) {
-        var entity = world.find(data.eid);
-        player.entity = entity;
-        if (player.is_me) {
-          entity.is_me = true;
-          client.respawn_at = 0;
-          client.viewport.set_camera_pos(entity.pos);
-        }
-      }
-    }
-  },
-    
-  /**
-   * Is recived when a ship has been created
-   */
-  [[SHIP + SPAWN, Number, Number, Array], _],
-  function(id, pid, pos, client) {
-    var player = client.world.players[pid];
-    var entity = new Ship({
-      id:   id,
-      pid:  pid,
-      pos:  pos
-    });
-    entity.is_me = player.is_me;
-    player.entity = entity;
-    entity.player = player
-    client.world.append(entity);
-  },
-
-  /**
-   * Is recived when a bullet has been created
-   */
-  [[BULLET + SPAWN, Number, Number, Array, Array, Number], _],
-  function(id, oid, pos, vel, angle, client) {
-    var entity = new Bullet({
-      id:   id,
-      oid:  oid,
-      pos:  pos,
-      vel:  vel,
-      angle: angle
-    });
-    client.world.append(entity);
-  },
-
-  /**
-   * Is recived when a bullet has been created
-   */
-  [[WALL + SPAWN, Number, Array, Array, String], _],
-  function(id, pos, size, orientation, client) {
-    var entity = new Wall({
-      id:   id, 
-      pos:  pos,
-      size: size,
-      o:    orientation      
-    });
-    client.world.append(entity);
-  },
-
-  /**
-   * Is recived when an entity's state has changed.
-   */
-  [[SHIP + STATE, Number, Number, Number, Array, Array], _],
-  function(id, angle, command, pos, vel, client) {
-    var entity = client.world.find(id);
-    if (entity) {
-      entity.angle    = angle;
-      entity.command  = command
-      entity.pos      = pos;
-      entity.vel      = vel;
-    } 
-  },
-
-  //
-  //  Default message handler.
-  //
-  //  The message sent by server could not be matched.
-  //
-  function(msg) {
-    console.log('Unhandled message')
-    console.log(msg[0]);
-  }
-  
-);
-
 Player.prototype.on_before_init = function() {
   this.pos = 1;
   this.is_me = false;
   this.winners = null;
 }
 
-
 /**
- * Is recived when a new player has joined to the game world.
+ * Callback for player join
  */
 World.prototype.on_player_join = function(player) {
   this.client.log('Player "' + player.name + ' joined the world...');
 }
 
 /**
- * Is recived when a player has leaved the game world.
+ * Callback for player leave
  */
 World.prototype.on_player_leave = function(player, reason) {
   this.client.log('Player "' + player.name + ' disconnected. Reason: ' + reason);
 }
 
 /**
- * Is recived when a new player ship is spawned
+ * Callback for player spawn. 
+ */
+World.prototype.on_player_spawn = function(player, pos) {
+  if (player.is_me) {
+    player.entity.is_me = true;
+    this.client.respawn_at = 0;
+    this.client.viewport.set_camera_pos(pos);
+  }
+}
+
+/**
+ * Callback for player died
  */
 World.prototype.on_player_died = function(player, death_cause, killer) { 
   if (player.is_me) {
@@ -856,31 +757,48 @@ World.prototype.on_player_died = function(player, death_cause, killer) {
 }
 
 /**
- * Is recived when a player player is ready
+ * Callback for player ready
  */
 World.prototype.on_player_ready = function(player) {
   this.client.log(player.is_me ? 'You are now ready' : 'Player "' + player.name + ' is ready');
 }
 
+/**
+ * Callback for round state changed
+ */
 World.prototype.on_round_state_changed = function(state, winners) {
   
 };
 
 World.prototype.on_after_init = function() {
+  this.PACKET_HANDLERS = {};
   this.PACKET_HANDLERS[ROUND + STATE] = this.set_player_ready;
 
   this.PACKET_HANDLERS[PLAYER + CONNECT] = this.add_player;
   this.PACKET_HANDLERS[PLAYER + DISCONNECT] = this.remove_player;
   this.PACKET_HANDLERS[PLAYER + READY] = this.set_round_state;
   this.PACKET_HANDLERS[PLAYER + SPAWN] = this.spawn_player;
-  this.PACKET_HANDLERS[PLAYER + DIED] = this.kill_player;
+  this.PACKET_HANDLERS[PLAYER + DIE] = this.kill_player;
+  this.PACKET_HANDLERS[PLAYER + FIRE] = this.fire_player_canon;
+  this.PACKET_HANDLERS[PLAYER + STATE] = this.update_player_state;
 }
 
-World.prototype.process_world_packet = function() {
-  var args = Array.prototype.slice.call(arguments);
-  var id = args.shift();
+World.prototype.process_world_packet = function(msg) {;
+  var id = msg.shift();
   var handler = this.PACKET_HANDLERS[id];
-  handler.apply(this, args);
+  if (handler) {
+    handler.apply(this, msg);
+  } else {
+    console.log(id);
+  }
+}
+
+World.prototype.update_player_state = function(id, pos, vel, angle, command) {
+  var player = this.players[id];
+  player.entity.pos = pos;
+  player.entity.vel = vel;
+  player.entity.angle = angle;
+  player.command = player.entity.command;
 }
 
 /**
@@ -1011,12 +929,20 @@ Ship.prototype.update = function(t, dt) {
 }
 
 /**
- *  Override the EntityBase.destroy method.
+ *  Override the EntityBase.destroy method. Destroy's the Ship in end of 
+ *  world update.
+ *  @param {DEATH_CAUSE_*} death_cause The cause of death
+ *  @param {Player} killed_by The killer if not suicide.
+ *  @return {undefined} Nothing.
  */
-Ship.prototype.destroy = function() {
+Ship.prototype.destroy = function(death_cause, killer_id) {
   this.dead = true;
+  this.destroyed = false;
+  this.death_cause = death_cause;
+  this.destroyed_by = killer_id;
   this.animations['die'].set_active(true);
 }
+
 
 /**
  *  Method Ship.draw
