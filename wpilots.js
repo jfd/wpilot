@@ -694,7 +694,7 @@ var process_game_message = match (
    */
   [[CLIENT + COMMAND, Number], _, _], 
   function(value, player, world) {
-    world.set_player_command(player, value);
+    world.set_player_command(player.id, value);
   },
 
   /**
