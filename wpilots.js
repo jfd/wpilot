@@ -511,19 +511,19 @@ function start_gameserver(options, shared) {
       while ((msg = message_queue[PRIO_HIGH].pop())) {
         var data = JSON.stringify(msg);
         packet_data.push(data);
-        data_sent +=  data.length;
+        // data_sent +=  data.length;
       }
       
       while (data_sent < rate && (msg = message_queue[PRIO_MED].pop())) {
         var data = JSON.stringify(msg);
         packet_data.push(data);
-        data_sent +=  data.length;
+        // data_sent +=  data.length;
       }
 
       while (data_sent < rate && (msg = message_queue[PRIO_LOW].pop())) {
         var data = JSON.stringify(msg);
         packet_data.push(data);
-        data_sent +=  data.length;
+        // data_sent +=  data.length;
       }
       
       this.send('[2,[' + packet_data.join(',') + ']]');
