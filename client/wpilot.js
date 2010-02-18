@@ -729,6 +729,7 @@ World.prototype.on_player_leave = function(player, reason) {
  * Callback for player spawn. 
  */
 World.prototype.on_player_spawn = function(player, pos) {
+  console.log('spawn: ' + pos);
   if (player.is_me) {
     player.entity.is_me = true;
     this.client.respawn_at = 0;
@@ -781,6 +782,7 @@ World.prototype.on_after_init = function() {
   this.PACKET_HANDLERS[PLAYER + DIE] = this.kill_player;
   this.PACKET_HANDLERS[PLAYER + FIRE] = this.fire_player_canon;
   this.PACKET_HANDLERS[PLAYER + STATE] = this.update_player_state;
+  this.PACKET_HANDLERS[PLAYER + COMMAND] = this.set_player_command;
 }
 
 World.prototype.process_world_packet = function(msg) {;
