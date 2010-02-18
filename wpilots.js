@@ -415,7 +415,7 @@ function start_gameserver(options, shared) {
    *  @return {undefined} Nothing
    */
   function log(msg) {
-    sys.puts(options.server_name + ': ' + msg);
+    sys.puts(options.name + ': ' + msg);
   }
   
   /**
