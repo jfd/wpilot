@@ -356,6 +356,8 @@ WPilotClient.prototype.join = function(url) {
           break;
           
         case GAME_PACKET:
+          if (!self.world) return;
+          
           var messages      = packet[1];
 
           if (self.netstat.start_time) {
@@ -664,7 +666,7 @@ var process_control_message = match (
     
     for (var i = 0; i < players_data.length; i++) {
       var player_data = players_data[i];
-      var player = new Player(players_data);
+      var player = new Player(player_data);
       world.players[player.id] = player;
       if (!player_data.dead) {
         var entity = new Ship({
