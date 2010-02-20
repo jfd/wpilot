@@ -713,6 +713,19 @@ Player.prototype.on_before_init = function() {
   this.winners = null;
 }
 
+World.prototype.on_after_init = function() {
+  this.animations = {};
+}
+
+/**
+ *  Callback for world update
+ */
+World.prototype.on_update = function(t, dt) {
+  for (var anim in this.animations) {
+    this.animations[anim].update(t, dt);
+  }  
+}
+
 /**
  * Callback for player join
  */
@@ -775,7 +788,7 @@ World.prototype.on_round_state_changed = function(state, winners) {
 
 World.prototype.on_after_init = function() {
   this.PACKET_HANDLERS = {};
-  this.PACKET_HANDLERS[ROUND + STATE] = this.set_player_ready;
+  this.PACKET_HANDLERS[ROUND + STATE] = this.set_round_state;
 
   this.PACKET_HANDLERS[PLAYER + CONNECT] = this.add_player;
   this.PACKET_HANDLERS[PLAYER + DISCONNECT] = this.remove_player;
@@ -823,6 +836,11 @@ World.prototype.draw = function(viewport, alpha) {
       entity.draw(ctx);
       ctx.restore();
     }
+  }
+  for (var anim in this.animations) {
+    ctx.save();
+    this.animations[anim].draw(ctx);
+    ctx.restore();
   }
 }
 
