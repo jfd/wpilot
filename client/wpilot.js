@@ -714,14 +714,14 @@ World.prototype.on_update = function(t, dt) {
  * Callback for player join
  */
 World.prototype.on_player_join = function(player) {
-  this.client.log('Player "' + player.name + ' joined the world...');
+  this.client.log('Player "' + player.name + '" joined the world...');
 }
 
 /**
  * Callback for player leave
  */
 World.prototype.on_player_leave = function(player, reason) {
-  this.client.log('Player "' + player.name + ' disconnected. Reason: ' + reason);
+  this.client.log('Player "' + player.name + '" disconnected. Reason: ' + reason);
 }
 
 /**

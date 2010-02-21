@@ -260,7 +260,6 @@ function start_gameserver(options, shared) {
   
   world.on_player_leave = function(player, reason) {
     broadcast(PLAYER + DISCONNECT, player.id, reason);
-    log(conn + ' leaved the game (Reason: ' + reason + ')');
   }
   
   /**
@@ -575,11 +574,12 @@ function start_gameserver(options, shared) {
           log(conn + ' joined the game.');
           break;
         
-        case DISCONNECT:
+        case DISCONNECTED:
           delete connections[connection_id];
         
           if (player) {
             world.remove_player(player.id, disconnect_reason);
+            log(conn + ' leaved the game (Reason: ' + disconnect_reason + ')');
           }
 
           if (world.no_players == 0) {
