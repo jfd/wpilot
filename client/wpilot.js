@@ -249,14 +249,7 @@ WPilotClient.prototype.process_user_input = function(t, dt) {
     if (input.on('shoot')) new_command |= SHOOT;
 
     if (new_command != player.command) {
-      // console.log('shoot?' + input.on('shoot'));
-      // console.log('shield?' + input.on('shield'));
       player.command = new_command;
-      if (new_command == 0) {
-        console.log('sending ´zero to server');
-      } else if(new_command == SHOOT) {
-        console.log('sending fire');
-      }
       this.post_game_packet([CLIENT + COMMAND, new_command]);
     }
   }  
