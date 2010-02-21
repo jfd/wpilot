@@ -242,7 +242,7 @@ function start_gameserver(options, shared) {
     broadcast(PLAYER + SPAWN, player.id, pos);
   }
 
-  world.on_player_died = function(player, death_cause, killer) {
+  world.on_player_died = function(player, old_entity, death_cause, killer) {
     broadcast(PLAYER + DIE, player.id, death_cause, killer ? killer.id : -1);
   }
   
