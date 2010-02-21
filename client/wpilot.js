@@ -146,7 +146,7 @@ WPilotClient.prototype.set_viewport = function(viewport) {
   var self = this;
   viewport.ondraw = function() {
     if (self.player) {
-      if (self.player.entity) {
+      if (!self.player.dead) {
         viewport.set_camera_pos(self.player.entity.pos);
       }
       self.world.draw(viewport);
@@ -240,7 +240,7 @@ WPilotClient.prototype.process_user_input = function(t, dt) {
     this.post_game_packet([CLIENT + COMMAND, READY]);
   } 
 
-  if (player.entity && !player.entity.dead && !player.entity.spawning) {
+  if (!player.dead) {
     if (input.on('thrust')) new_command |= THRUST;
     if (input.on('rotate_west')) new_command |= ROTATE_W;
     if (input.on('rotate_east')) new_command |= ROTATE_E;
@@ -274,7 +274,6 @@ WPilotClient.prototype.start_gameloop = function(initial_tick) {
   gameloop.ontick = function(t, dt) {
     self.process_user_input(t, dt);
     self.world.update(t, dt);
-    self.remove_destroyed_entites();
   }
   
   // Is called when loop is about to start over.
@@ -300,22 +299,6 @@ WPilotClient.prototype.stop_gameloop = function() {
     this.gameloop.kill();
     this.gameloop = null;
     this.viewport.set_autorefresh(true);
-  }
-}
-
-/**
- *  Removes all dead entities in the world.
- *  @return {undefined} Nothing
- */
-WPilotClient.prototype.remove_destroyed_entites = function() {
-  for (var entity_id in this.world.entities) {
-    var entity = this.world.entities[entity_id];
-    if (entity.destroyed) {
-      if (entity && entity.player) {
-        entity.player.entity = null;
-      }
-      this.world.delete_entity_by_id(entity_id);
-    }
   }
 }
 
@@ -494,7 +477,7 @@ WPilotClient.prototype.draw_hud = function() {
       player_entity   = this.player.entity,
       opt             = this.options;
   
-  if (player_entity && !this.player.dead) {
+  if (!this.player.dead) {
     ctx.textAlign = 'center';
 
     ctx.font = HUD_SMALL_FONT;
@@ -527,7 +510,7 @@ WPilotClient.prototype.draw_hud = function() {
     }    
   }
   
-  if (player_entity && !this.player.dead) {
+  if (!this.player.dead) {
     ctx.save();
     ctx.translate(center_w, center_h);
     player_entity.draw(ctx);
@@ -751,7 +734,6 @@ World.prototype.on_player_spawn = function(player, pos) {
   this.animations[anim_id] = new SpawnAnimation(
     pos, 
     function() {
-      player.entity.spawning = false;
       delete self.animations[anim_id];
     }
   );  
@@ -940,9 +922,7 @@ World.prototype.draw_grid = function(ctx, camera) {
  */
 Ship.prototype.on_before_init = function() {
   this.visible = true;
-  this.spawning = true;
   this.is_me = false;
-  this.player = null;
 }
 
 Ship.prototype.on_after_init = function() {
@@ -972,8 +952,7 @@ Ship.prototype.update = function(t, dt) {
  *  @return {undefined} Nothing.
  */
 Ship.prototype.destroy = function(death_cause, killer_id) {
-  this.dead = true;
-  this.destroyed = false;
+  this.destroyed = true;
   this.death_cause = death_cause;
   this.destroyed_by = killer_id;
   this.animations['die'].set_active(true);
@@ -987,7 +966,7 @@ Ship.prototype.destroy = function(death_cause, killer_id) {
 Ship.prototype.draw = function(ctx) {
   var centerx = this.size[0] / 2,
       centery = this.size[1] / 2;
-  if (!this.spawning && !this.dead) {
+  if (!this.destroyed) {
     ctx.rotate(this.angle);
     ctx.strokeStyle = "white";
     ctx.lineWidth = 1;
@@ -1198,7 +1177,7 @@ PositionLightAnimation.prototype.update = function(t, dt) {
  *  @return {undefined} Nothing
  */
 PositionLightAnimation.prototype.draw = function(ctx) {
-  if (!this.origin.dead && !this.origin.spawning) {
+  if (!this.origin.destroyed) {
     var alpha = Math.abs(Math.sin((this.value)));
     if (alpha < 0.3) alpha = 0.3;   
     ctx.beginPath();
