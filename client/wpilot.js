@@ -94,7 +94,7 @@ function WPilotClient(options) {
     messages_received:  0,
     messages_sent:      0,
     mps_in:             0,
-    mps_out:            0,
+    mps_out:            0
   };
   
   // Status variables
@@ -345,7 +345,6 @@ WPilotClient.prototype.join = function(url) {
             var now = get_time(),
                 alpha = 0;
             if (self.netstat.last_received) {
-              var diff = now - self.netstat.last_received;
               self.netstat.last_received = now;
             }
             self.netstat.last_received = now;
@@ -413,7 +412,6 @@ WPilotClient.prototype.post_control_packet = function(msg) {
   var packet = JSON.stringify([CONTROL_PACKET, msg]);
   this.conn.send(packet);
 }
-
 
 /**
  *  Draws logs, which includes the message log, netstat log and fps counter.
@@ -813,11 +811,9 @@ World.prototype.process_world_packet = function(msg) {;
   }
 }
 
-World.prototype.update_player_state = function(id, pos, vel, angle) {
+World.prototype.update_player_state = function(id, pos) {
   var player = this.players[id];
-  player.entity.pos = pos;
-  player.entity.vel = vel;
-  player.entity.angle = angle;
+  player.entity.pos_sv = pos;
 }
 
 /**
@@ -920,6 +916,7 @@ World.prototype.draw_grid = function(ctx, camera) {
 Ship.prototype.on_before_init = function() {
   this.visible = true;
   this.is_me = false;
+  this.pos_sv = [0, 0];
 }
 
 Ship.prototype.on_after_init = function() {
@@ -930,6 +927,22 @@ Ship.prototype.on_after_init = function() {
   }
 }
 
+Ship.prototype.world_update = function(t, dt) {
+  var old_pos = this.pos,
+      old_vel = this.vel,
+      old_ang = this.angle;
+  
+  this.move(t, dt);
+  
+  if (Math.abs(this.pos[0] - this.pos_sv[0]) > 0.01 || 
+      Math.abs(this.pos[1] - this.pos_sv[1]) > 0.01) {
+    this.pos = vector_add(this.pos, vector_div(vector_sub(this.pos_sv, this.pos),10));
+  }
+
+  this.update(t, dt);
+}
+
+
 /**
  *  Prepare properties for a draw call
  */
@@ -939,6 +952,8 @@ Ship.prototype.update = function(t, dt) {
   for (var anim in this.animations) {
     this.animations[anim].update(t, dt);
   }
+  // interpolate ships state
+  
 }
 
 /**
@@ -963,6 +978,7 @@ Ship.prototype.destroy = function(death_cause, killer_id) {
 Ship.prototype.draw = function(ctx) {
   var centerx = this.size[0] / 2,
       centery = this.size[1] / 2;
+      
   if (!this.destroyed) {
     ctx.rotate(this.angle);
     ctx.strokeStyle = "white";
