@@ -233,28 +233,33 @@ WPilotClient.prototype.set_state = function(state) {
  */
 WPilotClient.prototype.process_user_input = function(t, dt) {
   var player        = this.player,
-      input         = this.input,
-      new_command  = 0;
+      input         = this.input;
 
   if (input.toggle('ready')) {
     this.post_game_packet([CLIENT + COMMAND, READY]);
   } 
 
   if (!player.dead) {
+    var new_command  = 0;
+    
     if (input.on('thrust')) new_command |= THRUST;
     if (input.on('rotate_west')) new_command |= ROTATE_W;
     if (input.on('rotate_east')) new_command |= ROTATE_E;
-    if (input.on('shoot')) new_command |= SHOOT;
     if (input.on('shield')) new_command |= SHIELD;
-  } else {
-    new_command = 0;
-  }
+    if (input.on('shoot')) new_command |= SHOOT;
 
-  if (new_command != player.command) {
-    player.command = new_command;
-    this.post_game_packet([CLIENT + COMMAND, new_command]);
-  }
-  
+    if (new_command != player.command) {
+      // console.log('shoot?' + input.on('shoot'));
+      // console.log('shield?' + input.on('shield'));
+      player.command = new_command;
+      if (new_command == 0) {
+        console.log('sending ´zero to server');
+      } else if(new_command == SHOOT) {
+        console.log('sending fire');
+      }
+      this.post_game_packet([CLIENT + COMMAND, new_command]);
+    }
+  }  
 }
 
 /**
@@ -815,12 +820,11 @@ World.prototype.process_world_packet = function(msg) {;
   }
 }
 
-World.prototype.update_player_state = function(id, pos, vel, angle, command) {
+World.prototype.update_player_state = function(id, pos, vel, angle) {
   var player = this.players[id];
   player.entity.pos = pos;
   player.entity.vel = vel;
   player.entity.angle = angle;
-  player.command = player.entity.command;
 }
 
 /**

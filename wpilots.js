@@ -251,7 +251,15 @@ function start_gameserver(options, shared) {
   }
   
   world.on_player_command = function(player, command) {
-    broadcast(PLAYER + COMMAND, player.id, command);
+    broadcast_each(
+      [PLAYER + COMMAND, player.id, command],
+      function(msg, conn) {
+        if (player.id == conn.id) {
+          return PRIO_PASS;
+        } 
+        return PRIO_HIGH;
+      }
+    );
   }
 
   world.on_player_fire = function(player) {
@@ -311,8 +319,7 @@ function start_gameserver(options, shared) {
               player.id,
               pack_vector(entity.pos),
               pack_vector(entity.vel),
-              entity.angle,
-              entity.command
+              entity.angle
             ]
           );
         }
