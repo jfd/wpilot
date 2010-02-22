@@ -916,7 +916,6 @@ World.prototype.draw_grid = function(ctx, camera) {
 Ship.prototype.on_before_init = function() {
   this.visible = true;
   this.is_me = false;
-  this.pos_sv = [0, 0];
 }
 
 Ship.prototype.on_after_init = function() {
@@ -925,6 +924,7 @@ Ship.prototype.on_after_init = function() {
     'thrust': new ThrustAnimation(),
     'shield': new ShieldAnimation()
   }
+  this.pos_sv = this.pos;
 }
 
 Ship.prototype.world_update = function(t, dt) {
@@ -1212,13 +1212,13 @@ function SpawnAnimation(pos, callback) {
   particles.finishColour = [59,116,191, 0 ];
   particles.startColourRandom = [80,20,20,0 ];
   particles.finishColourRandom = [60,10,10,0.1];
-  particles.size = 15;
-  particles.sizeRandom = 3;
-  particles.maxParticles = 100;
-  particles.duration = 1;
-  particles.gravity = Vector.create( 0.4, 0.2 );
-  particles.lifeSpan = 7;
-  particles.lifeSpanRandom = 0;
+  particles.gravity = Vector.create( 0.01, 0.01 );
+  particles.size = 2; 
+  particles.sizeRandom = 4;
+  particles.maxParticles = 300;
+  particles.duration = 2;
+  particles.lifeSpan = 4;
+  particles.lifeSpanRandom = 2;
   particles.init();
   this.pos = pos;
   this.particles = particles;
