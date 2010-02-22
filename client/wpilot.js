@@ -1262,9 +1262,10 @@ function DieAnimation(pos, angle, callback) {
   particles.size = 3;
   particles.sizeRandom = 2;
   particles.angle = 0;
+  particles.speed = 2.4;
   particles.angleRandom = 360;
   particles.maxParticles = 200;
-  particles.duration = 5;
+  particles.duration = 4;
   particles.lifeSpan = 4;
   particles.lifeSpanRandom = 2;
   particles.init();
