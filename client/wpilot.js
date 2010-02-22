@@ -936,7 +936,7 @@ Ship.prototype.world_update = function(t, dt) {
   
   if (Math.abs(this.pos[0] - this.pos_sv[0]) > 0.01 || 
       Math.abs(this.pos[1] - this.pos_sv[1]) > 0.01) {
-    this.pos = vector_add(this.pos, vector_div(vector_sub(this.pos_sv, this.pos),10));
+    this.pos = vector_add(this.pos, vector_div(vector_sub(this.pos_sv, this.pos), 10));
   }
 
   this.update(t, dt);
@@ -952,8 +952,6 @@ Ship.prototype.update = function(t, dt) {
   for (var anim in this.animations) {
     this.animations[anim].update(t, dt);
   }
-  // interpolate ships state
-  
 }
 
 /**
