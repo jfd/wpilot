@@ -26,10 +26,9 @@ const RE_POLICY_REQ = /<\s*policy\-file\-request\s*\/>/i,
       POLICY_RES    = "<cross-domain-policy><allow-access-from domain=\"*\" to-ports=\"*\" /></cross-domain-policy>";
 
 // Message priorities. High priority messages are sent to client no mather
-// what. Low priority messages are sent only if client can afford it.
+// what. Low priority messages are sent only if client can afford them.
 const PRIO_PASS     = 0,
       PRIO_LOW      = 'low',
-      PRIO_MED      = 'med',
       PRIO_HIGH     = 'high';
 
 // Player Connection states      
@@ -79,7 +78,7 @@ const DEFAULT_OPTIONS = {
   pub_ws_port:          null,
   max_players:          8,
   policy_port:          843,
-  max_rate:             1000,
+  max_rate:             5000,
   serve_flash_policy:   false,
   world_width:          1000,
   world_height:         1000,
@@ -178,9 +177,8 @@ function start_gameserver(options, shared) {
       gameloop        = null,
       world           = null,
       server          = null,
-      delayed_actions = {},
       conn_id         = 1,
-      last_flush      = 0,
+      post_tick       = 1,
       rules           = get_rules(options);
   
   
@@ -262,8 +260,8 @@ function start_gameserver(options, shared) {
     );
   }
 
-  world.on_player_fire = function(player) {
-   broadcast(PLAYER + FIRE, player.id);
+  world.on_player_fire = function(player, angle) {
+   broadcast(PLAYER + FIRE, player.id, angle);
   }
   
   world.on_player_leave = function(player, reason) {
@@ -280,8 +278,6 @@ function start_gameserver(options, shared) {
 
     gameloop = new GameLoop();
     gameloop.ontick = gameloop_tick;
-    
-    last_flush = get_time();
     
     log('Starting game loop...');
     gameloop.start();
@@ -303,25 +299,20 @@ function start_gameserver(options, shared) {
     gameloop.kill();
     gameloop = null;
   }  
-  
+
   function post_update() {
+    post_tick++;
     for (var id in connections) {
-      var connection = connections[id],
-          viewport_bounds = connection.get_viewport_bounds();
+      var connection = connections[id];
+      if (post_tick % connection.update_rate != 0) {
+        continue;
+      }
       for (var id in world.players) {
-        var player = world.players[id],
-            entity = player.entity;
-        if (entity && entity.cached_bounds) {
-          connection.queue(
-            intersects(entity.cached_bounds, viewport_bounds) ? PRIO_MED : PRIO_LOW,
-            [
-              PLAYER + STATE,
-              player.id,
-              pack_vector(entity.pos),
-              pack_vector(entity.vel),
-              entity.angle
-            ]
-          );
+        var player = world.players[id];
+        if (player.entity) {
+          connection.queue([PLAYER + STATE, 
+                            player.id, 
+                            pack_vector(player.entity.pos)]);
         }
       }
     }    
@@ -398,7 +389,7 @@ function start_gameserver(options, shared) {
   function broadcast() {
     var msg = Array.prototype.slice.call(arguments);
     for(var id in connections) {
-      connections[id].queue(PRIO_HIGH, msg);
+      connections[id].queue(msg);
     }
   }
 
@@ -411,7 +402,7 @@ function start_gameserver(options, shared) {
   function broadcast_each(msg, callback) {
     for(var id in connections) {
       var prio = callback(msg, connections[id]);
-      if (prio) connections[id].queue(prio, msg);
+      if (prio) connections[id].queue(msg);
     }
   }
   
@@ -433,14 +424,14 @@ function start_gameserver(options, shared) {
   server = ws.createServer(function(conn) {
     var connection_id     = conn_id++,
         disconnect_reason = 'Closed by client',
-        message_queue     = { low: [], med: [], high: [] },
-        player            = null,
-        current_vp_bounds = null;
+        message_queue     = [],
+        player            = null;
     
-    conn.is_game_conn = true;
     conn.id = connection_id;
-    conn.rate = 1000;
-    conn.update_rate = 100;
+    conn.rate = options.max_rate;
+    conn.update_rate = 2;
+    conn.last_rate_check = get_time();
+    conn.data_sent = 0;
     conn.dimensions = [640, 480];
     conn.state = IDLE;
     conn.debug = options.debug;
@@ -449,35 +440,8 @@ function start_gameserver(options, shared) {
      *  Set's information about client.
      */
     conn.set_client_info = function(info) {
-      conn.rate = info.rate;
-      conn.update_rate = info.update_rate;
+      conn.rate = Math.min(info.rate, options.max_rate);
       conn.dimensions = info.dimensions;
-    }
-    
-    /**
-     *  Returns current bouds for viewport
-     */
-    conn.get_viewport_bounds = function() {
-      var dim = conn.dimensions;
-      if (player && player.entity) {
-        current_vp_bounds = {
-          x: player.entity - dim[0] / 2,
-          y: player.entity - dim[1] / 2,
-          w: dim[0],
-          h: dim[1]
-        } 
-      }
-      
-      if (current_vp_bounds == null) {
-        current_vp_bounds = {
-          x: 0,
-          y: 0,
-          w: dim[0],
-          h: dim[1]
-        } 
-      }
-
-      return current_vp_bounds
     }
     
     /**
@@ -493,8 +457,8 @@ function start_gameserver(options, shared) {
     /**
      *  Queues the specified message and sends it on next flush.
      */
-    conn.queue = function(prio, msg) {
-      message_queue[prio].push(msg);
+    conn.queue = function(msg) {
+      message_queue.push(msg);
     }
 
     /**
@@ -509,32 +473,33 @@ function start_gameserver(options, shared) {
      *  Post's specified data to this instances message queue
      */
     conn.flush_queue = function() {
-      var msg = null,
+      var now = get_time();
+          msg = null,
           data_sent = 6,
-          packet_data = [],
-          rate = Math.min(conn.rate, options.max_rate) / 60;
+          packet_data = []
 
-      while ((msg = message_queue[PRIO_HIGH].pop())) {
+      while ((msg = message_queue.shift())) {
         var data = JSON.stringify(msg);
         packet_data.push(data);
-        // data_sent +=  data.length;
+        data_sent += data.length;
       }
-      
-      while (data_sent < rate && (msg = message_queue[PRIO_MED].pop())) {
-        var data = JSON.stringify(msg);
-        packet_data.push(data);
-        // data_sent +=  data.length;
-      }
-
-      while (data_sent < rate && (msg = message_queue[PRIO_LOW].pop())) {
-        var data = JSON.stringify(msg);
-        packet_data.push(data);
-        // data_sent +=  data.length;
-      }
-      
+            
       this.send('[2,[' + packet_data.join(',') + ']]');
+      this.data_sent += data_sent;
       
-      message_queue = { low: [], med: [], high: []};
+      var diff = now - this.last_rate_check;
+      
+      if (diff >= 1000) {
+        if (this.data_sent < this.rate && this.update_rate > 1) {
+          this.update_rate--;
+        } else if (this.data_sent > this.rate) {
+          this.update_rate++;
+        }
+        this.data_sent = 0;
+        this.last_rate_check = now;
+      }
+      
+      message_queue = [];
     }
     
     /**
