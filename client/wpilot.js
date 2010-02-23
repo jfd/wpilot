@@ -974,24 +974,19 @@ Ship.prototype.destroy = function(death_cause, killer_id) {
 Ship.prototype.draw = function(ctx) {
   var centerx = this.size[0] / 2,
       centery = this.size[1] / 2;
-      
-  if (!this.destroyed) {
-    ctx.rotate(this.angle);
-    ctx.strokeStyle = "white";
-    ctx.lineWidth = 1;
-    ctx.fillStyle = "white";
-    ctx.beginPath();
-    ctx.moveTo(0, -centery);
-    ctx.lineTo(centerx, centery);
-    ctx.lineTo(-centerx, centery);
-    ctx.lineTo(0, -centery);
-    ctx.fill();
-  }
+
+  ctx.rotate(this.angle);
+  ctx.strokeStyle = "white";
+  ctx.lineWidth = 1;
+  ctx.fillStyle = "white";
+  draw_triangle(ctx, centerx, centery);
+  
   for (var anim in this.animations) {
     ctx.save();
     this.animations[anim].draw(ctx);
     ctx.restore();
   }
+  
   if(!this.is_me){  
     ctx.rotate(-this.angle);
     ctx.font = SHIP_FONT;
@@ -1319,6 +1314,15 @@ function draw_v_bar(ctx, x, y, w, h, percent) {
   ctx.rect(x, y, w, h);
   ctx.fillRect(x + 2, (y + 2) + ((h - 4) - (h - 4) * (percent / 100)), (w - 4) , (h - 4) * (percent / 100));
   ctx.stroke();   
+}
+
+function draw_triangle(ctx, centerx, centery) {
+  ctx.beginPath();
+  ctx.moveTo(0, -centery);
+  ctx.lineTo(centerx, centery);
+  ctx.lineTo(-centerx, centery);
+  ctx.lineTo(0, -centery);
+  ctx.fill();
 }
 
 /**
