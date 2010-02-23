@@ -1109,10 +1109,12 @@ function ShieldAnimation() {
  *  @return {undefined} Nothing
  */
 ShieldAnimation.prototype.set_active = function(active) {
-  this.active = active;
-  if (this.active) {
-    this.value = 0.01;
-  } 
+  if (active != this.active) {
+    this.active = active;
+    if (active && this.value <= 0) {
+      this.value = 0.01;
+    }
+  }
 }
 
 /**
@@ -1122,13 +1124,13 @@ ShieldAnimation.prototype.set_active = function(active) {
  *  @return {undefined} Nothing
  */
 ShieldAnimation.prototype.update = function(t, dt) {
-  if (this.value > 0) {
-    var value = this.active ? this.value + dt * 4 : this.value - dt * 4;
-    if (value > 1) {
-      value = 1;
-    }
-    this.value = value;
-  }
+  var value = this.value;
+  if (this.active && value < 0.7) {
+    value += (dt * 5);
+  } else if (value > 0) {
+    value -= (dt * 5);
+  } 
+  this.value = value;
 }
 
 /**
