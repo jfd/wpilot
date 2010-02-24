@@ -134,6 +134,7 @@ WPilotClient.prototype.log = function(msg) {
  */
 WPilotClient.prototype.set_world = function(world) {
   world.client = this;
+  this.viewport.set_camera_pos(vector_div(world.size, 2));
   this.world = world;
   this.log('World data loaded...');
 }
@@ -817,6 +818,12 @@ World.prototype.on_player_ready = function(player) {
  */
 World.prototype.on_round_state_changed = function(state, winners) {
   this.winners = null;
+  switch (state) {
+
+    case ROUND_STARTING:
+      this.client.viewport.set_camera_pos(vector_div(this.size, 2));
+      break;
+  }
 };
 
 World.prototype.on_after_init = function() {
