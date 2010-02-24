@@ -124,16 +124,6 @@ ViewportDevice.prototype.get_camera_box = function() {
     h: this.camera.size[1]
   }
 }
-
-
-/**
- *  Moves the camera focus to the specified point. 
- *  @param {x, y} A point representing the position of the camera
- *  @returns {undefined} Nothing
- */
-ViewportDevice.prototype.set_world = function(world) {
-  this.world = world
-}
   
 /**
  *  Translate a point into a camera pos.
