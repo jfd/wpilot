@@ -485,7 +485,7 @@ WPilotClient.prototype.draw_hud = function() {
     ctx.font = HUD_SMALL_FONT;
     
     if(opt.hud_player_score_v) {
-      var limit = this.world.r_state == 'waiting' ? '-' : this.server_state.rules.round_limit;
+      var limit = this.world.r_state == ROUND_WAITING ? '-' : this.server_state.rules.round_limit;
       ctx.fillStyle = HUD_GREY_COLOR;
       draw_label(ctx, center_w + 72, center_h + 55, 'Score: ' + this.player.score + '/' + limit, 'right', 45);
     }
