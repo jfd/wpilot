@@ -75,8 +75,10 @@ function WPilotClient(options) {
   this.player             = null;
   this.conn               = null;
   this.message_log        = [];
-  this.hud_message        = null;
-  this.hud_message_type   = HUD_MESSAGE_SMALL;
+  this.hud_small_message  = null;
+  this.hud_small_pulse    = false;
+  this.hud_small_alpha    = 0.2;
+  this.hud_large_message  = null;
   this.respawn_at         = 0;
 
   this.netstat            = { 
@@ -201,7 +203,7 @@ WPilotClient.prototype.set_state = function(state) {
 
     case CLIENT_CONNECTED:
       this.log('Joined server ' + this.conn.URL + '...');
-      this.hud_message = 'Waiting for more players to connect';
+      this.hud_small_message = 'Waiting for more players to connect';
       this.post_control_packet([CLIENT + HANDSHAKE, { 
         rate: this.options.rate,
         dimensions: [this.viewport.w, this.viewport.h] 
@@ -216,8 +218,8 @@ WPilotClient.prototype.set_state = function(state) {
       this.player = null;
       this.conn = null;
       this.message_log = [];
-      this.hud_message = null;
-      this.hud_message_type = HUD_MESSAGE_SMALL;
+      this.hud_small_message = null;
+      this.hud_large_message = null;
       this.ondisconnect(this.disconnect_reason);
       this.stop_gameloop();
       
@@ -516,20 +518,28 @@ WPilotClient.prototype.draw_hud = function() {
     player_entity.draw(ctx);
     ctx.restore();    
   }
-  
-  // Draw HUD message
-  // Fixme: Find a better way to cycle between alpha values
-  if (this.hud_message) {
-    ctx.fillStyle = 'rgb(255, 215, 0)';
-    if (this.hud_message_type == HUD_MESSAGE_LARGE) {
-      ctx.font = HUD_XLARGE_FONT;
-      draw_label(ctx, center_w, center_h, this.hud_message, 'center', 400);
-    } else {
-      ctx.font = HUD_LARGE_FONT;
-      draw_label(ctx, center_w, viewport.h - 50, this.hud_message, 'center', 100);
-    }
-  }
 
+  // Draw large HUD message
+  if (this.hud_large_message) {
+    ctx.fillStyle = 'rgb(255, 215, 0)';
+    ctx.font = HUD_XLARGE_FONT;
+    draw_label(ctx, center_w, center_h, this.hud_large_message, 'center', 400);
+  }
+  
+  // Draw small HUD message
+  if (this.hud_small_message) {
+    if (this.hud_small_pulse) {
+      var alpha = Math.abs(Math.sin((this.hud_small_alpha += 0.08)));
+      if (alpha < 0.1) {
+        alpha = 0.1;
+      } 
+      ctx.fillStyle = 'rgba(255, 215,0,' + alpha + ')';
+    } else {
+      ctx.fillStyle = 'rgb(255, 215, 0)';
+    }
+    ctx.font = HUD_LARGE_FONT;
+    draw_label(ctx, center_w, viewport.h - 50, this.hud_small_message, 'center', 100);
+  }
 }
 
 WPilotClient.prototype.update_client = function(t, dt) {
@@ -539,26 +549,29 @@ WPilotClient.prototype.update_client = function(t, dt) {
       no      = 0,
       sec     = dt * 60;
   
+  this.hud_small_pulse = false;    
+  this.hud_small_message = null;
+  this.hud_large_message = null;
+  
   switch(world.r_state) {
     case ROUND_WAITING:
-      this.hud_message_type = HUD_MESSAGE_SMALL;
       if (world.no_players == 1) {
-        this.hud_message = 'Waiting for more players to join...';
+        this.hud_small_message = 'Waiting for more players to join...';
       } else if (!player.ready) {
-        this.hud_message = 'Press (r) when ready';
+        this.hud_small_message = 'Press (r) when ready';
+        this.hud_small_pulse = true;
       } else {
         no = Math.ceil((world.no_players * 0.6) - world.no_ready_players);
-        this.hud_message = 'Waiting for ' + no + ' player' + (no == 1 ? '' : 's') + ' to press ready';
+        this.hud_small_message = 'Waiting for ' + no + ' player' + (no == 1 ? '' : 's') + ' to press ready';
       }
       break;
 
     case ROUND_STARTING:
       no = parseInt((world.r_timer - t) / sec);
-      this.hud_message_type = HUD_MESSAGE_LARGE;
       if (no == 0) {
-        this.hud_message = 'Prepare your self...';
+        this.hud_large_message = 'Prepare your self...';
       } else {
-        this.hud_message = 'Round starts in ' + no + ' sec';
+        this.hud_large_message = 'Round starts in ' + no + ' sec';
       }
       break;
 
@@ -568,15 +581,12 @@ WPilotClient.prototype.update_client = function(t, dt) {
           this.respawn_at = t + server.rules.respawn_time * dt;
         } 
         no = parseInt((this.respawn_at - t) / sec); 
-        this.hud_message_type = HUD_MESSAGE_SMALL;
         if (no == 0) {
-          this.hud_message = 'Prepare your self...';
+          this.hud_small_message = 'Prepare your self...';
         } else {
-          this.hud_message = 'Respawn in ' + no + ' sec';
+          this.hud_small_message = 'Respawn in ' + no + ' sec';
         }
-      } else {
-        this.hud_message = '';
-      }
+      } 
       break;
 
     case ROUND_FINISHED:
@@ -587,12 +597,12 @@ WPilotClient.prototype.update_client = function(t, dt) {
         }
         world.winners = winners.join(',');
       }
-      this.hud_message_type = HUD_MESSAGE_LARGE;
       no = parseInt((world.r_timer - t) / sec);
       if (no == 0) {
-        this.hud_message = 'Starting warm-up round';
+        this.hud_large_message = 'Starting warm-up round';
       } else {
-        this.hud_message = 'Round won by ' + world.winners  + '. New round starts in ' + no + ' sec';
+        this.hud_large_message = 'Round won by ' + world.winners;
+        this.hud_small_message = 'New round starts in ' + no + ' sec'
       }
       break;
     
@@ -692,7 +702,6 @@ var process_control_message = match (
 Player.prototype.on_before_init = function() {
   this.position = 1;
   this.is_me = false;
-  this.winners = null;
 }
 
 World.prototype.on_before_init = function() {
@@ -807,7 +816,7 @@ World.prototype.on_player_ready = function(player) {
  * Callback for round state changed
  */
 World.prototype.on_round_state_changed = function(state, winners) {
-  
+  this.winners = null;
 };
 
 World.prototype.on_after_init = function() {
