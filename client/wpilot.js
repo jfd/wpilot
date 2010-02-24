@@ -212,6 +212,12 @@ WPilotClient.prototype.set_state = function(state) {
       this.conn = null;
       this.is_connected = false;
       this.handshaked = false;
+      this.world = null;
+      this.player = null;
+      this.conn = null;
+      this.message_log = [];
+      this.hud_message = null;
+      this.hud_message_type = HUD_MESSAGE_SMALL;
       this.ondisconnect(this.disconnect_reason);
       this.stop_gameloop();
       
