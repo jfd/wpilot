@@ -749,12 +749,21 @@ World.prototype.on_player_died = function(player, old_entity, death_cause, kille
 
   this.animations[anim_id] = new DieAnimation(
     old_entity.pos,
-    old_entity.angle, 
+    old_entity.angle,
+    old_entity.vel, 
     function() {
-      player.entity = true;
       delete self.animations[anim_id];
     }
-  );  
+  );
+  
+  anim_id = this.anim_id_count++;
+  
+  this.animations[anim_id] = new ExplodeAnimation(
+    old_entity.pos,
+    function() {
+      delete self.animations[anim_id];
+    }
+  );
   
   if (player.is_me) {
     if (death_cause == DEATH_CAUSE_KILLED) {
@@ -1243,38 +1252,20 @@ SpawnAnimation.prototype.draw = function(ctx) {
 /**
  *  Creates a new instance of the DieAnimation class.
  */
-function DieAnimation(pos, angle, callback) {
-  var particles = new cParticleSystem();
-  particles.active = true;  
-  particles.position = Vector.create( 0, 0 );
-  particles.positionRandom = Vector.create( 0, 0 );
-  particles.startColour = [ 255, 255, 255, 1 ];
-  particles.finishColour = [0, 0, 0, 1 ];
-  particles.startColourRandom = [0,0,0,0 ];
-  particles.finishColourRandom = [0,0,0,0];
-  particles.size = 3;
-  particles.sizeRandom = 2;
-  particles.angle = 0;
-  particles.speed = 2.4;
-  particles.angleRandom = 360;
-  particles.maxParticles = 200;
-  particles.duration = 4;
-  particles.lifeSpan = 4;
-  particles.lifeSpanRandom = 2;
-  particles.init();
+function DieAnimation(pos, angle, vel, callback) {
+  var cx = SHIP_WIDTH / 2, cy = SHIP_HEIGHT / 2;
+  this.pieces = [
+    [0, -(cy / 3), cx / 2, cy / 2, angle, Math.random()],
+    [-(cx / 2), (cy / 4), cx / 2 , cy / 2, angle, Math.random()],
+    [(cx / 2), (cy / 4), cx / 2 , cy / 2, angle, Math.random()],
+    [0, (cy / 4), cx / 2 , cy / 2, angle -270, Math.random()]
+  ];
+  
+  this.lifetime = 1.5;
   this.pos = pos;
+  this.vel = vel;
   this.angle = angle
-  this.particles = particles;
   this.ondone = callback;
-}
-
-/**
- *  Sets if the animation should be active or not
- *  @param {Boolean} active True if the animation should be active else false
- *  @return {undefined} Nothing
- */
-DieAnimation.prototype.set_active = function(active) {
-  this.particles.active = active;
 }
 
 /**
@@ -1284,12 +1275,31 @@ DieAnimation.prototype.set_active = function(active) {
  *  @return {undefined} Nothing
  */
 DieAnimation.prototype.update = function(t, dt) {
-  if (this.particles.active) {
-    this.particles.update(15 * dt);
-    if (this.particles.elapsedTime == 0) {
+  if (this.lifetime < 1.5) {
+    if (this.lifetime > 0) {
+      var pieces = this.pieces,
+          index = pieces.length;
+
+      while (index--) {
+        var piece = pieces[index],
+            seed  = piece[5];
+        piece[4] += dt * (seed * 8);
+      }
+      
+      var speedx = this.vel[0] / 1.05;
+      var speedy = this.vel[1] / 1.05;
+      
+      this.pos = [this.pos[0] + speedx * dt,  this.pos[1] - speedy * dt];
+      
+      this.vel[0] = speedx;
+      this.vel[1] = speedy;
+      
+    } else {
       this.ondone();
     }
-  }
+  } 
+  
+  this.lifetime -= dt;
 }
 
 /**
@@ -1298,11 +1308,65 @@ DieAnimation.prototype.update = function(t, dt) {
  *  @return {undefined} Nothing
  */
 DieAnimation.prototype.draw = function(ctx) {
-  if (this.particles.active) {
-    ctx.rotate(-this.angle);
-    this.particles.render(ctx);
+  var pieces = this.pieces,
+      index = pieces.length;
+
+  ctx.fillStyle = 'rgba(255, 255, 255, ' + this.lifetime + ')';
+  while (index--) {
+    var piece = pieces[index];
+    ctx.save();
+    ctx.rotate(piece[4]);
+    ctx.translate(piece[0], piece[1]);
+    draw_triangle(ctx, piece[2], piece[3]);
+    ctx.restore();
   }
 }
+
+/**
+ *  Creates a new instance of the ExplodeAnimation class.
+ */
+function ExplodeAnimation(pos, callback) {
+  var particles = new cParticleSystem();
+  particles.active = true;
+  particles.position = Vector.create( 0, 0 );
+  particles.positionRandom = Vector.create( 3, 3 );
+  particles.gravity = Vector.create(0.01, 0.01);
+  particles.sharpness = 60;
+  particles.size = 2.5; 
+  particles.sizeRandom = 2;
+  particles.maxParticles = 300;
+  particles.speed = 1;
+  particles.duration = 1;
+  particles.lifeSpan = 5;
+  particles.lifeSpanRandom = 5;
+  particles.init();
+  this.pos = pos;
+  this.particles = particles;
+  this.ondone = callback;
+}
+
+/**
+ *  Updates the ExplodeAnimation instance.
+ *  @param {Number} t Current world time.
+ *  @param {Number} dt Current delta time,
+ *  @return {undefined} Nothing
+ */
+ExplodeAnimation.prototype.update = function(t, dt) {
+  this.particles.update(5 * dt);
+  if (this.particles.particleCount == 0) {
+    this.ondone();
+  }
+}
+
+/**
+ *  Draws the ExplodeAnimation instance on specified context.
+ *  @param {Context2D} ctx The context to draw on.
+ *  @return {undefined} Nothing
+ */
+ExplodeAnimation.prototype.draw = function(ctx) {
+  this.particles.render(ctx);
+}
+
 
 /**
  *  Draws a vertical bar 
