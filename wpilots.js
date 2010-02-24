@@ -63,7 +63,7 @@ const SWITCHES = [
   ['--r_energy_recovery NUMBER',  'Rule: Energy recovery unit (Default: 40)'],
   ['--r_round_limit NUMBER',      'Rule: Round score limit (Default: 10)'],
   ['--r_round_rs_time NUMBER',    'Rule: Restart time after round finished (Default: 600)'],
-  ['--r_penelty_score NUMBER',    'Rule: The cost of suicides (Default: 1)'],
+  ['--r_suicide_penelty NUMBER',  'Rule: The cost for suicides (Default: 1)'],
   ['--r_kill_score NUMBER',       'Rule: The price of a kill (Default: 1)']
 ];
 
@@ -91,7 +91,7 @@ const DEFAULT_OPTIONS = {
   r_energy_recovery:    40,
   r_round_limit:        10,
   r_round_rs_time:      600,
-  r_penelty_score:      1,
+  r_suicide_penelty:    1,
   r_kill_score:         1
 };
 
@@ -220,7 +220,7 @@ function start_gameserver(options, shared) {
   
   // Listen for round state changes
   world.on_round_state_changed = function(state, winners) {
-    broadcast(ROUND + STATE, state, winners);
+    broadcast(WORLD + STATE, state, winners);
   }
 
   // Listen for events on player
@@ -359,10 +359,9 @@ function start_gameserver(options, shared) {
         
       // The round is running. Wait for a winner.
       case ROUND_RUNNING:
-        var winners = [],
-            player;
+        var winners = [];
         world.forEachPlayer(function(player) {
-          if (player.s == rules.round_limit) {
+          if (player.score == rules.round_limit) {
             winners.push(player.id);
           }
         });
@@ -672,7 +671,7 @@ var process_game_message = match (
   /**
    *  Indicates that player is ready to start the round
    */
-  [[CLIENT + COMMAND, READY], _, _], function(player, world) {
+  [[CLIENT + READY], _, _], function(player, world) {
     world.set_player_ready(player.id);
   },
 

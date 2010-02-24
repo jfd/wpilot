@@ -240,7 +240,7 @@ WPilotClient.prototype.process_user_input = function(t, dt) {
       input         = this.input;
 
   if (input.toggle('ready')) {
-    this.post_game_packet([CLIENT + COMMAND, READY]);
+    this.post_game_packet([CLIENT + READY]);
   } 
 
   if (!player.dead) {
@@ -494,8 +494,8 @@ WPilotClient.prototype.draw_hud = function() {
     }
 
     if (opt.hud_player_pos_v) {
-      var my_pos = this.player.pos;
-      var max_pos = this.server_state.no_players;
+      var my_pos = this.player.position;
+      var max_pos = this.world.no_players;
       ctx.fillStyle = HUD_WHITE_COLOR;
       draw_label(ctx, center_w + 72, center_h - 45, 'Pos ' + my_pos + '/' + max_pos, 'right', 45);
     }
@@ -542,9 +542,9 @@ WPilotClient.prototype.update_client = function(t, dt) {
   switch(world.r_state) {
     case ROUND_WAITING:
       this.hud_message_type = HUD_MESSAGE_SMALL;
-      if (server.no_players == 1) {
+      if (world.no_players == 1) {
         this.hud_message = 'Waiting for more players to join...';
-      } else if (player.st != READY) {
+      } else if (!player.ready) {
         this.hud_message = 'Press (r) when ready';
       } else {
         no = Math.ceil((world.no_players * 0.6) - world.no_ready_players);
@@ -553,8 +553,7 @@ WPilotClient.prototype.update_client = function(t, dt) {
       break;
 
     case ROUND_STARTING:
-      server.no_ready_players = 0;
-      no = parseInt((world.r_start_at - t) / sec);
+      no = parseInt((world.r_timer - t) / sec);
       this.hud_message_type = HUD_MESSAGE_LARGE;
       if (no == 0) {
         this.hud_message = 'Prepare your self...';
@@ -564,7 +563,7 @@ WPilotClient.prototype.update_client = function(t, dt) {
       break;
 
     case ROUND_RUNNING:
-      if (!player.entity) {
+      if (player.dead) {
         if (!this.respawn_at) {
           this.respawn_at = t + server.rules.respawn_time * dt;
         } 
@@ -589,7 +588,7 @@ WPilotClient.prototype.update_client = function(t, dt) {
         world.winners = winners.join(',');
       }
       this.hud_message_type = HUD_MESSAGE_LARGE;
-      no = parseInt((world.r_restart_at - t) / sec);
+      no = parseInt((world.r_timer - t) / sec);
       if (no == 0) {
         this.hud_message = 'Starting warm-up round';
       } else {
@@ -691,7 +690,7 @@ var process_control_message = match (
 );
 
 Player.prototype.on_before_init = function() {
-  this.pos = 1;
+  this.position = 1;
   this.is_me = false;
   this.winners = null;
 }
@@ -784,7 +783,17 @@ World.prototype.on_player_died = function(player, old_entity, death_cause, kille
       text = player.name + ' killed him self.';
     }
   }
+
   this.client.log(text);
+  
+  // Calculate player position
+  var me = this.client.player;
+  me.position = this.no_players;
+  this.forEachPlayer(function(opponent) {
+    if (me.score > opponent.score) {
+      me.position--;
+    }
+  });
 }
 
 /**
@@ -803,10 +812,10 @@ World.prototype.on_round_state_changed = function(state, winners) {
 
 World.prototype.on_after_init = function() {
   this.PACKET_HANDLERS = {};
-  this.PACKET_HANDLERS[ROUND + STATE] = this.set_round_state;
+  this.PACKET_HANDLERS[WORLD + STATE] = this.set_round_state;
   this.PACKET_HANDLERS[PLAYER + CONNECT] = this.add_player;
   this.PACKET_HANDLERS[PLAYER + DISCONNECT] = this.remove_player;
-  this.PACKET_HANDLERS[PLAYER + READY] = this.set_round_state;
+  this.PACKET_HANDLERS[PLAYER + READY] = this.set_player_ready;
   this.PACKET_HANDLERS[PLAYER + SPAWN] = this.spawn_player;
   this.PACKET_HANDLERS[PLAYER + DIE] = this.kill_player;
   this.PACKET_HANDLERS[PLAYER + FIRE] = this.fire_player_canon;
