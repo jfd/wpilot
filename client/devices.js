@@ -64,7 +64,6 @@ function ViewportDevice(target, width, height, options) {
   this.w            = width;
   this.h            = height;
   this.options      = options;
-  this.world        = {};
   this.factor       = null;
   this.autorefresh  = false;
   this.frame_skip   = 1;
