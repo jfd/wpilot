@@ -960,7 +960,6 @@ Ship.prototype.on_before_init = function() {
 
 Ship.prototype.on_after_init = function() {
   this.animations = {
-    'plight': new PositionLightAnimation(this),
     'thrust': new ThrustAnimation(),
     'shield': new ShieldAnimation()
   }
@@ -1188,52 +1187,6 @@ ShieldAnimation.prototype.draw = function(ctx) {
     ctx.strokeStyle = 'rgba(255, 255, 255,' + this.value + ')';    
     ctx.arc(0, 0, 20, 0, Math.PI / 180, true);
     ctx.stroke();
-  }
-}
-
-/**
- *  Creates a new instance of the PositionLightAnimation class.
- */
-function PositionLightAnimation(origin) {
-  this.active = true;
-  this.x = origin.size[0] / 2;
-  this.y = origin.size[1] / 2;
-  this.origin = origin;
-  this.value = 0;
-}
-
-/**
- *  Sets if the animation should be active or not
- *  @param {Boolean} active True if the animation should be active else false
- *  @return {undefined} Nothing
- */
-PositionLightAnimation.prototype.set_active = function(active) {
-  this.active = active;
-}
-
-/**
- *  Updates the PositionLightAnimation instance.
- *  @param {Number} t Current world time.
- *  @param {Number} dt Current delta time,
- *  @return {undefined} Nothing
- */
-PositionLightAnimation.prototype.update = function(t, dt) {
-  this.value += dt * 4;
-}
-
-/**
- *  Draws the PositionLightAnimation instance on specified context.
- *  @param {Context2D} ctx The context to draw on.
- *  @return {undefined} Nothing
- */
-PositionLightAnimation.prototype.draw = function(ctx) {
-  if (!this.origin.destroyed) {
-    var alpha = Math.abs(Math.sin((this.value)));
-    if (alpha < 0.3) alpha = 0.3;   
-    ctx.beginPath();
-    ctx.fillStyle = 'rgba(' + this.origin.player.color + ',' + alpha +')';
-    ctx.arc(this.x, this.y, 1, 0, 2 * Math.PI, true);
-    ctx.fill();
   }
 }
 
