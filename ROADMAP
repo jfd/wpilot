@@ -2,15 +2,6 @@ Roadmap for WPilot server and client
 ------------------------------------
 This is the roadmap for WPilot. The list may change over time.
 
-
-Release 0.7
------------
-- (Client) Implement network interpolation
-
-Release 0.8
------------
-- (Client) Implement animations such as thrust particles and explosions.
-
 Release 0.9
 -----------
 - (Client) Add event sounds(bullet sounds, explosions, and thrust).

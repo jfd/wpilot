@@ -1,3 +1,16 @@
+Version 0.8
+	- (general) New game engine, is faster and more reliable.
+	- (general) New, more slim, network protocol. Game runs smoother on low-band
+							connections.
+							
+	- (game) minor tweeks to game rules.
+	- (game) more realistic bullets (they are boosted with ships velocity)
+	
+	- (client) Network interpolation is now active.
+	- (client) Animations is in place.
+	- (client) Improved HUD.
+	
+
 Version 0.6
 	- (game) Implement game rules. The winner is a player that reaches the round
 	 				 limit. The round limit is decided by server owner (use the
