@@ -12,7 +12,7 @@ var GRID_CELL_SIZE      = 250;
     GRID_CELL_COLOR     = 'rgba(255,255,255,0.2)';
     
 // GUI Fonts used in the client.
-var HUD_SMALL_FONT      = 'bold 10px Arial',
+var HUD_SMALL_FONT      = 'bold 9px Arial',
     HUD_LARGE_FONT      = 'bold 11px Arial',
     HUD_XLARGE_FONT      = 'bold 16px Arial',
     HUD_WHITE_COLOR     = 'rgba(255,255,255,0.8)',
@@ -819,10 +819,11 @@ World.prototype.on_player_ready = function(player) {
 World.prototype.on_round_state_changed = function(state, winners) {
   this.winners = null;
   switch (state) {
-
+    
     case ROUND_STARTING:
       this.client.viewport.set_camera_pos(vector_div(this.size, 2));
       break;
+      
   }
 };
 
