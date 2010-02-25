@@ -1207,7 +1207,7 @@ function SpawnAnimation(pos, callback) {
   particles.speed = 2;
   particles.size = 2; 
   particles.sizeRandom = 3;
-  particles.maxParticles = 400;
+  particles.maxParticles = 250;
   particles.duration = 1;
   particles.lifeSpan = 2;
   particles.lifeSpanRandom = 1;
