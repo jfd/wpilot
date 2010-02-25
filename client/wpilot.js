@@ -246,7 +246,7 @@ WPilotClient.prototype.process_user_input = function(t, dt) {
     this.post_game_packet([CLIENT + READY]);
   } 
 
-  if (!player.dead) {
+  if (!player.dead && player.entity.visible) {
     var new_command  = 0;
     
     if (input.on('thrust')) new_command |= THRUST;
@@ -743,6 +743,7 @@ World.prototype.on_player_spawn = function(player, pos) {
   this.animations[anim_id] = new SpawnAnimation(
     pos, 
     function() {
+      player.entity.visible = true;
       delete self.animations[anim_id];
     }
   );  
@@ -953,7 +954,7 @@ World.prototype.draw_grid = function(ctx, camera) {
  *  indiciates that the Entity is visible or not.
  */
 Ship.prototype.on_before_init = function() {
-  this.visible = true;
+  this.visible = false;
   this.is_me = false;
 }
 
@@ -1013,6 +1014,8 @@ Ship.prototype.destroy = function(death_cause, killer_id) {
  *  Draws the Ship instance on the specified GraphicsContext.
  */
 Ship.prototype.draw = function(ctx) {
+  if (!this.visible) return;
+  
   var centerx = this.size[0] / 2,
       centery = this.size[1] / 2;
 
@@ -1253,9 +1256,11 @@ function SpawnAnimation(pos, callback) {
   particles.sizeRandom = 3;
   particles.maxParticles = 400;
   particles.duration = 1;
-  particles.lifeSpan = 5;
-  particles.lifeSpanRandom = 5;
+  particles.lifeSpan = 2;
+  particles.lifeSpanRandom = 1;
   particles.init();
+  this.alpha = 0;
+  this.ship_size = 0;
   this.pos = pos;
   this.particles = particles;
   this.ondone = callback;
@@ -1268,6 +1273,11 @@ function SpawnAnimation(pos, callback) {
  *  @return {undefined} Nothing
  */
 SpawnAnimation.prototype.update = function(t, dt) {
+  this.alpha += dt * 2;
+  this.ship_size = this.alpha;
+  if (this.ship_size >= 0.5) {
+    this.ship_size = 0.5;
+  }
   this.particles.update(5 * dt);
   if (this.particles.particleCount == 0) {
     this.ondone();
@@ -1281,6 +1291,10 @@ SpawnAnimation.prototype.update = function(t, dt) {
  */
 SpawnAnimation.prototype.draw = function(ctx) {
   this.particles.render(ctx);
+  ctx.save();
+  ctx.fillStyle = 'rgba(255, 255, 255, ' + this.alpha + ')';
+  draw_triangle(ctx, (SHIP_WIDTH * this.ship_size), (SHIP_HEIGHT * this.ship_size));
+  ctx.restore();  
 }
 
 /**
