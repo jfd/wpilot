@@ -64,7 +64,12 @@ const SWITCHES = [
   ['--r_round_limit NUMBER',      'Rule: Round score limit (Default: 10)'],
   ['--r_round_rs_time NUMBER',    'Rule: Restart time after round finished (Default: 600)'],
   ['--r_suicide_penelty NUMBER',  'Rule: The cost for suicides (Default: 1)'],
-  ['--r_kill_score NUMBER',       'Rule: The price of a kill (Default: 1)']
+  ['--r_kill_score NUMBER',       'Rule: The price of a kill (Default: 1)'],
+  ['--r_powerup_max NUMBER',      'Rule: Max no of powerups to spawn (Default: 3)'],
+  ['--r_powerup_respawn NUMBER',  'Rule: Time between powerup respawns (Default: 1200)'],
+  ['--r_powerup_speed_t NUMBER',  'Rule: Time before the speed powerup decline (Default: 700)'],
+  ['--r_powerup_rapid_t NUMBER',  'Rule: Time before the rapid fire powerup decline (Default: 600)'],
+  ['--r_powerup_energy_t NUMBER', 'Rule: Time before the energy boost powerup decline (Default: 800)']
 ];
 
 // Default server options
@@ -93,8 +98,11 @@ const DEFAULT_OPTIONS = {
   r_round_rs_time:      600,
   r_suicide_penelty:    1,
   r_kill_score:         1,
-  r_max_powerups:       2,
-  r_powerup_respawn:    1200
+  r_powerup_max:        3,
+  r_powerup_respawn:    1200,
+  r_powerup_speed_t:    700,
+  r_powerup_rapid_t:    600,
+  r_powerup_energy_t:   800  
 };
 
 // Paths to all files that should be server to client.
