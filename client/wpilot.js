@@ -678,7 +678,7 @@ var process_control_message = match (
   [[SERVER + HANDSHAKE, Object, Array, Array], _], 
   function(world_data, players_data, powerups_data, client) {
     var world = new World(world_data);
-    world.build();
+    world.build(world_data.map_data);
     
     for (var i = 0; i < players_data.length; i++) {
       var player_data = players_data[i];
@@ -1131,6 +1131,48 @@ Wall.prototype.draw = function(ctx, world) {
       break;
   }
   ctx.restore();
+}
+
+/**
+ *  Draw's the Block instance.
+ */
+Block.prototype.draw = function(ctx, world) {
+  var connectors = this.connectors,
+      size       = this.size;
+  
+  ctx.strokeStyle = "rgba(200, 20, 20, 0.4)";
+  ctx.lineWidth = 2;
+  ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
+  ctx.fillRect(0, 0, this.size[0], this.size[1]);
+  
+  if ((connectors & BLOCK_CONNECTOR_NORTH) != BLOCK_CONNECTOR_NORTH) {
+    ctx.beginPath();
+    ctx.moveTo(0, 0);
+    ctx.lineTo(size[0], 0);
+    ctx.stroke();
+  }
+
+  if ((connectors & BLOCK_CONNECTOR_EAST) != BLOCK_CONNECTOR_EAST) {
+    ctx.beginPath();
+    ctx.moveTo(size[0], 0);
+    ctx.lineTo(size[0], size[1]);
+    ctx.stroke();
+  }
+
+  if ((connectors & BLOCK_CONNECTOR_SOUTH) != BLOCK_CONNECTOR_SOUTH) {
+    ctx.beginPath();
+    ctx.moveTo(0, size[1]);
+    ctx.lineTo(size[0], size[1]);
+    ctx.stroke();
+  }
+
+  if ((connectors & BLOCK_CONNECTOR_WEST) != BLOCK_CONNECTOR_WEST) {
+    ctx.beginPath();
+    ctx.moveTo(0, 0);
+    ctx.lineTo(0, size[1]);
+    ctx.stroke();
+  }
+  
 }
 
 Powerup.prototype.on_after_init = function() {

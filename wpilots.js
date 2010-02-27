@@ -38,6 +38,23 @@ const DISCONNECTED  = -1;
       HANDSHAKING   = 3,
       JOINED        = 4;      
 
+// Default map. This map is used if no other map i specified.
+const DEFAULT_MAP   = {
+	name: 'Default map',
+	author: 'Johan Dahlberg',
+	max_players: 8,
+
+	data: [
+		[0, 0, 0, 0, 0, 0, 0],
+		[0, 1, 1, 0, 1, 1, 0],
+		[0, 1, 0, 0, 0, 1, 0],
+		[0, 0, 0, 1, 0, 1, 0],
+		[0, 1, 0, 0, 0, 1, 0],
+		[0, 1, 1, 0, 1, 1, 0],
+		[0, 0, 0, 0, 0, 0, 0]
+	]
+}; 
+
 // Command line option parser switches
 const SWITCHES = [
   ['-d', '--debug',               'Enables debug mode (Default: false)'],
@@ -51,7 +68,7 @@ const SWITCHES = [
   ['--pub_ws_port PORT',          'Set if the public WebSocket port differs from the local one'],
   ['--policy_port PORT',          'Port number for the Flash Policy server (default: 843)'],
   ['--max_rate NUMBER',           'The maximum rate per client and second (default: 1000)'],
-  ['--max_players NUMBER',        'Max connected players allowed in server simultaneously (default: 8)'],
+  ['--max_players NUMBER',        'Max connected players allowed in server simultaneously (default: map setting)'],
   ['--world_width NUMBER',        'The world width (Default: 1000)'],
   ['--world_height NUMBER',       'The world height (Default: 1000)'],
   ['--r_start_delay NUMBER',      'Rule: Time before game starts after warmup (Default: 300)'],
@@ -81,7 +98,7 @@ const DEFAULT_OPTIONS = {
   http_port:            6114,
   ws_port:              6115,
   pub_ws_port:          null,
-  max_players:          8,
+  max_players:          null,
   policy_port:          843,
   max_rate:             5000,
   serve_flash_policy:   false,
@@ -189,7 +206,8 @@ function start_gameserver(options, shared) {
       server          = null,
       conn_id         = 1,
       post_tick       = 1,
-      rules           = get_rules(options);
+      rules           = get_rules(options),
+      map_data        = DEFAULT_MAP;
   
   
   // Is called by the web instance to get current state
@@ -198,7 +216,7 @@ function start_gameserver(options, shared) {
       server_name:      options.name,
       game_server_url:  'ws://' + (options.pub_host || options.host) + ':' + 
                                 (options.pub_ws_port || options.ws_port) + '/',
-      max_players:      options.max_players,
+      max_players:      options.max_players || map_data.max_players,
       no_players:       world.no_players,
       no_ready_players: world.no_ready_players,
       flash_compatible: options.serve_flash_policy,
@@ -294,7 +312,7 @@ function start_gameserver(options, shared) {
    */
   function start_gameloop() {
     log('Creating server World...');
-    world.build();
+    world.build(map_data);
 
     gameloop = new GameLoop();
     gameloop.ontick = gameloop_tick;
