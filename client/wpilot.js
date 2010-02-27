@@ -1152,8 +1152,8 @@ Powerup.prototype.update = function(t, dt) {
  */
 Powerup.prototype.draw = function(ctx) {
   var color = this.color,
-      text_alpha = 1 - ((this.pulse * 10) / 100),
-      outer_alpha = 0.5 - ((this.pulse * 5) / 100),
+      text_alpha = 1 - ((this.pulse * 8) / 100),
+      outer_alpha = 0.7 - ((this.pulse * 5) / 100),
       inner_radius = this.inner_radius,
       outer_radius = inner_radius + this.pulse;
       
