@@ -92,7 +92,9 @@ const DEFAULT_OPTIONS = {
   r_round_limit:        10,
   r_round_rs_time:      600,
   r_suicide_penelty:    1,
-  r_kill_score:         1
+  r_kill_score:         1,
+  r_max_powerups:       2,
+  r_powerup_respawn:    1200
 };
 
 // Paths to all files that should be server to client.
@@ -266,6 +268,16 @@ function start_gameserver(options, shared) {
   
   world.on_player_leave = function(player, reason) {
     broadcast(PLAYER + DISCONNECT, player.id, reason);
+  }
+  
+  world.on_powerup_spawn = function(powerup) {
+    broadcast(POWERUP + SPAWN, powerup.powerup_id, 
+                               powerup.powerup_type, 
+                               powerup.pos);
+  }
+  
+  world.on_powerup_die = function(powerup, player) {
+    broadcast(POWERUP + DIE, powerup.powerup_id, player.id);
   }
   
   /**

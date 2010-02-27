@@ -33,6 +33,12 @@ var CLIENT_DISCONNECTED     = 0,
     CLIENT_CONNECTING       = 1,
     CLIENT_CONNECTED        = 2;
 
+// Powerup constants    
+var POWERUP_FONT            = '7px Arial',
+    POWERUP_SPEED_COLOR     = '230,21,90',
+    POWERUP_RAPID_COLOR     = '166,219,0',
+    POWERUP_ENERGY_COLOR    = '51,182,255';
+
 // Default client options. This options can be changed from the console
 // by typing wpilot.options[OPTION_NAME] = new_value
 var DEFAULT_OPTIONS         = {
@@ -477,10 +483,11 @@ WPilotClient.prototype.draw_hud = function() {
       ctx             = viewport.ctx,
       center_w        = viewport.w / 2,
       center_h        = viewport.h / 2,
-      player_entity   = this.player.entity,
+      player          = this.player,
+      player_entity   = player.entity,
       opt             = this.options;
   
-  if (!this.player.dead) {
+  if (!player.dead) {
     ctx.textAlign = 'center';
 
     ctx.font = HUD_SMALL_FONT;
@@ -488,12 +495,12 @@ WPilotClient.prototype.draw_hud = function() {
     if(opt.hud_player_score_v) {
       var limit = this.world.r_state == ROUND_WAITING ? '-' : this.server_state.rules.round_limit;
       ctx.fillStyle = HUD_GREY_COLOR;
-      draw_label(ctx, center_w + 72, center_h + 55, 'Score: ' + this.player.score + '/' + limit, 'right', 45);
+      draw_label(ctx, center_w + 72, center_h + 55, 'Score: ' + player.score + '/' + limit, 'right', 45);
     }
 
     if (opt.hud_player_name_v) {
       ctx.fillStyle = HUD_WHITE_COLOR;
-      draw_label(ctx, center_w - 72, center_h - 45, this.player.name, 'left', 100);
+      draw_label(ctx, center_w - 72, center_h - 45, player.name, 'left', 100);
     }
 
     if (opt.hud_player_pos_v) {
@@ -509,8 +516,23 @@ WPilotClient.prototype.draw_hud = function() {
     }    
     
     if (opt.hud_energy_v) {
-      draw_v_bar(ctx, center_w + 62, center_h - 37, 7, 78, this.player.energy);
-    }    
+      draw_v_bar(ctx, center_w + 62, center_h - 37, 7, 78, player.energy);
+    }
+    
+    if (player.powerup) {
+      if (player.has_powerup(POWERUP_SPEED)) {
+        ctx.fillStyle = 'rgba(' + POWERUP_SPEED_COLOR + ',0.7)';
+        draw_label(ctx, center_w - 70, center_h -10, 'S');
+      }
+      if (player.has_powerup(POWERUP_RAPID)) {
+        ctx.fillStyle = 'rgba(' + POWERUP_RAPID_COLOR + ',0.7)';
+        draw_label(ctx, center_w - 70, center_h , 'R');
+      }
+      if (player.has_powerup(POWERUP_ENERGY)) {
+        ctx.fillStyle = 'rgba(' + POWERUP_ENERGY_COLOR + ',0.7)';
+        draw_label(ctx, center_w - 70, center_h + 10, 'E');
+      }
+    }
   }
   
   if (!this.player.dead) {
@@ -652,8 +674,8 @@ var process_control_message = match (
    *  Is received after the client has sent a CLIENT CONNET message. The message
    *  contains all data necessary to set up the game world.
    */
-  [[SERVER + HANDSHAKE, Object, Array], _], 
-  function(world_data, players_data, client) {
+  [[SERVER + HANDSHAKE, Object, Array, Array], _], 
+  function(world_data, players_data, powerups_data, client) {
     var world = new World(world_data);
     world.build();
     
@@ -671,6 +693,13 @@ var process_control_message = match (
         world.add_entity(entity);
         player.entity = entity;
       }
+    }
+
+    for (var i = 0; i < powerups_data.length; i++) {
+      var powerup_data = powerups_data[i];
+      var powerup = new Powerup(powerup_data);
+      world.powerups[powerup.powerup_id] = powerup;
+      world.add_entity(powerup);
     }
     
     client.set_world(world);
@@ -828,6 +857,21 @@ World.prototype.on_round_state_changed = function(state, winners) {
   }
 };
 
+World.prototype.on_powerup_die = function(powerup) {
+  var self = this,
+      anim_id = this.anim_id_count++;
+
+  this.animations[anim_id] = new TextAnimation(
+    powerup.pos,
+    get_powerup_color(powerup.powerup_type),
+    get_powerup_text(powerup.powerup_type),
+    function() {
+      delete self.animations[anim_id];
+    }
+  );  
+  
+}
+
 World.prototype.on_after_init = function() {
   this.PACKET_HANDLERS = {};
   this.PACKET_HANDLERS[WORLD + STATE] = this.set_round_state;
@@ -839,6 +883,8 @@ World.prototype.on_after_init = function() {
   this.PACKET_HANDLERS[PLAYER + FIRE] = this.fire_player_canon;
   this.PACKET_HANDLERS[PLAYER + STATE] = this.update_player_state;
   this.PACKET_HANDLERS[PLAYER + COMMAND] = this.set_player_command;
+  this.PACKET_HANDLERS[POWERUP + SPAWN] = this.spawn_powerup;
+  this.PACKET_HANDLERS[POWERUP + DIE] = this.kill_powerup;
 }
 
 World.prototype.process_world_packet = function(msg) {;
@@ -967,10 +1013,7 @@ Ship.prototype.on_after_init = function() {
 }
 
 Ship.prototype.world_update = function(t, dt) {
-  var old_pos = this.pos,
-      old_vel = this.vel,
-      old_ang = this.angle;
-  
+
   this.move(t, dt);
   
   if (Math.abs(this.pos[0] - this.pos_sv[0]) > 0.01 || 
@@ -1087,6 +1130,48 @@ Wall.prototype.draw = function(ctx, world) {
       break;
   }
   ctx.restore();
+}
+
+Powerup.prototype.on_after_init = function() {
+  this.inner_radius = this.size[0]  / 1.8;
+  this.pulse = 0;
+  this.color = get_powerup_color(this.powerup_type);
+  this.ch = get_powerup_text(this.powerup_type)[0];
+}
+
+Powerup.prototype.update = function(t, dt) {
+  this.pulse += (dt * 6);
+  
+  if (this.pulse > 20) {
+    this.pulse = 0;
+  }
+}
+
+/**
+ *  Draws the Powerup instance
+ */
+Powerup.prototype.draw = function(ctx) {
+  var color = this.color,
+      outer_alpha = 0.5 - ((this.pulse * 5) / 100),
+      inner_radius = this.inner_radius,
+      outer_radius = inner_radius + this.pulse;
+      
+  ctx.beginPath();
+  ctx.lineWidth = 1.5;
+  ctx.strokeStyle = 'rgba(' + color + ', 0.8)';    
+  ctx.arc(0, 0, inner_radius, 0, Math.PI / 180, true);
+  ctx.stroke();
+    
+  ctx.beginPath();
+  ctx.lineWidth = 1;
+  ctx.strokeStyle = 'rgba(' + color + ', ' +  outer_alpha +')';    
+  ctx.arc(0, 0, outer_radius, 0, Math.PI / 180, true);
+  ctx.stroke();
+    
+  ctx.font = POWERUP_FONT;
+  ctx.fillStyle = 'rgba(' + color + ', 0.6)';
+  draw_label(ctx, 1, 2, this.ch, 'center', inner_radius);
+  
 }
 
 /**
@@ -1368,6 +1453,73 @@ ExplodeAnimation.prototype.draw = function(ctx) {
   this.particles.render(ctx);
 }
 
+/**
+ *  Creates a new instance of the TextAnimation class.
+ */
+function TextAnimation(pos, color, text, callback) {
+  this.pos = pos;
+  this.color = color;
+  this.text = text;
+  this.value = 0;
+  this.ondone = callback;
+}
+
+/**
+ *  Updates the TextAnimation instance.
+ *  @param {Number} t Current world time.
+ *  @param {Number} dt Current delta time,
+ *  @return {undefined} Nothing
+ */
+TextAnimation.prototype.update = function(t, dt) {
+  this.value += dt * 60;
+  if (this.value >= 50) {
+    this.ondone();
+  }
+}
+
+/**
+ *  Draws the ExplodeAnimation instance on specified context.
+ *  @param {Context2D} ctx The context to draw on.
+ *  @return {undefined} Nothing
+ */
+TextAnimation.prototype.draw = function(ctx) {
+  var alpha = 1 - ((this.value * 5) / 100),
+      size = 6 + this.value;
+
+  ctx.fillStyle = 'rgba(' + this.color + ', ' + alpha + ')';
+  ctx.font = 'bold ' + size + 'px Arial';
+  draw_label(ctx, 0, 0, this.text, 'center', 400);
+}
+
+function get_powerup_color(type) {
+  switch (type) {
+
+    case POWERUP_SPEED:
+      return POWERUP_SPEED_COLOR;
+
+    case POWERUP_RAPID:
+      return POWERUP_RAPID_COLOR;
+      
+    case POWERUP_ENERGY:
+      return POWERUP_ENERGY_COLOR;
+
+  }
+}
+
+function get_powerup_text(type) {
+  switch (type) {
+
+    case POWERUP_SPEED:
+      return 'Speed deamon';
+
+    case POWERUP_RAPID:
+      return 'Rapid fire';
+      
+    case POWERUP_ENERGY:
+      return 'Energy boost';
+
+  }
+}
 
 /**
  *  Draws a vertical bar 
