@@ -1152,6 +1152,7 @@ Powerup.prototype.update = function(t, dt) {
  */
 Powerup.prototype.draw = function(ctx) {
   var color = this.color,
+      text_alpha = 1 - ((this.pulse * 10) / 100),
       outer_alpha = 0.5 - ((this.pulse * 5) / 100),
       inner_radius = this.inner_radius,
       outer_radius = inner_radius + this.pulse;
@@ -1169,7 +1170,7 @@ Powerup.prototype.draw = function(ctx) {
   ctx.stroke();
     
   ctx.font = POWERUP_FONT;
-  ctx.fillStyle = 'rgba(' + color + ', 0.6)';
+  ctx.fillStyle = 'rgba(' + color + ', ' + text_alpha + ')';
   draw_label(ctx, 1, 2, this.ch, 'center', inner_radius);
   
 }
@@ -1510,7 +1511,7 @@ function get_powerup_text(type) {
   switch (type) {
 
     case POWERUP_SPEED:
-      return 'Speed deamon';
+      return 'Speed x1.3';
 
     case POWERUP_RAPID:
       return 'Rapid fire';
