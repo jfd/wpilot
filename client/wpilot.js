@@ -616,7 +616,8 @@ WPilotClient.prototype.update_client = function(t, dt) {
       if (!world.winners) {
         var winners = [];
         for (var i = 0; i < world.r_winners.length; i++) {
-          winners.push(world.players[world.r_winners[i]].name);
+          var winner = world.players[world.r_winners[i]];
+          winners.push(winner.is_me ? 'you' : winner.name);
         }
         world.winners = winners.join(',');
       }
