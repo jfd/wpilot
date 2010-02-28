@@ -795,7 +795,7 @@ function start_policy_server(options) {
   	  if (options.debug) {
   	    sys.debug(socket.remoteAddress + ' connected to policy server');
   	  }
-  	}).addListener("receive", function (data) {
+  	}).addListener("data", function (data) {
   		socket.inBuffer += data;
   		if (socket.inBuffer.length > 32) {
   			socket.close();
