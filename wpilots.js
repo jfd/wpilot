@@ -41,16 +41,16 @@ const DISCONNECTED  = -1;
 
 // Default map. This map is used if no other map i specified.
 const DEFAULT_MAP   = {
-	name: 'The bowl',
+	name: 'Battle Royale',
 	author: 'Johan Dahlberg',
 	recommended_players: 8,
 
 	data: [
 		[51,  0,  0, 51,  0,  0, 51],
 		[ 0, 11, 11,  0, 11, 11,  0],
-		[ 0, 11,  0,  0,  0, 11,  0],
-		[51,  0,  0, 52,  0,  0, 51],
-		[ 0, 11,  0,  0,  0, 11,  0],
+		[ 0, 11, 52,  0, 52, 11,  0],
+		[51,  0,  0, 12,  0,  0, 51],
+		[ 0, 11, 52,  0, 52, 11,  0],
 		[ 0, 11, 11,  0, 11, 11,  0],
 		[51,  0,  0, 51,  0,  0, 51]
 	]
@@ -114,8 +114,8 @@ const DEFAULT_OPTIONS = {
   r_round_rs_time:      600,
   r_suicide_penelty:    1,
   r_kill_score:         1,
-  r_powerup_max:        3,
-  r_powerup_respawn:    1200,
+  r_powerup_max:        2,
+  r_powerup_respawn:    600,
   r_powerup_speed_t:    700,
   r_powerup_rapid_t:    600,
   r_powerup_energy_t:   800  
