@@ -333,9 +333,11 @@ function start_gameserver(options, shared) {
     }
     
     world.reset();
-
-    gameloop.kill();
-    gameloop = null;
+    
+    if (gameloop) {
+      gameloop.kill();
+      gameloop = null;
+    }
   }  
 
   function post_update() {
@@ -503,7 +505,8 @@ function start_gameserver(options, shared) {
      */
     conn.post = function(data) {
       var packet = JSON.stringify([CONTROL_PACKET, data]);
-      this.send(packet);
+
+      this.write(packet);
     }
 
     /**
@@ -521,7 +524,7 @@ function start_gameserver(options, shared) {
         data_sent += data.length;
       }
             
-      this.send('[2,[' + packet_data.join(',') + ']]');
+      this.write('[2,[' + packet_data.join(',') + ']]');
       this.data_sent += data_sent;
       
       var diff = now - this.last_rate_check;
@@ -619,7 +622,7 @@ function start_gameserver(options, shared) {
 
     // Connection ´recieve´ event handler. Occures each time that client sent
     // a message to the server.
-    conn.addListener('receive', function(data) {
+    conn.addListener('data', function(data) {
       var packet = null;
 
       try {
@@ -747,8 +750,8 @@ function start_webserver(options, shared) {
   
   fu.get('/state', function (req, res) {
     res.sendHeader(200, {'Content-Type': 'application/json'});
-    res.sendBody(JSON.stringify(shared.get_state()), 'utf8');
-    res.finish();
+    res.write(JSON.stringify(shared.get_state()), 'utf8');
+    res.close();
   });
   
   return server;
@@ -780,7 +783,7 @@ function start_policy_server(options) {
   		}
   		if (RE_POLICY_REQ.test(socket.inBuffer)) {
   	    sys.debug('Sending policy file to ' + socket.remoteAddress + '');
-  			socket.send(POLICY_RES);
+  			socket.write(POLICY_RES);
   			socket.close();
   		}
 	  });
