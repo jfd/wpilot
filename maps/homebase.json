@@ -1,0 +1,17 @@
+{
+	"name": "Homebase",
+	"author": "Linus Larsson",
+	"recommended_players": 3,
+	
+	"rules": {
+		"round_limit": 3,
+	  "powerup_max": 2
+	},
+	
+	"data": [
+		[51, 11,  0, 11, 51],
+		[11,  0, 52,  0, 11],
+		[11,  0, 52,  0, 11],
+		[51, 11,  0, 11, 51]
+	]
+}

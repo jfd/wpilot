@@ -1,0 +1,16 @@
+{
+	"name": "Close Quarters",
+	"author": "Johan Dahlberg",
+	"recommended_players": 2,
+	
+	"rules": {
+		"round_limit": 5,
+	  "powerup_max": 1
+	},
+	
+	"data": [
+		[51, 11, 51],
+		[ 0, 52,  0],
+		[51, 11, 51]
+	]
+}
