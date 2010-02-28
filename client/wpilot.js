@@ -773,7 +773,9 @@ World.prototype.on_player_spawn = function(player, pos) {
   this.animations[anim_id] = new SpawnAnimation(
     pos, 
     function() {
-      player.entity.visible = true;
+      if (player.entity) {
+        player.entity.visible = true;
+      }
       delete self.animations[anim_id];
     }
   );  
