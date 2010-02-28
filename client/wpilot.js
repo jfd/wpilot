@@ -1142,7 +1142,7 @@ Block.prototype.draw = function(ctx, world) {
   
   ctx.strokeStyle = "rgba(200, 20, 20, 0.4)";
   ctx.lineWidth = 2;
-  ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
+  ctx.fillStyle = 'rgba(200, 20, 20, 0.1)';
   ctx.fillRect(0, 0, this.size[0], this.size[1]);
   
   if ((connectors & BLOCK_CONNECTOR_NORTH) != BLOCK_CONNECTOR_NORTH) {
