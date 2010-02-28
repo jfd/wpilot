@@ -71,8 +71,6 @@ const SWITCHES = [
   ['--policy_port PORT',          'Port number for the Flash Policy server (default: 843)'],
   ['--max_rate NUMBER',           'The maximum rate per client and second (default: 1000)'],
   ['--max_players NUMBER',        'Max connected players allowed in server simultaneously (default: map setting)'],
-  ['--world_width NUMBER',        'The world width (Default: 1000)'],
-  ['--world_height NUMBER',       'The world height (Default: 1000)'],
   ['--r_start_delay NUMBER',      'Rule: Time before game starts after warmup (Default: 300)'],
   ['--r_respawn_time NUMBER',     'Rule: Player respawn time after death. (Default: 500)'],
   ['--r_w_respawn_time NUMBER',   'Rule: Warm-up respawn time after death. (Default: 100)'],
@@ -105,8 +103,6 @@ const DEFAULT_OPTIONS = {
   policy_port:          843,
   max_rate:             5000,
   serve_flash_policy:   false,
-  world_width:          1000,
-  world_height:         1000,
   r_start_delay:        200,
   r_respawn_time:       400,
   r_w_respawn_time:     100,
@@ -245,8 +241,6 @@ function start_gameserver(map_data, options, shared) {
       no_players:       world.no_players,
       no_ready_players: world.no_ready_players,
       flash_compatible: options.serve_flash_policy,
-      world_width:      options.world_width,
-      world_height:     options.world_height,
       rules:            rules
     }
   }
@@ -267,7 +261,6 @@ function start_gameserver(map_data, options, shared) {
   // Create the world instance
   world = new World({
     rules: rules,
-    size: [options.world_width, options.world_height],
     server_mode: true
   });
   
