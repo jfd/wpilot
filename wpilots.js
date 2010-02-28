@@ -487,6 +487,7 @@ function start_gameserver(map_data, options, shared) {
         player            = null;
     
     conn.id = connection_id;
+    conn.player_name = null;
     conn.rate = options.max_rate;
     conn.update_rate = 2;
     conn.last_rate_check = get_time();
@@ -500,6 +501,7 @@ function start_gameserver(map_data, options, shared) {
      */
     conn.set_client_info = function(info) {
       conn.rate = Math.min(info.rate, options.max_rate);
+      conn.player_name = info.name;
       conn.dimensions = info.dimensions;
     }
     
@@ -598,8 +600,8 @@ function start_gameserver(map_data, options, shared) {
           // BE CAREFUL WITH THIS. Position of conn.post has changed with 
           // on_player_join broadcast
           player = world.add_player(connection_id, 
-                                    get_random_value(PLAYER_NAMES), 
-                                    get_random_value(PLAYER_COLORS));
+                                    conn.player_name || get_random_value(PLAYER_NAMES, world.players, 'name'), 
+                                    get_random_value(PLAYER_COLORS, world.players, 'color'));
 
           conn.post([SERVER + CONNECT, world.tick, player.id, player.name, player.color]);
           
@@ -706,8 +708,8 @@ var process_control_message = match (
    */
   [[CLIENT + HANDSHAKE, Object], {'state =': HANDSHAKING}], 
   function(info, conn) {
-    conn.set_state(JOINED);
     conn.set_client_info(info);
+    conn.set_state(JOINED);
   },
   
   function(data) {

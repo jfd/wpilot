@@ -48,6 +48,8 @@ var DEFAULT_OPTIONS         = {
   show_netstat:         false, 
   
   rate:                 5000,
+  
+  name:                 null,
 
   hud_player_score_v:   true,
   hud_player_name_v:    true,
@@ -211,7 +213,8 @@ WPilotClient.prototype.set_state = function(state) {
     case CLIENT_CONNECTED:
       this.log('Joined server ' + this.conn.URL + '...');
       this.hud_small_message = 'Waiting for more players to connect';
-      this.post_control_packet([CLIENT + HANDSHAKE, { 
+      this.post_control_packet([CLIENT + HANDSHAKE, {
+        name: this.options.name,
         rate: this.options.rate,
         dimensions: [this.viewport.w, this.viewport.h] 
       }]);  
