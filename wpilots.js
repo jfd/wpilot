@@ -9,6 +9,7 @@
 //
 var sys       = require('sys'),
     path      = require('path'),
+    fs        = require('fs'),
     fu        = require('./lib/fu');
     ws        = require('./lib/ws'),
     optparse  = require('./lib/optparse'),
@@ -48,7 +49,7 @@ const DEFAULT_MAP   = {
 		[0, 0, 0, 0, 0, 0, 0],
 		[0, 1, 1, 0, 1, 1, 0],
 		[0, 1, 0, 0, 0, 1, 0],
-		[0, 0, 0, 1, 0, 1, 0],
+		[0, 0, 0, 0, 0, 0, 0],
 		[0, 1, 0, 0, 0, 1, 0],
 		[0, 1, 1, 0, 1, 1, 0],
 		[0, 0, 0, 0, 0, 0, 0]
@@ -62,6 +63,7 @@ const SWITCHES = [
   ['-p', '--serve_flash_policy',  'Enables the Flash Socket Policy Server, must be run as root (Default: false)'],
   ['--name NAME',                 'The name of the server.'],
   ['--host HOST',                 'The host adress (default: 127.0.0.1).'],
+  ['--map PATH',                  'Path to world map (default: built-in map).'],
   ['--pub_host HOST',             'Set if the public host differs from the local one'],
   ['--http_port PORT',            'Port number for the HTTP server (default: 6114)'],
   ['--ws_port PORT',              'Port number for the WebSocket server (default: 6115)'],
@@ -94,6 +96,7 @@ const DEFAULT_OPTIONS = {
   debug:                true, 
   name:                 'WPilot Server',
   host:                 '127.0.0.1',
+  map:                  null, 
   pub_host:             null,
   http_port:            6114,
   ws_port:              6115,
@@ -182,15 +185,39 @@ function main() {
       shared          = { get_state: function() {} },
       webserver       = null,
       gameserver      = null,
-      policy_server   = null;
+      policy_server   = null,
+      map_data        = DEFAULT_MAP;
 
   if (!options) return;
 
   sys.puts('WPilot server ' + SERVER_VERSION);
   
-  webserver = start_webserver(options, shared);
-  gameserver = start_gameserver(options, shared);
-  policy_server = options.serve_flash_policy ? start_policy_server(options) : null;
+  function start() {
+    webserver = start_webserver(options, shared);
+    gameserver = start_gameserver(map_data, options, shared);
+    policy_server = options.serve_flash_policy ? start_policy_server(options) : null;
+  }
+  
+  if (options.map) {
+    fs.readFile(options.map, function (err, data) {
+      if (err) {
+        sys.puts('Failed to read map: ' + err);
+        return;
+      }
+      try {
+        map_data = JSON.parse(data);
+      } catch(e) {
+        sys.puts(e);
+        sys.puts('Map file is invalid, bad format');
+        return;
+      }
+      start();
+    });
+    
+  } else {
+    start();
+  }
+  
 }
 
 /**
@@ -199,16 +226,14 @@ function main() {
  *  @returns {WebSocketServer} Returns the newly created WebSocket server 
  *                             instance.
  */
-function start_gameserver(options, shared) {
+function start_gameserver(map_data, options, shared) {
   var connections     = {},
       gameloop        = null,
       world           = null,
       server          = null,
       conn_id         = 1,
       post_tick       = 1,
-      rules           = get_rules(options),
-      map_data        = DEFAULT_MAP;
-  
+      rules           = get_rules(options);
   
   // Is called by the web instance to get current state
   shared.get_state = function() {
