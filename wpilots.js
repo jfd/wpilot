@@ -41,18 +41,18 @@ const DISCONNECTED  = -1;
 
 // Default map. This map is used if no other map i specified.
 const DEFAULT_MAP   = {
-	name: 'Default map',
+	name: 'The bowl',
 	author: 'Johan Dahlberg',
-	max_players: 8,
+	recommended_players: 8,
 
 	data: [
-		[0, 0, 0, 0, 0, 0, 0],
-		[0, 1, 1, 0, 1, 1, 0],
-		[0, 1, 0, 0, 0, 1, 0],
-		[0, 0, 0, 0, 0, 0, 0],
-		[0, 1, 0, 0, 0, 1, 0],
-		[0, 1, 1, 0, 1, 1, 0],
-		[0, 0, 0, 0, 0, 0, 0]
+		[51,  0,  0, 51,  0,  0, 51],
+		[ 0, 11, 11,  0, 11, 11,  0],
+		[ 0, 11,  0,  0,  0, 11,  0],
+		[51,  0,  0, 52,  0,  0, 51],
+		[ 0, 11,  0,  0,  0, 11,  0],
+		[ 0, 11, 11,  0, 11, 11,  0],
+		[51,  0,  0, 51,  0,  0, 51]
 	]
 }; 
 
@@ -229,7 +229,9 @@ function start_gameserver(map_data, options, shared) {
       server          = null,
       conn_id         = 1,
       post_tick       = 1,
-      rules           = get_rules(options);
+      rules           = get_rules(DEFAULT_OPTIONS, 
+                                  map_data.rules || {}, 
+                                  options.rules);
   
   // Is called by the web instance to get current state
   shared.get_state = function() {
@@ -237,7 +239,7 @@ function start_gameserver(map_data, options, shared) {
       server_name:      options.name,
       game_server_url:  'ws://' + (options.pub_host || options.host) + ':' + 
                                 (options.pub_ws_port || options.ws_port) + '/',
-      max_players:      options.max_players || map_data.max_players,
+      max_players:      options.max_players || map_data.recommended_players,
       no_players:       world.no_players,
       no_ready_players: world.no_ready_players,
       flash_compatible: options.serve_flash_policy,
@@ -822,15 +824,15 @@ function start_policy_server(options) {
  *  @param {Object} options A option set
  *  @return {Object} All rules that was found in the specifed option set.
  */
-function get_rules(options) {
-  var rules = {}
-  for (var option in options) {
+function get_rules(default_rules, map_rules, user_rules) {
+  var rules = {};
+  for (var option in default_rules) {
     var match = option.match(/^r_([a-z_]+)/);
     if (match) {
-      rules[match[1]] = options[option];
+      rules[match[1]] = default_rules[option];
     }
   }
-  return rules; 
+  return process.mixin(rules, process.mixin(map_rules, user_rules)); 
 }
 
 /**
@@ -861,13 +863,17 @@ function get_random_value(src, list, prop_name) {
  */
 function parse_options() {
   var parser  = new optparse.OptionParser(SWITCHES),
-      result = {};
+      result = { rules: {}};
   parser.banner = 'Usage: wpilots.js [options]';
   parser.on('help', function() {
     sys.puts(parser.toString());
     parser.halt();
   });
   parser.on('*', function(opt, value) {
+    var match = opt.match(/^r_([a-z_]+)/);
+    if (match) {
+      result.rules[match[1]] = value;
+    }
     result[opt] = value || true;
   });      
   parser.parse(process.ARGV);
