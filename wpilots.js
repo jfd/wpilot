@@ -239,6 +239,7 @@ function start_gameserver(map_data, options, shared) {
       server_name:      options.name,
       game_server_url:  'ws://' + (options.pub_host || options.host) + ':' + 
                                 (options.pub_ws_port || options.ws_port) + '/',
+      map_name:         map_data.name,
       max_players:      options.max_players || map_data.recommended_players,
       no_players:       world.no_players,
       no_ready_players: world.no_ready_players,

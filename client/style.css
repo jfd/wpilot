@@ -50,9 +50,9 @@ section#splash {
   left: 50%;
   top: 50%;
   width: 540px;
-  height: 270px;
+  height: 320px;
   margin-left: -270px;
-  margin-top: -135px;
+  margin-top: -160px;
 }
 
 section#splash h1 {
@@ -71,16 +71,16 @@ section#splash p.version {
 
 section#splash section {
   margin: 20px 40px 20px 40px;
-  height: 120px;
+  height: 180px;
 }
 
 section#splash .notice {
   display: block;
   background: rgba(255,0,0, 0.1);
-  padding-top: 20px;
+  padding-top: 60px;
   text-align: center;
   color: white;
-  height: 100px;
+  height: 120px;
 }
 
 section#splash .server-info {
