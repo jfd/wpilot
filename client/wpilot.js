@@ -38,6 +38,15 @@ var POWERUP_FONT            = '7px Arial',
     POWERUP_SPEED_COLOR     = '230,21,90',
     POWERUP_RAPID_COLOR     = '166,219,0',
     POWERUP_ENERGY_COLOR    = '51,182,255';
+    
+var SOUNDS = {
+  background:   [1,  ['background']],
+  ship_spawn:   [3,  ['ship_spawn']],
+  ship_die:     [3,  ['ship_die']],
+  bullet_spawn: [8, ['bullet_1_spawn', 'bullet_2_spawn']], 
+  powerup_spawn:[3,  ['powerup_spawn']],
+  powerup_die:  [2,  ['powerup_1_die', 'powerup_2_die', 'powerup_3_die']] 
+}
 
 // Default client options. This options can be changed from the console
 // by typing wpilot.options[OPTION_NAME] = new_value
@@ -56,6 +65,8 @@ var DEFAULT_OPTIONS         = {
   hud_player_pos_v:     true,
   hud_coords_v:         true,
   hud_energy_v:         true,
+  
+  sound_bg_volume:      1.0,
   
   log_max_messages:     3,
   log_msg_lifetime:     5000,
@@ -79,6 +90,7 @@ function WPilotClient(options) {
   
   this.viewport           = null;
   this.input              = null;
+  this.sound              = null;
   this.world              = null;
   this.player             = null;
   this.conn               = null;
@@ -177,6 +189,16 @@ WPilotClient.prototype.set_input = function(device) {
 }
 
 /**
+ *  Set the Sound Device
+ *  @param device {SoundDevice} the sound device
+ *  @return {undefined} Nothing
+ */
+WPilotClient.prototype.set_sound = function(device) {
+  device.init(SOUNDS);
+  this.sound = device;
+}
+
+/**
  *  Sets the player data
  *  @param {Player} player The player instance
  *  @return {undefined} Nothing
@@ -206,6 +228,7 @@ WPilotClient.prototype.set_state = function(state) {
   switch(state) {
 
     case CLIENT_CONNECTING:
+      this.sound.loop('background', this.options.sound_bg_volume);
       this.log('Server found, now joining game...');
       this.onconnect();
       break;
@@ -771,7 +794,10 @@ World.prototype.on_player_leave = function(player, reason) {
  */
 World.prototype.on_player_spawn = function(player, pos) {
   var self = this,
-      anim_id = this.anim_id_count++;
+      anim_id = this.anim_id_count++,
+      volume = player.is_me ? 1 : calculate_sfx_volume(this.client, pos);
+
+  this.client.sound.play('ship_spawn', volume);
 
   this.animations[anim_id] = new SpawnAnimation(
     pos, 
@@ -791,12 +817,21 @@ World.prototype.on_player_spawn = function(player, pos) {
   
 }
 
+World.prototype.on_player_fire = function(player, angle) {
+  var volume = player.is_me ? 1 : calculate_sfx_volume(this.client, pos);
+  this.client.sound.play('bullet_spawn', volume);
+}
+
 /**
  * Callback for player died
  */
 World.prototype.on_player_died = function(player, old_entity, death_cause, killer) {
   var self = this,
-      anim_id = this.anim_id_count++;
+      anim_id = this.anim_id_count++,
+      volume = player.is_me ? 1 : calculate_sfx_volume(this.client, 
+                                                       old_entity.pos);
+
+  this.client.sound.play('ship_die', volume);
 
   this.animations[anim_id] = new DieAnimation(
     old_entity.pos,
@@ -863,9 +898,18 @@ World.prototype.on_round_state_changed = function(state, winners) {
   }
 };
 
-World.prototype.on_powerup_die = function(powerup) {
+World.prototype.on_powerup_spawn = function(powerup) {
+  var volume = calculate_sfx_volume(this.client, powerup.pos);
+  this.client.sound.play('powerup_spawn', volume);
+}
+
+World.prototype.on_powerup_die = function(powerup, player) {
   var self = this,
       anim_id = this.anim_id_count++;
+  
+  if (player.is_me) {
+    this.client.sound.play('powerup_die');
+  }
 
   this.animations[anim_id] = new TextAnimation(
     powerup.pos,
@@ -1600,6 +1644,12 @@ function draw_triangle(ctx, centerx, centery) {
 function draw_label(ctx, x, y, text, align, width) {
   ctx.textAlign = align || 'left';
   ctx.fillText(text, x, y, width || 0);
+}
+
+function calculate_sfx_volume(client, pos) {
+  var midpoint = client.viewport.camera.midpoint,
+      distance = distance_between(midpoint, pos);
+  return Math.abs(1 - ((distance / 4) / 100));
 }
 
 /**

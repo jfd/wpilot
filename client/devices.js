@@ -110,6 +110,7 @@ ViewportDevice.prototype.set_autorefresh = function(autorefresh) {
  *  @returns {undefined} Nothing
  */
 ViewportDevice.prototype.set_camera_pos = function(vector) {
+  this.camera.midpoint = vector;
   this.camera.pos = [vector[0] - (this.w / 2), vector[1] - (this.h / 2)];
   this.camera.size = [this.w, this.h];
   this.camera.scale = 1;
@@ -179,4 +180,132 @@ ViewportDevice.prototype.draw = function() {
   ctx.translate(0, 0);
   this.ondraw(ctx);
   ctx.restore();
+}
+
+
+/**
+ *  Represents a keyboard device. 
+ *  @param {DOMElement} target The element to read input from.
+ *  @param {Object} options Options with .bindings
+ */
+function SoundDevice(options){
+  this.sounds = {};
+  
+  try{
+    this.supported = (new Audio()) !== undefined;
+  }catch(e){
+    this.supported = false;
+  }
+ 
+  this.m4a = false;
+  
+  if (this.supported && /AppleWebKit/.test(navigator.userAgent)) {
+    this.use_m4a = true;
+  }
+}
+
+SoundDevice.prototype.init = function(sources) {
+  if (!this.supported) {
+    return false;
+  }
+  
+  for (var name in sources) {
+    var source = sources[name],
+        size = source[0],
+        urls = source[1],
+        sound = { name: name, buffers: [], free_count: size};
+        
+    while (size--) {
+      var url = urls[Math.floor(Math.random() * urls.length)],
+          audio = new Audio(url + (this.use_m4a ? '.m4a' : '.ogg'));
+          console.log(url + this.use_m4a);
+      audio.is_free = true;
+      sound.buffers.push(audio);
+    }
+    
+    this.sounds[name] = sound;
+  }
+  
+  return true;
+}
+ 
+SoundDevice.prototype.play = function(name, volume) {
+  if (!this.supported) {
+    return;
+  }
+
+  var sound_volume = volume === undefined ? 1 : volume;
+  
+  if (sound_volume <= 0) {
+    return;
+  }
+
+  var self = this,
+      buffer = self.get_buffer(name);
+  
+  if (buffer) {
+    
+    function free() {
+      self.free_buffer(name, buffer, free);
+    }
+    
+    buffer.addEventListener('ended', free, true);
+    buffer.volume = volume || 1;
+    buffer.play();
+  }
+}
+ 
+SoundDevice.prototype.loop = function(name, volume) {
+  if (!this.supported) {
+    return;
+  }
+  
+  var sound_volume = volume === undefined ? 1 : volume;
+  
+  if (sound_volume <= 0) {
+    return;
+  }
+
+  var self = this,
+      buffer = self.get_buffer(name);
+  
+  if (buffer) {
+    
+    function free() {
+      self.free_buffer(name, buffer, free);
+    }
+    
+    buffer.addEventListener('ended', free, true);
+    buffer.volume = volume || 1;
+    buffer.loop = true;
+    buffer.play();
+  }
+}
+
+SoundDevice.prototype.get_buffer = function(name) {
+  var sound = this.sounds[name],
+      buffers = sound.buffers;
+  
+  if (sound.free_count) {
+    var buffer = null,
+        index = buffers.length;
+
+    while ((buffer = buffers[--index]) && !buffer.is_free);
+
+    if (buffer) {
+      buffer.is_free = false;
+      sound.free_count--;
+      return buffer;
+    }
+  }
+  
+  return;
+}
+
+SoundDevice.prototype.free_buffer = function(name, buffer, handle) {
+  var sound = this.sounds[name];
+  sound.free_count++;
+
+  buffer.removeEventListener('ended', handle, true);
+  buffer.is_free = true;
 }

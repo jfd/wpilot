@@ -27,11 +27,13 @@
 			  var options = $.extend({}, DEFAULT_OPTIONS);
 			  var canvas = $('#viewport canvas');
 			  var viewport  = new ViewportDevice(canvas[0], canvas.width(), canvas.height(), options),
-			      keyboard  = new KeyboardDevice(document, options);
+			      keyboard  = new KeyboardDevice(document, options),
+						sound			= new SoundDevice();
 
 			  wpilot = new WPilotClient(options);
 			  wpilot.set_viewport(viewport)
 			  wpilot.set_input(keyboard);
+			  wpilot.set_sound(sound);
 
 			  wpilot.onconnect = function() {
 			    $('#splash .server-info').css('display', 'none');
