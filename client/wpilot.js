@@ -1195,34 +1195,62 @@ Block.prototype.draw = function(ctx, world) {
   ctx.fillStyle = 'rgba(200, 20, 20, 0.1)';
   ctx.fillRect(0, 0, this.size[0], this.size[1]);
   
-  if ((connectors & BLOCK_CONNECTOR_NORTH) != BLOCK_CONNECTOR_NORTH) {
+  if (!(connectors & BLOCK_CONNECTOR_NORTH)) {
     ctx.beginPath();
     ctx.moveTo(0, 0);
     ctx.lineTo(size[0], 0);
     ctx.stroke();
   }
 
-  if ((connectors & BLOCK_CONNECTOR_EAST) != BLOCK_CONNECTOR_EAST) {
+  if (!(connectors & BLOCK_CONNECTOR_EAST)) {
     ctx.beginPath();
     ctx.moveTo(size[0], 0);
     ctx.lineTo(size[0], size[1]);
     ctx.stroke();
   }
 
-  if ((connectors & BLOCK_CONNECTOR_SOUTH) != BLOCK_CONNECTOR_SOUTH) {
+  if (!(connectors & BLOCK_CONNECTOR_SOUTH)) {
     ctx.beginPath();
     ctx.moveTo(0, size[1]);
     ctx.lineTo(size[0], size[1]);
     ctx.stroke();
   }
 
-  if ((connectors & BLOCK_CONNECTOR_WEST) != BLOCK_CONNECTOR_WEST) {
+  if (!(connectors & BLOCK_CONNECTOR_WEST)) {
     ctx.beginPath();
     ctx.moveTo(0, 0);
     ctx.lineTo(0, size[1]);
     ctx.stroke();
   }
   
+  if(connectors == (BLOCK_CONNECTOR_EAST | BLOCK_CONNECTOR_NORTH)){
+    ctx.beginPath();
+    ctx.moveTo(size[0]-BLOCK_SPACING, 0);
+    ctx.lineTo(size[0], 0);
+    ctx.lineTo(size[0], BLOCK_SPACING);
+    ctx.stroke();
+  }
+  if(connectors == (BLOCK_CONNECTOR_EAST | BLOCK_CONNECTOR_SOUTH)){
+    ctx.beginPath();
+    ctx.moveTo(size[0], size[1]-BLOCK_SPACING);
+    ctx.lineTo(size[0], size[1]);
+    ctx.lineTo(size[0]-BLOCK_SPACING, size[1]);
+    ctx.stroke();
+  }
+  if(connectors == (BLOCK_CONNECTOR_WEST | BLOCK_CONNECTOR_NORTH)){
+    ctx.beginPath();
+    ctx.moveTo(0+BLOCK_SPACING, 0);
+    ctx.lineTo(0, 0);
+    ctx.lineTo(0, BLOCK_SPACING);
+    ctx.stroke();
+  }
+  if(connectors == (BLOCK_CONNECTOR_WEST | BLOCK_CONNECTOR_SOUTH)){
+    ctx.beginPath();
+    ctx.moveTo(0+BLOCK_SPACING, size[1]);
+    ctx.lineTo(0, size[1]);
+    ctx.lineTo(0, size[1]-BLOCK_SPACING);
+    ctx.stroke();
+  }
 }
 
 Powerup.prototype.on_after_init = function() {
