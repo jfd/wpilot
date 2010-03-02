@@ -68,7 +68,6 @@
 			      $('#splash .server-info .ping').html('Response time (http)<span>' + ping + ' ms</span>');
 			      $('#splash .server-info .map').html('Map name<span>' + state.map_name + '</span>');
 			      $('#splash .server-info .players').html('Connected players<span>' + state.no_players + ' of ' + state.max_players + '</span>');
-			      $('#splash .server-info .flash').html('Flash support<span>' + (state.flash_compatible ? 'Yes' : 'No') + '</span>');
 			      $('#splash .server-info button').data('url', state.game_server_url);
 			      $('#splash .server-info').css('display', 'block');
 			    });
@@ -100,7 +99,6 @@
 				<p class="ping">C</p> 
 				<p class="map">C</p> 
 				<p class="players"></p> 
-				<p class="flash"></p> 
 				<div class="actions">
 					<button>Join server</button> <span>or <a href="#">Refresh</a></span>
 				</div>

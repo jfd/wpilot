@@ -23,9 +23,6 @@ process.mixin(require('./lib/gameobjects'));
 
 const SERVER_VERSION       = '(develop version)';
 
-const RE_POLICY_REQ = /<\s*policy\-file\-request\s*\/>/i,
-      POLICY_RES    = "<cross-domain-policy><allow-access-from domain=\"*\" to-ports=\"*\" /></cross-domain-policy>";
-
 // Message priorities. High priority messages are sent to client no mather
 // what. Low priority messages are sent only if client can afford them.
 const PRIO_PASS     = 0,
@@ -60,7 +57,6 @@ const DEFAULT_MAP   = {
 const SWITCHES = [
   ['-d', '--debug',               'Enables debug mode (Default: false)'],
   ['-H', '--help',                'Shows this help section'],
-  ['-p', '--serve_flash_policy',  'Enables the Flash Socket Policy Server, must be run as root (Default: false)'],
   ['--name NAME',                 'The name of the server.'],
   ['--host HOST',                 'The host adress (default: 127.0.0.1).'],
   ['--map PATH',                  'Path to world map (default: built-in map).'],
@@ -102,7 +98,6 @@ const DEFAULT_OPTIONS = {
   max_players:          null,
   policy_port:          843,
   max_rate:             5000,
-  serve_flash_policy:   false,
   r_start_delay:        200,
   r_respawn_time:       400,
   r_w_respawn_time:     100,
@@ -200,7 +195,6 @@ function main() {
   function start() {
     webserver = start_webserver(options, shared);
     gameserver = start_gameserver(map_data, options, shared);
-    policy_server = options.serve_flash_policy ? start_policy_server(options) : null;
   }
   
   if (options.map) {
@@ -252,7 +246,6 @@ function start_gameserver(map_data, options, shared) {
       max_players:      options.max_players || map_data.recommended_players,
       no_players:       world.no_players,
       no_ready_players: world.no_ready_players,
-      flash_compatible: options.serve_flash_policy,
       rules:            rules
     }
   }
@@ -785,48 +778,6 @@ function start_webserver(options, shared) {
     res.write(JSON.stringify(shared.get_state()), 'utf8');
     res.close();
   });
-  
-  return server;
-}
-
-/**
- *  Starts a Flash Socket Policy server that servers the required policy file
- *  for clients that uses the Flash WebSocket plugin.
- *
- *  Based on an example by "tautologistics" (http://github.com/zimbatm/nodejs-http-websocket/tree/master/example/socketpolicy.js)
- *  @param {Object} options Policy server options.
- *  @return {tcp.Server} Returns the newly created policy server.
- */
-function start_policy_server(options) {
-  var tcp = require("tcp");
-
-  var server = tcp.createServer(function (socket) {
-  	socket.setEncoding("utf8");
-  	socket.inBuffer = "";
-  	socket.addListener("connect", function () {
-  	  if (options.debug) {
-  	    sys.debug(socket.remoteAddress + ' connected to policy server');
-  	  }
-  	}).addListener("data", function (data) {
-  		socket.inBuffer += data;
-  		if (socket.inBuffer.length > 32) {
-  			socket.close();
-  			return;
-  		}
-  		if (RE_POLICY_REQ.test(socket.inBuffer)) {
-  	    sys.debug('Sending policy file to ' + socket.remoteAddress + '');
-  			socket.write(POLICY_RES);
-  			socket.close();
-  		}
-	  });
-  });
-
-  // Would like to quit the process if listen fails. Today Node will print:
-  //   "(evcom) bind() Permission denied 
-  // on failure. I can't get some kind of notification about this. The error 
-  // message is probably hard coded. 
-  sys.puts('Starting Flash Socket Policy server at ' + options.host + ':' + options.policy_port);
-  server.listen(options.policy_port);
   
   return server;
 }
