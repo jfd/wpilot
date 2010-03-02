@@ -191,12 +191,14 @@ ViewportDevice.prototype.draw = function() {
 function SoundDevice(options){
   this.sounds = {};
   
+  this.enabled = options.sound_enabled;
+  
   try{
     this.supported = (new Audio()) !== undefined;
   }catch(e){
-    this.supported = false;
+    this.enabled = this.supported = false;
   }
- 
+  
   this.m4a = false;
   
   if (this.supported && /AppleWebKit/.test(navigator.userAgent)) {
@@ -205,7 +207,7 @@ function SoundDevice(options){
 }
 
 SoundDevice.prototype.init = function(sources) {
-  if (!this.supported) {
+  if (!this.enabled) {
     return false;
   }
   
@@ -230,7 +232,7 @@ SoundDevice.prototype.init = function(sources) {
 }
  
 SoundDevice.prototype.play = function(name, volume) {
-  if (!this.supported) {
+  if (!this.enabled) {
     return;
   }
 
@@ -256,7 +258,7 @@ SoundDevice.prototype.play = function(name, volume) {
 }
  
 SoundDevice.prototype.loop = function(name, volume) {
-  if (!this.supported) {
+  if (!this.enabled) {
     return;
   }
   

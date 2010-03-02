@@ -66,6 +66,7 @@ var DEFAULT_OPTIONS         = {
   hud_coords_v:         true,
   hud_energy_v:         true,
   
+  sound_enabled:        true,
   sound_bg_volume:      1.0,
   
   log_max_messages:     3,

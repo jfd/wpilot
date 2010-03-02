@@ -28,7 +28,7 @@
 			  var canvas = $('#viewport canvas');
 			  var viewport  = new ViewportDevice(canvas[0], canvas.width(), canvas.height(), options),
 			      keyboard  = new KeyboardDevice(document, options),
-						sound			= new SoundDevice();
+						sound			= new SoundDevice(options);
 
 			  wpilot = new WPilotClient(options);
 			  wpilot.set_viewport(viewport)
