@@ -7,6 +7,8 @@ includes:
 cParticle : class for individual particles
 cParticleSystem : the controller for the particles
 Vector : a vector helper object
+
+Modified to work better with Firefox (Disabled radial gradient pixles).
 */
  
 // Individual particle
@@ -181,10 +183,7 @@ var halfSize = size >> 1;
 var x = ~~particle.position.x;
 var y = ~~particle.position.y;
  
-var radgrad = context.createRadialGradient( x + halfSize, y + halfSize, particle.sizeSmall, x + halfSize, y + halfSize, halfSize);
-radgrad.addColorStop( 0, particle.drawColour );
-radgrad.addColorStop( 1, 'rgba(0,0,0,0)' ); //Super cool if you change these values (and add more colour stops)
-context.fillStyle = radgrad;
+context.fillStyle = particle.drawColour;
 context.fillRect( x, y, size, size );
 }
 };
