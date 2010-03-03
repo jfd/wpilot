@@ -110,7 +110,7 @@ var DEFAULT_OPTIONS         = {
   hud_energy_v:         true,
   
   sound_enabled:        true,
-  sound_bg_volume:      1.0,
+  sound_bg_volume:      0.8,
   
   log_max_messages:     3,
   log_msg_lifetime:     5000,
