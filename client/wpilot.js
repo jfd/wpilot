@@ -1719,18 +1719,18 @@ function draw_scoreboard(viewport, world, me) {
     draw_label(ctx, x + width, y, format_timer(timer, world.delta), 'right');
   }
   
+  // Draw heads-up notice
+  if (notice) {
+    ctx.font = SCOREBOARD_NOTICE_FONT;
+    draw_label(ctx, viewport.w / 2, height + margin / 2, notice, 'center');
+  }
+  
   ctx.font = SCOREBOARD_SUB_FONT;
   draw_label(ctx, x, (y += 20), world.map_name + 
                                 ', round limit: ' + world.rules.round_limit);
                                         
   draw_label(ctx, x + width,  y, world.no_players + ' / ' +
                                  world.max_players + ' players', 'right');
-                                 
-  // Draw heads-up notice
-  if (notice) {
-    ctx.font = SCOREBOARD_NOTICE_FONT;
-    draw_label(ctx, viewport.w / 2, height + margin / 2, notice, 'center');
-  }
   
   // Draw table header
   draw_label(ctx, (x += (SCOREBOARD_PAD * 7)), (y += 60), 'Player name');
