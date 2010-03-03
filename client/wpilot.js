@@ -140,7 +140,6 @@ function WPilotClient(options) {
   this.conn               = null;
   this.message_log        = [];
   this.cache              = {};
-  this.respawn_at         = 0;
 
   this.netstat            = { 
     start_time:         null,
@@ -788,7 +787,6 @@ World.prototype.on_player_spawn = function(player, pos) {
 
   if (player.is_me) {
     player.entity.is_me = true;
-    this.client.respawn_at = 0;
     this.client.viewport.set_camera_pos(pos);
   }
   
