@@ -11,14 +11,57 @@ var CLIENT_VERSION = '(develop version)';
 var GRID_CELL_SIZE      = 250;
     GRID_CELL_COLOR     = 'rgba(255,255,255,0.2)';
     
+// Colors
+var COLOR_BRIGHT    = '255, 255, 255',
+    COLOR_DUST      = '110, 110, 110',
+    COLOR_DAWN      = '78, 78, 78',
+    COLOR_DARK      = '0, 0, 0',
+    COLOR_ACCENT_1  = '255, 215, 0',
+    COLOR_ACCENT_2  = '166, 219, 0';
+    
+// Predefined canvas compatible colors
+var CANVAS_COLOR_BRIGHT   = 'rgb(' + COLOR_BRIGHT + ')',
+    CANVAS_COLOR_DAWN     = 'rgb(' + COLOR_DAWN + ')',
+    CANVAS_COLOR_DARK     = 'rgb(' + COLOR_DARK + ')';
+    CANVAS_COLOR_ACCENT_1 = 'rgb(' + COLOR_ACCENT_1 + ')';
+    CANVAS_COLOR_ACCENT_2 = 'rgb(' + COLOR_ACCENT_2 + ')';
+    
+// Font variations
+var FONT_NAME = 'Arial',
+
+    // Font attributes
+    WEIGHT_NORMAL = '',
+    WEIGHT_HEAVY = 'bold',
+
+    // Font sizes
+    SIZE_XSMALL = '9px',
+    SIZE_SMALL = '11px',
+    SIZE_MEDIUM = '13px',
+    SIZE_LARGE = '16px';
+    
+
+var WARMUP_NOTICE_FONT  = [WEIGHT_HEAVY, SIZE_MEDIUM, FONT_NAME].join(' ');
+    
 // GUI Fonts used in the client.
 var HUD_SMALL_FONT      = 'bold 9px Arial',
-    HUD_LARGE_FONT      = 'bold 11px Arial',
-    HUD_XLARGE_FONT      = 'bold 16px Arial',
     HUD_WHITE_COLOR     = 'rgba(255,255,255,0.8)',
     HUD_GREY_COLOR      = 'rgba(255,255,255,0.4)';
-    HUD_MESSAGE_SMALL   = 0,
-    HUD_MESSAGE_LARGE   = 1;
+
+// Scoreboard
+var SCOREBOARD_PAD = 6,
+    SCOREBOARD_MAR = SCOREBOARD_PAD / 2;
+
+// Scoreboard fonts
+var SCOREBOARD_TITLE_FONT   = [WEIGHT_HEAVY, SIZE_LARGE, FONT_NAME].join(' '),
+    SCOREBOARD_SUB_FONT     = [WEIGHT_HEAVY, SIZE_SMALL, FONT_NAME].join(' '),
+    SCOREBOARD_ROW_FONT     = [WEIGHT_HEAVY, SIZE_MEDIUM, FONT_NAME].join(' '),
+    SCOREBOARD_NOTICE_FONT  = [WEIGHT_HEAVY, SIZE_MEDIUM, FONT_NAME].join(' '),
+    SCOREBOARD_ROW_A_FONT   = [WEIGHT_NORMAL, SIZE_MEDIUM, FONT_NAME].join(' ');
+
+// Scoreboard chars
+var SCOREBOARD_READY_CHAR     = '\u2714',
+    SCOREBOARD_NOT_READY_CHAR = '\u2716';
+    
 
 // Message log related constants.
 var LOG_AGE_LIMIT       = 100,
@@ -96,10 +139,7 @@ function WPilotClient(options) {
   this.player             = null;
   this.conn               = null;
   this.message_log        = [];
-  this.hud_small_message  = null;
-  this.hud_small_pulse    = false;
-  this.hud_small_alpha    = 0.2;
-  this.hud_large_message  = null;
+  this.cache              = {};
   this.respawn_at         = 0;
 
   this.netstat            = { 
@@ -168,14 +208,33 @@ WPilotClient.prototype.set_world = function(world) {
 WPilotClient.prototype.set_viewport = function(viewport) {
   var self = this;
   viewport.ondraw = function() {
-    if (self.player) {
-      if (!self.player.dead) {
-        viewport.set_camera_pos(self.player.entity.pos);
+    var world = self.world,
+        player = self.player;
+
+    if (player) {
+
+      world.draw(viewport);
+
+      if (!player.dead) {
+        
+        viewport.set_camera_pos(player.entity.pos);
+        
+        self.draw_hud();
+        
+        if (world.r_state == ROUND_WAITING) {
+          draw_warmup_notice(viewport, world, player, self.cache);
+        }
+        
+      } else { // if (world.r_state != ROUND_WAITING)
+        
+        draw_scoreboard(viewport, world, player);
+        
       }
-      self.world.draw(viewport);
-      self.draw_hud();
+
     }
+
     self.draw_logs();
+
   }
   this.viewport = viewport;
 }
@@ -236,7 +295,6 @@ WPilotClient.prototype.set_state = function(state) {
 
     case CLIENT_CONNECTED:
       this.log('Joined server ' + this.conn.URL + '...');
-      this.hud_small_message = 'Waiting for more players to connect';
       this.post_control_packet([CLIENT + HANDSHAKE, {
         name: this.options.name,
         rate: this.options.rate,
@@ -252,8 +310,6 @@ WPilotClient.prototype.set_state = function(state) {
       this.player = null;
       this.conn = null;
       this.message_log = [];
-      this.hud_small_message = null;
-      this.hud_large_message = null;
       this.ondisconnect(this.disconnect_reason);
       this.stop_gameloop();
       
@@ -316,7 +372,6 @@ WPilotClient.prototype.start_gameloop = function(initial_tick) {
   
   // Is called when loop is about to start over.
   gameloop.ondone = function(t, dt, alpha) {
-    self.update_client(t, dt);
     self.update_netstat(t, dt);
     viewport.refresh(alpha);
   }
@@ -463,12 +518,14 @@ WPilotClient.prototype.draw_logs = function() {
       log             = this.message_log,
       log_index       = log.length,
       log_count       = 0,
-      log_x           = 5,
-      log_y           = this.viewport.h + 7,
+      log_x           = 6,
+      log_y           = this.viewport.h - 2,
       current_time    = get_time(),
       max             = this.options.log_max_messages;
-  
+
+  ctx.textBaseline = 'top';
   ctx.font = LOG_FONT;
+  
   while (log_index-- && ((log.length - 1) - log_index < max)) {
     var msg = log[log_index];
     if (!msg.disposed) {
@@ -511,153 +568,62 @@ WPilotClient.prototype.draw_hud = function() {
       center_w        = viewport.w / 2,
       center_h        = viewport.h / 2,
       player          = this.player,
+      world           = this.world,
       player_entity   = player.entity,
       opt             = this.options;
   
-  if (!player.dead) {
-    ctx.textAlign = 'center';
+  ctx.textAlign = 'center';
 
-    ctx.font = HUD_SMALL_FONT;
-    
-    if(opt.hud_player_score_v) {
-      var limit = this.world.r_state == ROUND_WAITING ? '-' : this.server_state.rules.round_limit;
-      ctx.fillStyle = HUD_GREY_COLOR;
-      draw_label(ctx, center_w + 72, center_h + 55, 'Score: ' + player.score + '/' + limit, 'right', 45);
-    }
+  ctx.font = HUD_SMALL_FONT;
+  
+  if(opt.hud_player_score_v) {
+    var limit = this.world.r_state == ROUND_WAITING ? '-' : this.server_state.rules.round_limit;
+    ctx.fillStyle = HUD_GREY_COLOR;
+    draw_label(ctx, center_w + 72, center_h + 55, 'Score: ' + player.score + '/' + limit, 'right', 45);
+  }
 
-    if (opt.hud_player_name_v) {
-      ctx.fillStyle = HUD_WHITE_COLOR;
-      draw_label(ctx, center_w - 72, center_h - 45, player.name, 'left', 100);
-    }
+  if (opt.hud_player_name_v) {
+    ctx.fillStyle = HUD_WHITE_COLOR;
+    draw_label(ctx, center_w - 72, center_h - 45, player.name, 'left', 100);
+  }
 
-    if (opt.hud_player_pos_v) {
-      var my_pos = this.player.position;
-      var max_pos = this.world.no_players;
-      ctx.fillStyle = HUD_WHITE_COLOR;
-      draw_label(ctx, center_w + 72, center_h - 45, 'Pos ' + my_pos + '/' + max_pos, 'right', 45);
-    }
-    
-    if (opt.hud_coords_v)  {
-      ctx.fillStyle = HUD_GREY_COLOR;
-      draw_label(ctx, center_w - 72, center_h + 55, parseInt(player_entity.pos[0]) + ' x ' + parseInt(player_entity.pos[1]));
-    }    
-    
-    if (opt.hud_energy_v) {
-      draw_v_bar(ctx, center_w + 62, center_h - 37, 7, 78, player.energy);
-    }
-    
-    if (player.powerup) {
-      if (player.has_powerup(POWERUP_SPEED)) {
-        ctx.fillStyle = 'rgba(' + POWERUP_SPEED_COLOR + ',0.7)';
-        draw_label(ctx, center_w - 70, center_h -10, 'S');
-      }
-      if (player.has_powerup(POWERUP_RAPID)) {
-        ctx.fillStyle = 'rgba(' + POWERUP_RAPID_COLOR + ',0.7)';
-        draw_label(ctx, center_w - 70, center_h , 'R');
-      }
-      if (player.has_powerup(POWERUP_ENERGY)) {
-        ctx.fillStyle = 'rgba(' + POWERUP_ENERGY_COLOR + ',0.7)';
-        draw_label(ctx, center_w - 70, center_h + 10, 'E');
-      }
-    }
+  if (opt.hud_player_pos_v) {
+    var my_rank = this.player.rank;
+    var max_rank = this.world.no_players;
+    ctx.fillStyle = HUD_WHITE_COLOR;
+    draw_label(ctx, center_w + 72, center_h - 45, 'Pos ' + my_rank + '/' + max_rank, 'right', 45);
   }
   
-  if (!this.player.dead) {
-    ctx.save();
-    ctx.translate(center_w, center_h);
-    player_entity.draw(ctx);
-    ctx.restore();    
-  }
-
-  // Draw large HUD message
-  if (this.hud_large_message) {
-    ctx.fillStyle = 'rgb(255, 215, 0)';
-    ctx.font = HUD_XLARGE_FONT;
-    draw_label(ctx, center_w, center_h, this.hud_large_message, 'center', 400);
+  if (opt.hud_coords_v)  {
+    ctx.fillStyle = HUD_GREY_COLOR;
+    draw_label(ctx, center_w - 72, center_h + 55, parseInt(player_entity.pos[0]) + ' x ' + parseInt(player_entity.pos[1]));
+  }    
+  
+  if (opt.hud_energy_v) {
+    draw_v_bar(ctx, center_w + 62, center_h - 37, 7, 78, player.energy);
   }
   
-  // Draw small HUD message
-  if (this.hud_small_message) {
-    if (this.hud_small_pulse) {
-      var alpha = Math.abs(Math.sin((this.hud_small_alpha += 0.08)));
-      if (alpha < 0.1) {
-        alpha = 0.1;
-      } 
-      ctx.fillStyle = 'rgba(255, 215,0,' + alpha + ')';
-    } else {
-      ctx.fillStyle = 'rgb(255, 215, 0)';
+  if (player.powerup) {
+    if (player.has_powerup(POWERUP_SPEED)) {
+      ctx.fillStyle = 'rgba(' + POWERUP_SPEED_COLOR + ',0.7)';
+      draw_label(ctx, center_w - 70, center_h -10, 'S');
     }
-    ctx.font = HUD_LARGE_FONT;
-    draw_label(ctx, center_w, viewport.h - 50, this.hud_small_message, 'center', 100);
+    if (player.has_powerup(POWERUP_RAPID)) {
+      ctx.fillStyle = 'rgba(' + POWERUP_RAPID_COLOR + ',0.7)';
+      draw_label(ctx, center_w - 70, center_h , 'R');
+    }
+    if (player.has_powerup(POWERUP_ENERGY)) {
+      ctx.fillStyle = 'rgba(' + POWERUP_ENERGY_COLOR + ',0.7)';
+      draw_label(ctx, center_w - 70, center_h + 10, 'E');
+    }
   }
-}
 
-WPilotClient.prototype.update_client = function(t, dt) {
-  var world   = this.world,
-      player  = this.player,
-      server  = this.server_state,
-      no      = 0,
-      sec     = dt * 60;
-  
-  this.hud_small_pulse = false;    
-  this.hud_small_message = null;
-  this.hud_large_message = null;
-  
-  switch(world.r_state) {
-    case ROUND_WAITING:
-      if (world.no_players == 1) {
-        this.hud_small_message = 'Waiting for more players to join...';
-      } else if (!player.ready) {
-        this.hud_small_message = 'Press (r) when ready';
-        this.hud_small_pulse = true;
-      } else {
-        no = Math.ceil((world.no_players * 0.6) - world.no_ready_players);
-        this.hud_small_message = 'Waiting for ' + no + ' player' + (no == 1 ? '' : 's') + ' to press ready';
-      }
-      break;
+  // Draw ship
+  ctx.save();
+  ctx.translate(center_w, center_h);
+  player_entity.draw(ctx);
+  ctx.restore();    
 
-    case ROUND_STARTING:
-      no = parseInt((world.r_timer - t) / sec);
-      if (no == 0) {
-        this.hud_large_message = 'Prepare your self...';
-      } else {
-        this.hud_large_message = 'Round starts in ' + no + ' sec';
-      }
-      break;
-
-    case ROUND_RUNNING:
-      if (player.dead) {
-        if (!this.respawn_at) {
-          this.respawn_at = t + server.rules.respawn_time * dt;
-        } 
-        no = parseInt((this.respawn_at - t) / sec); 
-        if (no == 0) {
-          this.hud_small_message = 'Prepare your self...';
-        } else {
-          this.hud_small_message = 'Respawn in ' + no + ' sec';
-        }
-      } 
-      break;
-
-    case ROUND_FINISHED:
-      if (!world.winners) {
-        var winners = [];
-        for (var i = 0; i < world.r_winners.length; i++) {
-          var winner = world.players[world.r_winners[i]];
-          winners.push(winner.is_me ? 'you' : winner.name);
-        }
-        world.winners = winners.join(',');
-      }
-      no = parseInt((world.r_timer - t) / sec);
-      if (no == 0) {
-        this.hud_large_message = 'Starting warm-up round';
-      } else {
-        this.hud_large_message = 'Round won by ' + world.winners;
-        this.hud_small_message = 'New round starts in ' + no + ' sec'
-      }
-      break;
-    
-  }
 }
 
 /**
@@ -758,13 +724,19 @@ var process_control_message = match (
 );
 
 Player.prototype.on_before_init = function() {
-  this.position = 1;
+  this.rank = 1;
   this.is_me = false;
+  
+  // Used by score board to write information
+  this.death_cause = 0;
+  this.killed_by = null;
 }
 
 World.prototype.on_before_init = function() {
   this.anim_id_count = 1;
   this.animations = {};
+  this.ranked_player_list = [];
+  this.winner_names = null;
 }
 
 /**
@@ -781,6 +753,8 @@ World.prototype.on_update = function(t, dt) {
  */
 World.prototype.on_player_join = function(player) {
   this.client.log('Player "' + player.name + '" joined the world...');
+
+  this.ranked_player_list = calculate_ranks(this);
 }
 
 /**
@@ -788,6 +762,8 @@ World.prototype.on_player_join = function(player) {
  */
 World.prototype.on_player_leave = function(player, reason) {
   this.client.log('Player "' + player.name + '" disconnected. Reason: ' + reason);
+  
+  this.ranked_player_list = calculate_ranks(this);
 }
 
 /**
@@ -853,6 +829,8 @@ World.prototype.on_player_died = function(player, old_entity, death_cause, kille
   );
   
   if (player.is_me) {
+    player.death_cause = death_cause;
+    player.killed_by = killer;
     if (death_cause == DEATH_CAUSE_KILLED) {
       text = 'You where killed by ' + killer.name;
     } else {
@@ -868,14 +846,7 @@ World.prototype.on_player_died = function(player, old_entity, death_cause, kille
 
   this.client.log(text);
   
-  // Calculate player position
-  var me = this.client.player;
-  me.position = this.no_players;
-  this.forEachPlayer(function(opponent) {
-    if (me.score > opponent.score) {
-      me.position--;
-    }
-  });
+  this.ranked_player_list = calculate_ranks(this);
 }
 
 /**
@@ -889,11 +860,19 @@ World.prototype.on_player_ready = function(player) {
  * Callback for round state changed
  */
 World.prototype.on_round_state_changed = function(state, winners) {
-  this.winners = null;
+
   switch (state) {
     
     case ROUND_STARTING:
       this.client.viewport.set_camera_pos(vector_div(this.size, 2));
+      break;
+      
+    case ROUND_FINISHED:
+      var names = [];      
+      for (var i = 0; i < winners.length; i++) {
+         names.push(this.players[winners[i]].name);
+      }
+      this.winner_names = names.join(',');
       break;
       
   }
@@ -1643,6 +1622,195 @@ function get_powerup_text(type) {
   }
 }
 
+function draw_warmup_notice(viewport, world, player, cache) {
+  var ctx = viewport.ctx,
+      text = '',
+      pulse = false;
+      
+  // Initialize cache value if necessary
+  if (!cache) {
+    cache.hud_message_alpha = 0.2;
+  }
+  
+  if (world.no_players == 1) {
+    text = 'Waiting for more players to join...';
+  } else if (!player.ready) {
+    text = 'Press (r) when ready';
+    pulse = true;
+  } else {
+    var no = Math.ceil((world.no_players * 0.6) - world.no_ready_players);
+    text = 'Waiting for ' + no + ' player' + (no == 1 ? '' : 's') + 
+           ' to press ready';
+  }
+
+  ctx.font = WARMUP_NOTICE_FONT;
+  ctx.fillStyle = CANVAS_COLOR_ACCENT_1;
+  
+  if (pulse) {
+    var alpha = Math.abs(Math.sin((cache.hud_message_alpha += 0.08)));
+    if (alpha < 0.1) {
+      alpha = 0.1;
+    } 
+    ctx.fillStyle = 'rgba(' + COLOR_ACCENT_1 + ',' + alpha + ')';
+  }
+  
+  draw_label(ctx, viewport.w / 2, viewport.h - 50, text, 'center');
+  
+}
+
+function draw_scoreboard(viewport, world, me) {
+  var ctx = viewport.ctx,
+      players = world.ranked_player_list,
+      state = world.r_state,
+      width = viewport.w * 0.8,
+      margin = (viewport.w - width) / 2,
+      height = viewport.h - margin,
+      x = margin,
+      y = margin;
+      
+  var title  = '',
+      notice = null,
+      timer  = 0;
+      
+  // Shading
+  ctx.fillStyle = 'rgba(0, 0, 0, 0.4)';
+  ctx.fillRect(0, 0, viewport.w, viewport.h);
+
+  ctx.fillStyle = CANVAS_COLOR_ACCENT_1;
+      
+  switch (state) {
+    case ROUND_WAITING:
+      title = 'Warmup round';
+      if (!me.ready) {
+        notice = 'Press (r) when ready';
+      }
+      break;
+      
+    case ROUND_STARTING:
+      title = 'Prepare your self, game starts in...';
+      break;
+
+    case ROUND_RUNNING:
+      if (me.dead) {
+        title = me.death_cause == DEATH_CAUSE_KILLED ?
+                                  'You where killed by ' + me.killed_by.name :
+                                  'You took your own life';
+                                  
+        // Respawn timer
+        timer = player.respawn_time - world.tick;
+        notice = 'Respawn in ' + format_timer(timer, world.delta) + ' sec';
+
+      } else {
+        title = 'Your rank is ' + me.rank + ' of ' + world.no_players;
+      }
+      break;
+      
+    case ROUND_FINISHED:
+      title = 'Round won by ' + world.winner_names + ', next map starts in...';
+      break;
+  }
+
+  ctx.font = SCOREBOARD_TITLE_FONT;
+  draw_label(ctx, x, y, title , 'left');
+  
+  if (world.r_timer) {
+    timer = (state == ROUND_RUNNING) ? world.r_timer :
+                                       world.r_timer - world.tick; 
+    draw_label(ctx, x + width, y, format_timer(timer, world.delta), 'right');
+  }
+  
+  ctx.font = SCOREBOARD_SUB_FONT;
+  draw_label(ctx, x, (y += 20), world.map_name + 
+                                ', round limit: ' + world.rules.round_limit);
+                                        
+  draw_label(ctx, x + width,  y, world.no_players + ' / ' +
+                                 world.max_players + ' players', 'right');
+                                 
+  // Draw heads-up notice
+  if (notice) {
+    ctx.font = SCOREBOARD_NOTICE_FONT;
+    draw_label(ctx, viewport.w / 2, height + margin / 2, notice, 'center');
+  }
+  
+  // Draw table header
+  draw_label(ctx, (x += (SCOREBOARD_PAD * 7)), (y += 60), 'Player name');
+  draw_label(ctx, (x = margin + width), y, 'Score', 'right', 50);
+  draw_label(ctx, (x -= 50), y, 'Kills', 'right', 50);
+  draw_label(ctx, (x -= 50), y, 'Deaths', 'right', 50);
+  draw_label(ctx, (x -= 50), y, 'Time', 'right', 50);
+  draw_label(ctx, (x -= 50), y, 'Ping', 'right', 50);
+  
+  var row = 0;
+    
+  x = margin;    
+  y += 10;
+  
+  // Draw each table row
+  while (row < players.length && y < height) {
+    var player = players[row++],
+        ptime = format_timer(world.tick - player.time, world.delta);
+    draw_scoreboard_row(ctx, state, [x, y], width, player, ptime);
+    y += 28;
+  }
+  
+}
+
+function draw_scoreboard_row(ctx, round_state, pos, width, player, ptime) {
+  var x = pos[0],
+      y = pos[1];
+      
+  var name = player.name + (round_state == ROUND_RUNNING && player.dead ? 
+                                                            ' (dead)' : '') ,
+      score = player.score,
+      deaths = player.deaths + '(' + player.suicides + ')',
+      kills = player.kills,
+      time = ptime,
+      ping = player.ping,
+      rank = player.rank;
+      
+  ctx.textBaseline = 'top';
+
+  switch (round_state) {
+
+    case ROUND_WAITING:
+    case ROUND_STARTING:
+      score = kills = deaths = time = '--';
+      ctx.font = SCOREBOARD_ROW_A_FONT;
+      if (player.ready) {
+        ctx.fillStyle = 'rgba(' + COLOR_ACCENT_2 + ', 0.4)';
+        rank = SCOREBOARD_READY_CHAR;
+      } else {
+        ctx.fillStyle = 'rgba(' + COLOR_DUST + ', 0.4)';
+        rank = SCOREBOARD_NOT_READY_CHAR;
+      }
+      break;
+      
+    case ROUND_RUNNING:
+    case ROUND_FINISHED:
+      ctx.font = SCOREBOARD_ROW_FONT;
+      ctx.fillStyle = 'rgba(' + player.color + ', 0.4)';
+      break;
+  }
+
+  ctx.fillRect(x, y, SCOREBOARD_PAD * 4, 22);
+  
+  x +=  SCOREBOARD_PAD;
+  y += SCOREBOARD_MAR;
+
+  ctx.fillStyle = CANVAS_COLOR_BRIGHT;
+  draw_label(ctx, x + SCOREBOARD_PAD, y, rank, 'center');
+
+  ctx.font = SCOREBOARD_ROW_FONT;
+  ctx.fillStyle = player.is_me ? CANVAS_COLOR_BRIGHT : CANVAS_COLOR_DAWN;
+  
+  draw_label(ctx, (x += SCOREBOARD_PAD * 6), y, name);
+  draw_label(ctx, (x  = pos[0] + (width)), y, score, 'right', 50);
+  draw_label(ctx, (x -= 50), y, kills, 'right', 50);
+  draw_label(ctx, (x -= 50), y, deaths, 'right', 50);
+  draw_label(ctx, (x -= 50), y, time, 'right', 50);
+  draw_label(ctx, (x -= 50), y, ping, 'right', 50);
+}
+
 /**
  *  Draws a vertical bar 
  *  
@@ -1679,6 +1847,35 @@ function calculate_sfx_volume(client, pos) {
   var midpoint = client.viewport.camera.midpoint,
       distance = distance_between(midpoint, pos);
   return Math.abs(1 - ((distance / 4) / 100));
+}
+
+function calculate_ranks(world) {
+  var ranked_list = [];
+  for (var id in world.players) {
+    ranked_list.push(world.players[id]);
+  }
+  ranked_list.sort(function(player, opponent) { 
+    if (player.score == opponent.score) {
+      return 0;
+    } 
+    return player.score > opponent.score ? -1 : 1; 
+  });
+  
+  var index = ranked_list.length;
+  
+  while (index--) {
+    ranked_list[index].rank = index + 1;
+  }
+  return ranked_list;
+}
+
+function format_timer(value, delta) {
+  var seconds = parseInt(value / (delta * 60));
+      minutes = seconds < 0 ? 0 : parseInt(seconds / 60);
+      
+  seconds = seconds < 0 ? 0 : seconds - minutes * 60;
+
+  return minutes + ':' + (seconds < 10 ? '0' + seconds : seconds);
 }
 
 /**

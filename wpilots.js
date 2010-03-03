@@ -265,6 +265,7 @@ function start_gameserver(map_data, options, shared) {
   
   // Create the world instance
   world = new World({
+    max_players: options.max_players || map_data.recommended_players,
     rules: rules,
     server_mode: true
   });
