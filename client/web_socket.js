@@ -274,7 +274,7 @@ if (!window.WebSocket) {
 
   // called from Flash
   function webSocketLog(message) {
-    console.log(unescape(message));
+//    console.log(unescape(message));
   }
 
   // called from Flash
