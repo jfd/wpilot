@@ -221,11 +221,11 @@ WPilotClient.prototype.set_viewport = function(viewport) {
         
         self.draw_hud();
         
-        if (world.r_state == ROUND_WAITING) {
+        if (world.r_state == ROUND_WARMUP) {
           draw_warmup_notice(viewport, world, player, self.cache);
         }
         
-      } else { // if (world.r_state != ROUND_WAITING)
+      } else { // if (world.r_state != ROUND_WARMUP)
         
         draw_scoreboard(viewport, world, player);
         
@@ -577,7 +577,7 @@ WPilotClient.prototype.draw_hud = function() {
   ctx.font = HUD_SMALL_FONT;
   
   if(opt.hud_player_score_v) {
-    var limit = this.world.r_state == ROUND_WAITING ? '-' : this.server_state.rules.round_limit;
+    var limit = this.world.r_state == ROUND_WARMUP ? '-' : this.server_state.rules.round_limit;
     ctx.fillStyle = HUD_GREY_COLOR;
     draw_label(ctx, center_w + 72, center_h + 55, 'Score: ' + player.score + '/' + limit, 'right', 45);
   }
@@ -1679,7 +1679,7 @@ function draw_scoreboard(viewport, world, me) {
   ctx.fillStyle = CANVAS_COLOR_ACCENT_1;
       
   switch (state) {
-    case ROUND_WAITING:
+    case ROUND_WARMUP:
       title = 'Warmup round';
       if (!me.ready) {
         notice = 'Press (r) when ready';
@@ -1772,7 +1772,7 @@ function draw_scoreboard_row(ctx, round_state, pos, width, player, ptime) {
 
   switch (round_state) {
 
-    case ROUND_WAITING:
+    case ROUND_WARMUP:
     case ROUND_STARTING:
       score = kills = deaths = time = '--';
       ctx.font = SCOREBOARD_ROW_A_FONT;

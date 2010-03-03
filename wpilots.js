@@ -398,7 +398,7 @@ function start_gameserver(map_data, options, shared) {
       
       // The world is waiting for players to be "ready". The game starts when 
       // 60% of the players are ready.
-      case ROUND_WAITING:
+      case ROUND_WARMUP:
         if (world.no_players > 1 && world.no_ready_players >= (world.no_players * 0.6)) {
           world.set_round_state(ROUND_STARTING);
         }
@@ -407,7 +407,7 @@ function start_gameserver(map_data, options, shared) {
       // Round is starting. Server aborts if a player leaves the game.
       case ROUND_STARTING:
         if (world.no_ready_players < (world.no_players * 0.6)) {
-          world.set_round_state(ROUND_WAITING);
+          world.set_round_state(ROUND_WARMUP);
           return;
         }
         if (t >= world.r_timer) {
@@ -431,7 +431,7 @@ function start_gameserver(map_data, options, shared) {
       // The round is finished. Wait for restart
       case ROUND_FINISHED:
         if (t >= world.r_timer) {
-          world.set_round_state(ROUND_WAITING);
+          world.set_round_state(ROUND_WARMUP);
         }
         break;
     }
