@@ -4,15 +4,12 @@
 	"recommended_players": 4,
 	
 	"rules": {
-		"start_delay":        200,
 	  "respawn_time":       400,
-	  "w_respawn_time":     100,
 	  "reload_time":        15,
 	  "shoot_cost":         300,
 	  "shield_cost":        70,
 	  "energy_recovery":    40,
 	  "round_limit":        10,
-	  "round_rs_time":      600,
 	  "suicide_penelty":    1,
 	  "kill_score":         1,
 	  "powerup_max":        3,
