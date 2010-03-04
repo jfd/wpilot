@@ -86,7 +86,8 @@ var SOUNDS = {
   background:   [1,  ['background']],
   ship_spawn:   [3,  ['ship_spawn']],
   ship_die:     [3,  ['ship_die']],
-  bullet_spawn: [8,  ['bullet_1_spawn', 'bullet_2_spawn']], 
+  ship_thrust:  [6,  ['ship_thrust']],  
+  bullet_spawn: [8,  ['ship_fire_1', 'ship_fire_2', 'ship_fire_3']], 
   powerup_spawn:[3,  ['powerup_spawn']],
   powerup_die:  [2,  ['powerup_1_die', 'powerup_2_die', 'powerup_3_die']] 
 }
@@ -111,7 +112,7 @@ var DEFAULT_OPTIONS         = {
   
   rotation_speed:       6,
   
-  sound_enabled:        false,
+  sound_enabled:        true,
   sound_bg_volume:      0.8,
   
   log_max_messages:     3,
@@ -347,6 +348,10 @@ WPilotClient.prototype.process_user_input = function(t, dt) {
     if (new_command != player.command) {
       player.command = new_command;
       this.post_game_packet([PLAYER + COMMAND, new_command]);
+    }
+    
+    if (player.is(THRUST) && (parseInt(t * 1000)) % 10 == 0) {
+      this.sound.play('ship_thrust', 0.05);
     }
     
     if (input.on('rotate_west')) {
