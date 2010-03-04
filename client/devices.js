@@ -238,7 +238,7 @@ SoundDevice.prototype.play = function(name, volume) {
 
   var sound_volume = volume === undefined ? 1 : volume;
   
-  if (sound_volume <= 0) {
+  if (sound_volume <= 0 || sound_volume > 1) {
     return;
   }
 
@@ -252,7 +252,7 @@ SoundDevice.prototype.play = function(name, volume) {
     }
     
     buffer.addEventListener('ended', free, true);
-    buffer.volume = volume || 1;
+    buffer.volume = sound_volume;
     buffer.play();
   }
 }
@@ -278,7 +278,7 @@ SoundDevice.prototype.loop = function(name, volume) {
     }
     
     buffer.addEventListener('ended', free, true);
-    buffer.volume = volume || 1;
+    buffer.volume = sound_volume;
     buffer.loop = true;
     buffer.play();
   }
