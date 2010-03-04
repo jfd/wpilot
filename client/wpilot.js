@@ -733,7 +733,7 @@ Player.prototype.on_before_init = function() {
 
 World.prototype.on_before_init = function() {
   this.anim_id_count = 1;
-  this.animations = {};
+  this.animations = [];
   this.ranked_player_list = [];
   this.winner_names = null;
 }
@@ -742,9 +742,16 @@ World.prototype.on_before_init = function() {
  *  Callback for world update
  */
 World.prototype.on_update = function(t, dt) {
-  for (var anim in this.animations) {
-    this.animations[anim].update(t, dt);
-  }  
+  var animations = this.animations,
+      index = animations.length;
+  while (index--) {
+    var job = animations[index];
+    job.anim.update(t, dt);
+    if (job.anim.is_done) {
+      job.callback();
+      animations.splice(index);
+    }
+  }
 }
 
 /**
@@ -770,20 +777,15 @@ World.prototype.on_player_leave = function(player, reason) {
  */
 World.prototype.on_player_spawn = function(player, pos) {
   var self = this,
-      anim_id = this.anim_id_count++,
       volume = player.is_me ? 1 : calculate_sfx_volume(this.client, pos);
 
   this.client.sound.play('ship_spawn', volume);
-
-  this.animations[anim_id] = new SpawnAnimation(
-    pos, 
-    function() {
-      if (player.entity) {
-        player.entity.visible = true;
-      }
-      delete self.animations[anim_id];
+  
+  this.play_animation(new SpawnAnimation(pos), function() {
+    if (player.entity) {
+      player.entity.visible = true;
     }
-  );  
+  });
 
   if (player.is_me) {
     player.entity.is_me = true;
@@ -800,31 +802,14 @@ World.prototype.on_player_fire = function(player, angle) {
 /**
  * Callback for player died
  */
-World.prototype.on_player_died = function(player, old_entity, death_cause, killer) {
-  var self = this,
-      anim_id = this.anim_id_count++,
-      volume = player.is_me ? 1 : calculate_sfx_volume(this.client, 
-                                                       old_entity.pos);
+World.prototype.on_player_died = function(player, old, death_cause, killer) {
+  var volume = player.is_me ? 1 : calculate_sfx_volume(this.client, 
+                                                       old.pos);
 
   this.client.sound.play('ship_die', volume);
-
-  this.animations[anim_id] = new DieAnimation(
-    old_entity.pos,
-    old_entity.angle,
-    old_entity.vel, 
-    function() {
-      delete self.animations[anim_id];
-    }
-  );
   
-  anim_id = this.anim_id_count++;
-  
-  this.animations[anim_id] = new ExplodeAnimation(
-    old_entity.pos,
-    function() {
-      delete self.animations[anim_id];
-    }
-  );
+  this.play_animation(new DieAnimation(old.pos, old.angle, old.vel));
+  this.play_animation(new ExplodeAnimation(old.pos));
   
   if (player.is_me) {
     player.death_cause = death_cause;
@@ -882,21 +867,16 @@ World.prototype.on_powerup_spawn = function(powerup) {
 }
 
 World.prototype.on_powerup_die = function(powerup, player) {
-  var self = this,
-      anim_id = this.anim_id_count++;
-  
+
   if (player.is_me) {
     this.client.sound.play('powerup_die');
   }
-
-  this.animations[anim_id] = new TextAnimation(
+  
+  this.play_animation(new TextAnimation(
     powerup.pos,
     get_powerup_color(powerup.powerup_type),
-    get_powerup_text(powerup.powerup_type),
-    function() {
-      delete self.animations[anim_id];
-    }
-  );  
+    get_powerup_text(powerup.powerup_type)
+  ));
   
 }
 
@@ -913,6 +893,18 @@ World.prototype.on_after_init = function() {
   this.PACKET_HANDLERS[PLAYER + COMMAND] = this.set_player_command;
   this.PACKET_HANDLERS[POWERUP + SPAWN] = this.spawn_powerup;
   this.PACKET_HANDLERS[POWERUP + DIE] = this.kill_powerup;
+}
+
+World.prototype.play_animation = function(animation, callback) {
+  var id = this.anim_id_count++;
+
+  this.animations.push({
+    id: id,
+    anim: animation,
+    callback: callback || function() {}
+  });
+  
+  return id;
 }
 
 World.prototype.process_world_packet = function(msg) {;
@@ -935,9 +927,10 @@ World.prototype.update_player_state = function(id, pos) {
  *  Draw all entites within viewport bounds.
  */
 World.prototype.draw = function(viewport, alpha) {
-  var entities  = this.entities, 
-      ctx       = viewport.ctx,
-      camera    = viewport.camera;
+  var entities    = this.entities,
+      animations  = this.animations,
+      ctx         = viewport.ctx,
+      camera      = viewport.camera;
   this.draw_grid(ctx, camera);
   for (var id in entities) {
     var entity = entities[id];
@@ -949,12 +942,13 @@ World.prototype.draw = function(viewport, alpha) {
       ctx.restore();
     }
   }
-  for (var anim_id in this.animations) {
-    var anim = this.animations[anim_id],
-        point = viewport.translate(anim.pos);    
+  var index = animations.length;
+  while (index--) {
+    var job = animations[index],
+        point = viewport.translate(job.anim.pos);
     ctx.save();
     ctx.translate(point[0], point[1]);
-    anim.draw(ctx);
+    job.anim.draw(ctx);
     ctx.restore();
   }
 }
@@ -1377,7 +1371,7 @@ ShieldAnimation.prototype.draw = function(ctx) {
 /**
  *  Creates a new instance of the SpawnAnimation class.
  */
-function SpawnAnimation(pos, callback) {
+function SpawnAnimation(pos) {
   var particles = new cParticleSystem();
   particles.active = true;
   particles.position = Vector.create( 0, 0 );
@@ -1400,7 +1394,7 @@ function SpawnAnimation(pos, callback) {
   this.ship_size = 0;
   this.pos = pos;
   this.particles = particles;
-  this.ondone = callback;
+  this.is_done = false;
 }
 
 /**
@@ -1417,7 +1411,7 @@ SpawnAnimation.prototype.update = function(t, dt) {
   }
   this.particles.update(5 * dt);
   if (this.particles.particleCount == 0) {
-    this.ondone();
+    this.is_done = true;
   }
 }
 
@@ -1437,7 +1431,7 @@ SpawnAnimation.prototype.draw = function(ctx) {
 /**
  *  Creates a new instance of the DieAnimation class.
  */
-function DieAnimation(pos, angle, vel, callback) {
+function DieAnimation(pos, angle, vel) {
   var cx = SHIP_WIDTH / 2, cy = SHIP_HEIGHT / 2;
   this.pieces = [
     [0, -(cy / 3), cx / 2, cy / 2, angle, Math.random()],
@@ -1450,7 +1444,7 @@ function DieAnimation(pos, angle, vel, callback) {
   this.pos = pos;
   this.vel = vel;
   this.angle = angle
-  this.ondone = callback;
+  this.is_done = false;
 }
 
 /**
@@ -1480,7 +1474,7 @@ DieAnimation.prototype.update = function(t, dt) {
       this.vel[1] = speedy;
       
     } else {
-      this.ondone();
+      this.is_done = true;
     }
   } 
   
@@ -1510,7 +1504,7 @@ DieAnimation.prototype.draw = function(ctx) {
 /**
  *  Creates a new instance of the ExplodeAnimation class.
  */
-function ExplodeAnimation(pos, callback) {
+function ExplodeAnimation(pos) {
   var particles = new cParticleSystem();
   particles.active = true;
   particles.position = Vector.create( 0, 0 );
@@ -1527,7 +1521,7 @@ function ExplodeAnimation(pos, callback) {
   particles.init();
   this.pos = pos;
   this.particles = particles;
-  this.ondone = callback;
+  this.is_done = false;
 }
 
 /**
@@ -1539,7 +1533,7 @@ function ExplodeAnimation(pos, callback) {
 ExplodeAnimation.prototype.update = function(t, dt) {
   this.particles.update(5 * dt);
   if (this.particles.particleCount == 0) {
-    this.ondone();
+    this.is_done = true;
   }
 }
 
@@ -1555,12 +1549,12 @@ ExplodeAnimation.prototype.draw = function(ctx) {
 /**
  *  Creates a new instance of the TextAnimation class.
  */
-function TextAnimation(pos, color, text, callback) {
+function TextAnimation(pos, color, text) {
   this.pos = pos;
   this.color = color;
   this.text = text;
   this.value = 0;
-  this.ondone = callback;
+  this.is_done = false;
 }
 
 /**
@@ -1572,7 +1566,7 @@ function TextAnimation(pos, color, text, callback) {
 TextAnimation.prototype.update = function(t, dt) {
   this.value += dt * 60;
   if (this.value >= 50) {
-    this.ondone();
+    this.is_done = true;
   }
 }
 
