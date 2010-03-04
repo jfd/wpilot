@@ -807,14 +807,19 @@ World.prototype.on_player_died = function(player, old, death_cause, killer) {
   var volume = player.is_me ? 1 : calculate_sfx_volume(this.client, 
                                                        old.pos);
 
+  player.death_cause = death_cause;
+  player.killed_by = killer;
+
   this.client.sound.play('ship_die', volume);
   
   this.play_animation(new DieAnimation(old.pos, old.angle, old.vel));
   this.play_animation(new ExplodeAnimation(old.pos));
   
+  if (killer.is_me) {
+    this.play_animation(new TextAnimation(old.pos, killer.color, 'score'));
+  }
+  
   if (player.is_me) {
-    player.death_cause = death_cause;
-    player.killed_by = killer;
     if (death_cause == DEATH_CAUSE_KILLED) {
       text = 'You where killed by ' + killer.name;
     } else {
@@ -1582,7 +1587,7 @@ TextAnimation.prototype.draw = function(ctx) {
 
   ctx.fillStyle = 'rgba(' + this.color + ', ' + alpha + ')';
   ctx.font = 'bold ' + size + 'px Arial';
-  draw_label(ctx, 0, 0, this.text, 'center', 400);
+  draw_label(ctx, 0, 0, this.text, 'center');
 }
 
 function get_powerup_color(type) {
