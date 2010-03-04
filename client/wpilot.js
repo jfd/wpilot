@@ -782,7 +782,9 @@ World.prototype.on_player_spawn = function(player, pos) {
   this.client.sound.play('ship_spawn', volume);
   
   this.play_animation(new SpawnAnimation(pos), function() {
+    console.log('anim, done');
     if (player.entity) {
+      console.log('show ship');
       player.entity.visible = true;
     }
   });
@@ -795,7 +797,8 @@ World.prototype.on_player_spawn = function(player, pos) {
 }
 
 World.prototype.on_player_fire = function(player, angle) {
-  var volume = player.is_me ? 1 : calculate_sfx_volume(this.client, pos);
+  var volume = player.is_me ? 1 : calculate_sfx_volume(this.client, 
+                                                       player.entity.pos);
   this.client.sound.play('bullet_spawn', volume);
 }
 
@@ -1689,7 +1692,7 @@ function draw_scoreboard(viewport, world, me) {
                                   'You took your own life';
                                   
         // Respawn timer
-        timer = player.respawn_time - world.tick;
+        timer = me.respawn_time - world.tick;
         notice = 'Respawn in ' + format_timer(timer, world.delta) + ' sec';
 
       } else {
