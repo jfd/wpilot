@@ -270,7 +270,7 @@ function start_gameserver(map_data, options, shared) {
   // Listen for events on player
   world.on_player_join = function(player) {
     broadcast_each(
-      [PLAYER + CONNECT, player.id, player.name, player.color],
+      [CLIENT + CONNECT, player.id, player.name, player.color],
       function(msg, conn) {
         if (player.id == conn.id) {
           return PRIO_PASS;
@@ -309,7 +309,7 @@ function start_gameserver(map_data, options, shared) {
   }
   
   world.on_player_leave = function(player, reason) {
-    broadcast(PLAYER + DISCONNECT, player.id, reason);
+    broadcast(CLIENT + DISCONNECT, player.id, reason);
   }
   
   world.on_powerup_spawn = function(powerup) {
@@ -508,7 +508,7 @@ function start_gameserver(map_data, options, shared) {
       disconnect_reason = reason || 'Unknown Reason';
       this.post([SERVER + DISCONNECT, disconnect_reason]);
       this.close();
-      message_queue = null;
+      message_queue = [];
     }
     
     /**
@@ -573,7 +573,7 @@ function start_gameserver(map_data, options, shared) {
             log('Debug: Sending server state to ' + conn);
           }
           
-          conn.post([SERVER + STATE, shared.get_state()]);
+          conn.post([SERVER + INFO, shared.get_state()]);
           break;
 
         case HANDSHAKING:
@@ -722,15 +722,22 @@ var process_game_message = match (
   /**
    *  Players command state has changed.
    */
-  [[CLIENT + COMMAND, Number], _, _], 
+  [[PLAYER + COMMAND, Number], _, _], 
   function(value, player, world) {
     world.set_player_command(player.id, value);
+  },
+  
+  [[PLAYER + ANGLE, Number], _, _],
+  function(value, player, world) {
+    if (!player.dead) {
+      player.entity.angle = angle;
+    }
   },
 
   /**
    *  Indicates that player is ready to start the round
    */
-  [[CLIENT + READY], _, _], function(player, world) {
+  [[PLAYER + READY], _, _], function(player, world) {
     world.set_player_ready(player.id);
   },
 

@@ -109,7 +109,7 @@ var DEFAULT_OPTIONS         = {
   hud_coords_v:         true,
   hud_energy_v:         true,
   
-  sound_enabled:        true,
+  sound_enabled:        false,
   sound_bg_volume:      0.8,
   
   log_max_messages:     3,
@@ -331,8 +331,15 @@ WPilotClient.prototype.process_user_input = function(t, dt) {
       input         = this.input;
 
   if (input.toggle('ready')) {
-    this.post_game_packet([CLIENT + READY]);
+    this.post_game_packet([PLAYER + READY]);
   } 
+  
+  // if (this.is(ROTATE_W)) angle -= dt * SHIP_ROTATION_SPEED;
+  // else if (this.is(ROTATE_E)) angle += dt * SHIP_ROTATION_SPEED;
+  // 
+  // if (angle > Math.PI) angle = -Math.PI;
+  // else if(angle < -Math.PI) angle = Math.PI;
+  
 
   if (!player.dead && player.entity.visible) {
     var new_command  = 0;
@@ -345,7 +352,7 @@ WPilotClient.prototype.process_user_input = function(t, dt) {
 
     if (new_command != player.command) {
       player.command = new_command;
-      this.post_game_packet([CLIENT + COMMAND, new_command]);
+      this.post_game_packet([PLAYER + COMMAND, new_command]);
     }
   }  
 }
@@ -658,13 +665,13 @@ var process_control_message = match (
    *  The first message recieved from server on connect. Contains the 
    *  state of the server. 
    */
-  [[SERVER + STATE, Object], _], 
+  [[SERVER + INFO, Object], _], 
   function(state, client) {
     client.set_server_state(state);
   },
   
   /**
-   *  Is received after the client has sent a CLIENT CONNET message. The message
+   *  Is received after the client has sent a CLIENT CONNECT message. The message
    *  contains all data necessary to set up the game world.
    */
   [[SERVER + HANDSHAKE, Object, Array, Array], _], 
@@ -889,8 +896,8 @@ World.prototype.on_powerup_die = function(powerup, player) {
 World.prototype.on_after_init = function() {
   this.PACKET_HANDLERS = {};
   this.PACKET_HANDLERS[WORLD + STATE] = this.set_round_state;
-  this.PACKET_HANDLERS[PLAYER + CONNECT] = this.add_player;
-  this.PACKET_HANDLERS[PLAYER + DISCONNECT] = this.remove_player;
+  this.PACKET_HANDLERS[CLIENT + CONNECT] = this.add_player;
+  this.PACKET_HANDLERS[CLIENT + DISCONNECT] = this.remove_player;
   this.PACKET_HANDLERS[PLAYER + READY] = this.set_player_ready;
   this.PACKET_HANDLERS[PLAYER + SPAWN] = this.spawn_player;
   this.PACKET_HANDLERS[PLAYER + DIE] = this.kill_player;
@@ -1669,7 +1676,7 @@ function draw_scoreboard(viewport, world, me) {
   var title  = '',
       notice = null,
       timer  = 0;
-      
+  
   // Shading
   ctx.fillStyle = 'rgba(0, 0, 0, 0.4)';
   ctx.fillRect(0, 0, viewport.w, viewport.h);
