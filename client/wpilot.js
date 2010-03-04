@@ -109,6 +109,8 @@ var DEFAULT_OPTIONS         = {
   hud_coords_v:         true,
   hud_energy_v:         true,
   
+  rotation_speed:       6,
+  
   sound_enabled:        false,
   sound_bg_volume:      0.8,
   
@@ -333,20 +335,12 @@ WPilotClient.prototype.process_user_input = function(t, dt) {
   if (input.toggle('ready')) {
     this.post_game_packet([PLAYER + READY]);
   } 
-  
-  // if (this.is(ROTATE_W)) angle -= dt * SHIP_ROTATION_SPEED;
-  // else if (this.is(ROTATE_E)) angle += dt * SHIP_ROTATION_SPEED;
-  // 
-  // if (angle > Math.PI) angle = -Math.PI;
-  // else if(angle < -Math.PI) angle = Math.PI;
-  
 
   if (!player.dead && player.entity.visible) {
-    var new_command  = 0;
+    var new_command   = 0,
+        new_angle     = player.entity.angle;
     
     if (input.on('thrust')) new_command |= THRUST;
-    if (input.on('rotate_west')) new_command |= ROTATE_W;
-    if (input.on('rotate_east')) new_command |= ROTATE_E;
     if (input.on('shield')) new_command |= SHIELD;
     if (input.on('shoot')) new_command |= SHOOT;
 
@@ -354,6 +348,24 @@ WPilotClient.prototype.process_user_input = function(t, dt) {
       player.command = new_command;
       this.post_game_packet([PLAYER + COMMAND, new_command]);
     }
+    
+    if (input.on('rotate_west')) {
+      new_angle -= dt * this.options.rotation_speed;
+    }  else if (input.on('rotate_east')) {
+      new_angle += dt * this.options.rotation_speed;
+    }
+    
+    if (new_angle != player.entity.angle) {
+      if (new_angle > Math.PI) new_angle = -Math.PI;
+      else if(new_angle < -Math.PI) new_angle = Math.PI;
+      
+      player.entity.angle = new_angle;
+      this.post_game_packet([PLAYER + ANGLE, new_angle]);
+    }
+
+    // if (this.is(ROTATE_W)) ;
+    // else if (this.is(ROTATE_E)) angle += dt * SHIP_ROTATION_SPEED;
+    // 
   }  
 }
 
@@ -730,6 +742,7 @@ var process_control_message = match (
 );
 
 Player.prototype.on_before_init = function() {
+  this.angle = 0; 
   this.rank = 1;
   this.is_me = false;
   
@@ -930,9 +943,12 @@ World.prototype.process_world_packet = function(msg) {;
   }
 }
 
-World.prototype.update_player_state = function(id, pos) {
+World.prototype.update_player_state = function(id, pos, angle) {
   var player = this.players[id];
   player.entity.pos_sv = pos;
+  if (!player.is_me) {
+    player.entity.angle = angle;
+  }
 }
 
 /**

@@ -368,7 +368,8 @@ function start_gameserver(map_data, options, shared) {
         if (player.entity) {
           connection.queue([PLAYER + STATE, 
                             player.id, 
-                            pack_vector(player.entity.pos)]);
+                            pack_vector(player.entity.pos), 
+                            player.entity.angle]);
         }
       }
     }    
@@ -730,7 +731,7 @@ var process_game_message = match (
   [[PLAYER + ANGLE, Number], _, _],
   function(value, player, world) {
     if (!player.dead) {
-      player.entity.angle = angle;
+      player.entity.angle = value;
     }
   },
 
