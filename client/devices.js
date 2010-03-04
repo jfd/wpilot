@@ -201,7 +201,9 @@ function SoundDevice(options){
   
   this.m4a = false;
   
-  if (this.supported && /AppleWebKit/.test(navigator.userAgent)) {
+  if (this.supported && 
+      /AppleWebKit/.test(navigator.userAgent) &&
+      !(/Chrome/.test(navigator.userAgent))) {
     this.use_m4a = true;
   }
 }
