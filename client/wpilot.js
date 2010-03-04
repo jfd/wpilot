@@ -17,7 +17,7 @@ var COLOR_BRIGHT    = '255, 255, 255',
     COLOR_DAWN      = '78, 78, 78',
     COLOR_DARK      = '0, 0, 0',
     COLOR_ACCENT_1  = '255, 215, 0',
-    COLOR_ACCENT_2  = '166, 219, 0';
+    COLOR_ACCENT_2  = '102, 255, 0';
     
 // Predefined canvas compatible colors
 var CANVAS_COLOR_BRIGHT   = 'rgb(' + COLOR_BRIGHT + ')',
@@ -86,7 +86,7 @@ var SOUNDS = {
   background:   [1,  ['background']],
   ship_spawn:   [3,  ['ship_spawn']],
   ship_die:     [3,  ['ship_die']],
-  bullet_spawn: [8, ['bullet_1_spawn', 'bullet_2_spawn']], 
+  bullet_spawn: [8,  ['bullet_1_spawn', 'bullet_2_spawn']], 
   powerup_spawn:[3,  ['powerup_spawn']],
   powerup_die:  [2,  ['powerup_1_die', 'powerup_2_die', 'powerup_3_die']] 
 }
