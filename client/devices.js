@@ -220,7 +220,6 @@ SoundDevice.prototype.init = function(sources) {
     while (size--) {
       var url = urls[Math.floor(Math.random() * urls.length)],
           audio = new Audio(url + (this.use_m4a ? '.m4a' : '.ogg'));
-          console.log(url + this.use_m4a);
       audio.is_free = true;
       sound.buffers.push(audio);
     }
