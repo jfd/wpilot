@@ -250,7 +250,7 @@ WPilotClient.prototype.set_viewport = function(viewport) {
         element.draw(ctx);
         ctx.restore();
       }
-      
+
       if (visible && element.alpha < 1.0) {
         element.alpha = element.alpha + 0.2 > 1.0 ? 1.0 : element.alpha + 0.2;
       } else if (!visible && element.alpha > 0) {
@@ -1714,7 +1714,8 @@ function GUIWarmupNotice(pos) {
 }
 
 GUIWarmupNotice.prototype.is_visible = function() {
-  return !this.world || !this.me || this.me.dead ? false : this.visible;
+  return !this.world || this.world.r_state != ROUND_WARMUP || !this.me || 
+         this.me.dead ? false : this.visible;
 }
 
 GUIWarmupNotice.prototype.draw = function(ctx) {
@@ -1827,7 +1828,7 @@ GUIScoreboard.prototype.draw = function(ctx) {
   draw_label(ctx, x, y, title , 'left');
   
   if (world.r_timer) {
-    timer = (state == ROUND_RUNNING) ? world.r_timer :
+    timer = (world.r_state == ROUND_RUNNING) ? world.r_timer :
                                        world.r_timer - world.tick; 
     draw_label(ctx, x + this.table_width, y, 
                format_timer(timer, world.delta), 'right');
@@ -1875,8 +1876,8 @@ GUIScoreboard.prototype.draw_row = function(ctx, pos, player) {
   var x = pos[0],
       y = pos[1],
       t = this.world.tick,
-      dt = this.world.deltaTime;      
-      
+      dt = this.world.delta;      
+
   var name = player.name + (this.world.r_state == ROUND_RUNNING &&
                             player.dead ? ' (dead)' : ''),
       score = player.score,
