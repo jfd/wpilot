@@ -1756,7 +1756,7 @@ function GUIScoreboard(pos) {
   this.table_width = null;
   this.table_height = null;
   this.margin = null;
-  this.alpha = 0;
+  this.alpha = 1;
   this.visible = true;
   this.pulse = 0;
   this.world = null;
