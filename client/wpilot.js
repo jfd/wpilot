@@ -681,7 +681,7 @@ World.prototype.on_update = function(t, dt) {
     job.anim.update(t, dt);
     if (job.anim.is_done) {
       job.callback();
-      animations.splice(index);
+      animations.splice(index, 1);
     }
   }
 }
@@ -714,9 +714,7 @@ World.prototype.on_player_spawn = function(player, pos) {
   this.client.sound.play('ship_spawn', volume);
   
   this.play_animation(new SpawnAnimation(pos), function() {
-    if (player.entity) {
-      player.entity.visible = true;
-    }
+    player.entity.visible = true;
   });
 
   if (player.is_me) {
