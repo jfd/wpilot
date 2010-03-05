@@ -142,7 +142,8 @@ function WPilotClient(options) {
   this.player             = null;
   this.conn               = null;
   this.message_log        = [];
-  this.cache              = {};
+  this.gui                = { hud: null, scoreboard: null, warmupnotice: null,
+                              netstat: null, fps: null, messages: null };
 
   this.netstat            = { 
     start_time:         null,
@@ -200,6 +201,8 @@ WPilotClient.prototype.set_world = function(world) {
   this.viewport.set_camera_pos(vector_div(world.size, 2));
   this.world = world;
   this.log('World data loaded...');
+  this.gui.scoreboard.world = world;
+  this.gui.warmupnotice.world = world;
 }
 
 /**
@@ -208,36 +211,55 @@ WPilotClient.prototype.set_world = function(world) {
  *  @return {undefined} Nothing
  */
 WPilotClient.prototype.set_viewport = function(viewport) {
+  var gui = this.gui;
   var self = this;
-  viewport.ondraw = function() {
+
+  // Initialize GUI elements
+  gui.hud = new GUIPlayerHUD([viewport.w / 2, viewport.h / 2]);
+  gui.netstat = new GUINetStat([6, 12], this.netstat);
+  gui.fps = new GUIFpsCounter([viewport.w - 6, 12], viewport);
+  gui.messages = new GUIMessageLog([6, viewport.h - 2], 
+                                   this.message_log,
+                                   this.options);
+  gui.scoreboard = new GUIScoreboard([0, 0]);
+  gui.scoreboard.set_size([viewport.w, viewport.h]);
+  gui.warmupnotice = new GUIWarmupNotice([viewport.w / 2, viewport.h - 50]);
+  
+  // Set the draw callback
+  viewport.ondraw = function(ctx) {
     var world = self.world,
         player = self.player;
 
-    if (player) {
-
+    if (player && !player.dead) {
+      viewport.set_camera_pos(player.entity.pos);
+    }
+    
+    if (world) {
       world.draw(viewport);
-
-      if (!player.dead) {
-        
-        viewport.set_camera_pos(player.entity.pos);
-        
-        self.draw_hud();
-        
-        if (world.r_state == ROUND_WARMUP) {
-          draw_warmup_notice(viewport, world, player, self.cache);
-        }
-        
-      } else { // if (world.r_state != ROUND_WARMUP)
-        
-        draw_scoreboard(viewport, world, player);
-        
-      }
-
     }
 
-    self.draw_logs();
+    // Draw GUI elements
+    for (var name in gui) {
+      var element = gui[name],
+          visible = element.is_visible();
 
+      if (element.alpha) {
+        ctx.save();
+        ctx.globalAlpha = element.alpha;
+        ctx.translate(element.pos[0], element.pos[1]);
+        element.draw(ctx);
+        ctx.restore();
+      }
+      
+      if (visible && element.alpha < 1.0) {
+        element.alpha = element.alpha + 0.2 > 1.0 ? 1.0 : element.alpha + 0.2;
+      } else if (!visible && element.alpha > 0) {
+        element.alpha = element.alpha - 0.2 < 0 ? 0 : element.alpha - 0.2;
+      }
+      
+    }
   }
+
   this.viewport = viewport;
 }
 
@@ -268,6 +290,9 @@ WPilotClient.prototype.set_sound = function(device) {
 WPilotClient.prototype.set_player = function(player) {
   player.is_me = true;
   this.player = player;
+  this.gui.hud.me = player;
+  this.gui.scoreboard.me = player;
+  this.gui.warmupnotice.me = player;
   this.log('You are now known as "' + player.name  + '"...');
 }
 
@@ -532,124 +557,6 @@ WPilotClient.prototype.post_control_packet = function(msg) {
 }
 
 /**
- *  Draws logs, which includes the message log, netstat log and fps counter.
- *  @param {String} msg The message that should be sent.
- *  @return {undefined} Nothing
- */
-WPilotClient.prototype.draw_logs = function() {
-  var ctx             = this.viewport.ctx,
-      log             = this.message_log,
-      log_index       = log.length,
-      log_count       = 0,
-      log_x           = 6,
-      log_y           = this.viewport.h - 2,
-      current_time    = get_time(),
-      max             = this.options.log_max_messages;
-
-  ctx.textBaseline = 'top';
-  ctx.font = LOG_FONT;
-  
-  while (log_index-- && ((log.length - 1) - log_index < max)) {
-    var msg = log[log_index];
-    if (!msg.disposed) {
-      var alpha = msg.time > current_time ? 0.8 :
-           0.8 + (0 - ((current_time - msg.time) / 1000));
-      if (alpha < 0.02) {
-        msg.disposed = true;
-      } 
-      ctx.fillStyle = 'rgba(255,255,255,' + alpha + ')';
-      draw_label(ctx, log_x, (log_y -= 12), msg.text, 'left');
-    }
-  }  
-  
-  if (this.options.show_netstat && this.netstat.start_time) {
-    ctx.fillStyle = LOG_COLOR;
-    var in_kps = round_number(this.netstat.bps_in / 1024, 2);
-    var out_kps = round_number(this.netstat.bps_out / 1024, 2);
-    var in_mps = round_number(this.netstat.mps_in, 2);
-    var out_mps = round_number(this.netstat.mps_out, 2);
-    var text = 'Netstat: in: ' + in_kps + 'kb/s, out: ' + out_kps + 'kb/s, ' +
-               'in: ' + in_mps + '/mps, out: ' + out_mps + '/mps';
-    draw_label(ctx, 6, 12, text, 'left');
-  }
-  
-  if (this.options.show_fps) {
-    ctx.font = LOG_FONT;
-    ctx.fillStyle = LOG_COLOR;
-    draw_label(ctx, this.viewport.w - 6, 12, 'FPS count: ' + parseInt(this.viewport.average_fps), 'right');
-  }
-}
-
-/**
- *  Draws the player HUD.
- *  @param {String} msg The message that should be sent.
- *  @return {undefined} Nothing
- */
-WPilotClient.prototype.draw_hud = function() {
-  var viewport        = this.viewport,
-      ctx             = viewport.ctx,
-      center_w        = viewport.w / 2,
-      center_h        = viewport.h / 2,
-      player          = this.player,
-      world           = this.world,
-      player_entity   = player.entity,
-      opt             = this.options;
-  
-  ctx.textAlign = 'center';
-
-  ctx.font = HUD_SMALL_FONT;
-  
-  if(opt.hud_player_score_v) {
-    var limit = this.world.r_state == ROUND_WARMUP ? '-' : this.server_state.rules.round_limit;
-    ctx.fillStyle = HUD_GREY_COLOR;
-    draw_label(ctx, center_w + 72, center_h + 55, 'Score: ' + player.score + '/' + limit, 'right', 45);
-  }
-
-  if (opt.hud_player_name_v) {
-    ctx.fillStyle = HUD_WHITE_COLOR;
-    draw_label(ctx, center_w - 72, center_h - 45, player.name, 'left', 100);
-  }
-
-  if (opt.hud_player_pos_v) {
-    var my_rank = this.player.rank;
-    var max_rank = this.world.no_players;
-    ctx.fillStyle = HUD_WHITE_COLOR;
-    draw_label(ctx, center_w + 72, center_h - 45, 'Pos ' + my_rank + '/' + max_rank, 'right', 45);
-  }
-  
-  if (opt.hud_coords_v)  {
-    ctx.fillStyle = HUD_GREY_COLOR;
-    draw_label(ctx, center_w - 72, center_h + 55, parseInt(player_entity.pos[0]) + ' x ' + parseInt(player_entity.pos[1]));
-  }    
-  
-  if (opt.hud_energy_v) {
-    draw_v_bar(ctx, center_w + 62, center_h - 37, 7, 78, player.energy);
-  }
-  
-  if (player.powerup) {
-    if (player.has_powerup(POWERUP_SPEED)) {
-      ctx.fillStyle = 'rgba(' + POWERUP_SPEED_COLOR + ',0.7)';
-      draw_label(ctx, center_w - 70, center_h -10, 'S');
-    }
-    if (player.has_powerup(POWERUP_RAPID)) {
-      ctx.fillStyle = 'rgba(' + POWERUP_RAPID_COLOR + ',0.7)';
-      draw_label(ctx, center_w - 70, center_h , 'R');
-    }
-    if (player.has_powerup(POWERUP_ENERGY)) {
-      ctx.fillStyle = 'rgba(' + POWERUP_ENERGY_COLOR + ',0.7)';
-      draw_label(ctx, center_w - 70, center_h + 10, 'E');
-    }
-  }
-
-  // Draw ship
-  ctx.save();
-  ctx.translate(center_w, center_h);
-  player_entity.draw(ctx);
-  ctx.restore();    
-
-}
-
-/**
  *  Updates the netstat object
  *  @return {undefined} Nothing
  */
@@ -840,7 +747,7 @@ World.prototype.on_player_died = function(player, old, death_cause, killer) {
   this.play_animation(new DieAnimation(old.pos, old.angle, old.vel));
   this.play_animation(new ExplodeAnimation(old.pos));
   
-  if (killer.is_me) {
+  if (killer && killer.is_me) {
     this.play_animation(new TextAnimation(old.pos, killer.color, 'score'));
   }
   
@@ -1648,19 +1555,177 @@ function get_powerup_text(type) {
   }
 }
 
-function draw_warmup_notice(viewport, world, player, cache) {
-  var ctx = viewport.ctx,
+/**
+ *  GUIPlayerHUD
+ */
+function GUIPlayerHUD(pos) {
+  this.pos = pos || [0, 0];
+  this.alpha = 0;
+  this.visible = true;
+  this.me = null;
+}
+
+GUIPlayerHUD.prototype.is_visible = function() {
+  return !this.me || this.me.dead ? false : this.visible;
+}
+
+GUIPlayerHUD.prototype.draw = function(ctx) {
+  var x        = this.pos[0],
+      y        = this.pos[1],
+      me       = this.me;
+  
+  ctx.textAlign = 'center';
+
+  ctx.font = HUD_SMALL_FONT;
+
+  // if (opt.hud_player_pos_v) {
+  //   var my_rank = this.player.rank;
+  //   var max_rank = this.world.no_players;
+  //   ctx.fillStyle = HUD_WHITE_COLOR;
+  //   draw_label(ctx, center_w + 72, center_h - 45, 'Pos ' + my_rank + '/' + max_rank, 'right', 45);
+  // }
+  // 
+  // if (opt.hud_coords_v)  {
+  //   ctx.fillStyle = HUD_GREY_COLOR;
+  //   draw_label(ctx, center_w - 72, center_h + 55, parseInt(player_entity.pos[0]) + ' x ' + parseInt(player_entity.pos[1]));
+  // }    
+  
+  draw_v_bar(ctx, 62, -37, 7, 78, me.energy);
+  
+  if (me.powerup) {
+    if (me.has_powerup(POWERUP_SPEED)) {
+      ctx.fillStyle = 'rgba(' + POWERUP_SPEED_COLOR + ',0.7)';
+      draw_label(ctx, -70, -10, 'S');
+    }
+    if (me.has_powerup(POWERUP_RAPID)) {
+      ctx.fillStyle = 'rgba(' + POWERUP_RAPID_COLOR + ',0.7)';
+      draw_label(ctx, -70, 0 , 'R');
+    }
+    if (me.has_powerup(POWERUP_ENERGY)) {
+      ctx.fillStyle = 'rgba(' + POWERUP_ENERGY_COLOR + ',0.7)';
+      draw_label(ctx, -70, 10, 'E');
+    }
+  }
+
+  // Draw ship
+  if (me.entity) {
+    me.entity.draw(ctx);    
+  }
+
+}
+
+/**
+ *  GUIMessageLog 
+ */
+function GUIMessageLog(pos, buffer, options) {
+  this.pos = pos || [0, 0];
+  this.alpha = 0;
+  this.visible = true;
+  this.buffer = buffer || null;
+  this.options = options;
+}
+
+GUIMessageLog.prototype.is_visible = function() {
+  return this.buffer == null ? false : this.visible;
+}
+
+GUIMessageLog.prototype.draw = function(ctx) {
+  var buffer = this.buffer,
+      index = buffer.length,
+      count = 0,
+      row = this.pos[1],
+      time = get_time(),
+      max = this.options.log_max_messages;
+
+  ctx.textBaseline = 'top';
+  ctx.font = LOG_FONT;
+  
+  while (index-- && ((buffer.length - 1) - index < max)) {
+    var message = buffer[index];
+    if (!message.disposed) {
+      var alpha = message.time > time ? 0.8 :
+           0.8 + (0 - ((time - message.time) / 1000));
+      if (alpha < 0.02) {
+        message.disposed = true;
+      } 
+      ctx.fillStyle = 'rgba(' + COLOR_BRIGHT + ',' + alpha + ')';
+      draw_label(ctx, 0, (row -= 12), message.text, 'left');
+    }
+  }  
+}
+
+/**
+ *  GUINetStat 
+ */
+function GUINetStat(pos, stats) {
+  this.pos = pos || [0, 0];
+  this.alpha = 0;
+  this.visible = false;
+  this.stats = stats || null;
+}
+
+GUINetStat.prototype.is_visible = function() {
+  return !this.stats.start_time ? false : this.visible;
+}
+
+GUINetStat.prototype.draw = function(ctx) {
+  var stats = this.stats;
+  ctx.fillStyle = LOG_COLOR;
+  var in_kps = round_number(stats.bps_in / 1024, 2);
+  var out_kps = round_number(stats.bps_out / 1024, 2);
+  var in_mps = round_number(stats.mps_in, 2);
+  var out_mps = round_number(stats.mps_out, 2);
+  var text = 'Netstat: in: ' + in_kps + 'kb/s, out: ' + out_kps + 'kb/s, ' +
+             'in: ' + in_mps + '/mps, out: ' + out_mps + '/mps';
+  draw_label(ctx, 0, 0, text, 'left');
+}
+
+/**
+ *  GUIFpsCounter 
+ */
+function GUIFpsCounter(pos, stats) {
+  this.pos = pos || [0, 0];
+  this.alpha = 0;
+  this.visible = true;
+  this.stats = stats || null;
+}
+
+GUIFpsCounter.prototype.is_visible = function() {
+  return this.visible;
+}
+
+GUIFpsCounter.prototype.draw = function(ctx) {
+  ctx.font = LOG_FONT;
+  ctx.fillStyle = LOG_COLOR;
+  draw_label(ctx, 0, 0, 'FPS count: ' + parseInt(this.stats.average_fps), 
+             'right');
+}
+
+/**
+ *  GUIWarmupNotice 
+ */
+function GUIWarmupNotice(pos) {
+  this.pos = pos || [0, 0];
+  this.alpha = 0;
+  this.visible = true;
+  this.pulse = 0;
+  this.world = null;
+  this.me = null;
+}
+
+GUIWarmupNotice.prototype.is_visible = function() {
+  return !this.world || !this.me || this.me.dead ? false : this.visible;
+}
+
+GUIWarmupNotice.prototype.draw = function(ctx) {
+  var world = this.world,
+      me = this.me,
       text = '',
       pulse = false;
       
-  // Initialize cache value if necessary
-  if (!cache) {
-    cache.hud_message_alpha = 0.2;
-  }
-  
   if (world.no_players == 1) {
     text = 'Waiting for more players to join...';
-  } else if (!player.ready) {
+  } else if (!me.ready) {
     text = 'Press (r) when ready';
     pulse = true;
   } else {
@@ -1673,38 +1738,60 @@ function draw_warmup_notice(viewport, world, player, cache) {
   ctx.fillStyle = CANVAS_COLOR_ACCENT_1;
   
   if (pulse) {
-    var alpha = Math.abs(Math.sin((cache.hud_message_alpha += 0.08)));
+    var alpha = Math.abs(Math.sin((this.pulse += 0.08)));
     if (alpha < 0.1) {
       alpha = 0.1;
     } 
     ctx.fillStyle = 'rgba(' + COLOR_ACCENT_1 + ',' + alpha + ')';
   }
   
-  draw_label(ctx, viewport.w / 2, viewport.h - 50, text, 'center');
-  
+  draw_label(ctx, 0, 0, text, 'center');
 }
 
-function draw_scoreboard(viewport, world, me) {
-  var ctx = viewport.ctx,
-      players = world.ranked_player_list,
-      state = world.r_state,
-      width = viewport.w * 0.8,
-      margin = (viewport.w - width) / 2,
-      height = viewport.h - margin,
-      x = margin,
-      y = margin;
-      
+/**
+ *  GUIScoreboard 
+ */
+function GUIScoreboard(pos) {
+  this.pos = pos;
+  this.size = null;
+  this.table_width = null;
+  this.table_height = null;
+  this.margin = null;
+  this.alpha = 0;
+  this.visible = true;
+  this.pulse = 0;
+  this.world = null;
+  this.me = null
+}
+
+GUIScoreboard.prototype.is_visible = function() {
+  return !this.world || !this.me || !this.me.dead ? false : this.visible;
+}
+
+GUIScoreboard.prototype.set_size = function(size) {
+  this.size = size;
+  this.table_width = this.size[0] * 0.8;
+  this.margin = (this.size[0] - this.table_width) / 2;
+  this.table_height = this.size[1] - this.margin;
+}
+
+GUIScoreboard.prototype.draw = function(ctx) {
+  var world = this.world,
+      me = this.me,
+      x = this.margin,
+      y = this.margin;
+  
   var title  = '',
       notice = null,
       timer  = 0;
-  
+
   // Shading
   ctx.fillStyle = 'rgba(0, 0, 0, 0.4)';
-  ctx.fillRect(0, 0, viewport.w, viewport.h);
+  ctx.fillRect(0, 0, this.size[0], this.size[1]);
 
   ctx.fillStyle = CANVAS_COLOR_ACCENT_1;
-      
-  switch (state) {
+
+  switch (world.r_state) {
     case ROUND_WARMUP:
       title = 'Warmup round';
       if (!me.ready) {
@@ -1735,68 +1822,73 @@ function draw_scoreboard(viewport, world, me) {
       title = 'Round won by ' + world.winner_names + ', next map starts in...';
       break;
   }
-
+  
   ctx.font = SCOREBOARD_TITLE_FONT;
   draw_label(ctx, x, y, title , 'left');
   
   if (world.r_timer) {
     timer = (state == ROUND_RUNNING) ? world.r_timer :
                                        world.r_timer - world.tick; 
-    draw_label(ctx, x + width, y, format_timer(timer, world.delta), 'right');
+    draw_label(ctx, x + this.table_width, y, 
+               format_timer(timer, world.delta), 'right');
   }
   
   // Draw heads-up notice
   if (notice) {
     ctx.font = SCOREBOARD_NOTICE_FONT;
-    draw_label(ctx, viewport.w / 2, height + margin / 2, notice, 'center');
+    draw_label(ctx, this.size[0] / 2, this.table_height + this.margin / 2, 
+                    notice, 'center');
   }
   
   ctx.font = SCOREBOARD_SUB_FONT;
   draw_label(ctx, x, (y += 20), world.map_name + 
                                 ', round limit: ' + world.rules.round_limit);
                                         
-  draw_label(ctx, x + width,  y, world.no_players + ' / ' +
+  draw_label(ctx, x + this.table_width, y, world.no_players + ' / ' +
                                  world.max_players + ' players', 'right');
   
   // Draw table header
   draw_label(ctx, (x += (SCOREBOARD_PAD * 7)), (y += 60), 'Player name');
-  draw_label(ctx, (x = margin + width), y, 'Score', 'right', 50);
+  draw_label(ctx, (x = this.margin + this.table_width), y, 'Score', 
+                  'right', 50);
   draw_label(ctx, (x -= 50), y, 'Kills', 'right', 50);
   draw_label(ctx, (x -= 50), y, 'Deaths', 'right', 50);
   draw_label(ctx, (x -= 50), y, 'Time', 'right', 50);
   draw_label(ctx, (x -= 50), y, 'Ping', 'right', 50);
   
-  var row = 0;
+  var players = world.ranked_player_list,
+      row = 0;
     
-  x = margin;    
+  x = this.margin;    
   y += 10;
   
   // Draw each table row
-  while (row < players.length && y < height) {
-    var player = players[row++],
-        ptime = format_timer(world.tick - player.time, world.delta);
-    draw_scoreboard_row(ctx, state, [x, y], width, player, ptime);
+  while (row < players.length && y < this.table_height) {
+    var player = players[row++];
+    this.draw_row(ctx, [x, y], player);
     y += 28;
   }
   
 }
 
-function draw_scoreboard_row(ctx, round_state, pos, width, player, ptime) {
+GUIScoreboard.prototype.draw_row = function(ctx, pos, player) {
   var x = pos[0],
-      y = pos[1];
+      y = pos[1],
+      t = this.world.tick,
+      dt = this.world.deltaTime;      
       
-  var name = player.name + (round_state == ROUND_RUNNING && player.dead ? 
-                                                            ' (dead)' : '') ,
+  var name = player.name + (this.world.r_state == ROUND_RUNNING &&
+                            player.dead ? ' (dead)' : ''),
       score = player.score,
       deaths = player.deaths + '(' + player.suicides + ')',
       kills = player.kills,
-      time = ptime,
+      time = format_timer(t - player.time, dt),
       ping = player.ping,
       rank = player.rank;
       
   ctx.textBaseline = 'top';
 
-  switch (round_state) {
+  switch (this.world.r_state) {
 
     case ROUND_WARMUP:
     case ROUND_STARTING:
@@ -1830,11 +1922,11 @@ function draw_scoreboard_row(ctx, round_state, pos, width, player, ptime) {
   ctx.fillStyle = player.is_me ? CANVAS_COLOR_BRIGHT : CANVAS_COLOR_DAWN;
   
   draw_label(ctx, (x += SCOREBOARD_PAD * 6), y, name);
-  draw_label(ctx, (x  = pos[0] + (width)), y, score, 'right', 50);
+  draw_label(ctx, (x  = pos[0] + (this.table_width)), y, score, 'right', 50);
   draw_label(ctx, (x -= 50), y, kills, 'right', 50);
   draw_label(ctx, (x -= 50), y, deaths, 'right', 50);
   draw_label(ctx, (x -= 50), y, time, 'right', 50);
-  draw_label(ctx, (x -= 50), y, ping, 'right', 50);
+  draw_label(ctx, (x -= 50), y, ping, 'right', 50);  
 }
 
 /**
