@@ -74,7 +74,7 @@ function ViewportDevice(target, width, height, options) {
   this.refresh_count = 0;
 
   // Event callbacks
-  this.ondraw       = function() {};
+  this.ondraw       = function(ctx) {};
   
   // Set canvas width and height
   target.width        = width;
