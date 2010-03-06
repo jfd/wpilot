@@ -377,7 +377,6 @@ function start_gameserver(map_data, options, shared) {
       if (connection.last_ping + 2000 < time) {
         connection.last_ping = time;
         connection.write(JSON.stringify([PING_PACKET]));
-        continue;
       }
       if (update_tick % connection.update_rate != 0) {
         continue;
