@@ -42,11 +42,6 @@ var FONT_NAME = 'Arial',
 
 var WARMUP_NOTICE_FONT  = [WEIGHT_HEAVY, SIZE_MEDIUM, FONT_NAME].join(' ');
     
-// GUI Fonts used in the client.
-var HUD_SMALL_FONT      = 'bold 9px Arial',
-    HUD_WHITE_COLOR     = 'rgba(255,255,255,0.8)',
-    HUD_GREY_COLOR      = 'rgba(255,255,255,0.4)';
-
 // Scoreboard
 var SCOREBOARD_PAD = 6,
     SCOREBOARD_MAR = SCOREBOARD_PAD / 2;
@@ -61,15 +56,17 @@ var SCOREBOARD_TITLE_FONT   = [WEIGHT_HEAVY, SIZE_LARGE, FONT_NAME].join(' '),
 // Scoreboard chars
 var SCOREBOARD_READY_CHAR     = '\u2714',
     SCOREBOARD_NOT_READY_CHAR = '\u2716';
-    
+
+// FPS counter and netsat
+var STATS_FONT = [WEIGHT_NORMAL, SIZE_XSMALL, FONT_NAME].join(' ');
 
 // Message log related constants.
-var LOG_AGE_LIMIT       = 100,
-    LOG_HISTORY_COUNT   = 20,
-    LOG_FONT            = '9px Arial',
-    LOG_COLOR           = 'rgba(255,255,255,0.4)';
+var MESSAGE_LOG_LENGTH    = 20;
+    MESSAGE_LOG_FONT      = [WEIGHT_NORMAL, SIZE_SMALL, FONT_NAME].join(' '),
+    MESSAGE_LOG_LIFETIME  = 150;
 
-var SHIP_FONT           = '9px Arial';
+// Font for player names
+var PLAYER_NAME_FONT  = [WEIGHT_HEAVY, SIZE_SMALL, FONT_NAME]
 
 // WPilotClient states
 var CLIENT_DISCONNECTED     = 0,
@@ -187,7 +184,7 @@ function WPilotClient(options) {
 WPilotClient.prototype.log = function(msg) {
   var buffer = this.message_log, 
       time   = get_time() + this.options.log_msg_lifetime;
-  if (buffer.length > LOG_HISTORY_COUNT) {
+  if (buffer.length > MESSAGE_LOG_LENGTH) {
     buffer.shift();
   }
   buffer.push({ text: msg, time: time, disposed: false });
@@ -1073,7 +1070,7 @@ Ship.prototype.draw = function(ctx) {
   
   if(!this.is_me){  
     ctx.rotate(-this.angle);
-    ctx.font = SHIP_FONT;
+    ctx.font = PLAYER_NAME_FONT;
   	ctx.fillStyle = 'rgb(' + this.player.color + ')';
     draw_label(ctx, 0, this.size[1] + 10, this.player.name, 'center', 100);	
   }
@@ -1609,10 +1606,6 @@ GUIPlayerHUD.prototype.draw = function(ctx) {
       y        = this.pos[1],
       me       = this.me;
   
-  ctx.textAlign = 'center';
-
-  ctx.font = HUD_SMALL_FONT;
-
   // if (opt.hud_player_pos_v) {
   //   var my_rank = this.player.rank;
   //   var max_rank = this.world.no_players;
@@ -1656,7 +1649,7 @@ function GUIMessageLog(pos, buffer, options) {
   this.pos = pos || [0, 0];
   this.alpha = 0;
   this.visible = true;
-  this.buffer = buffer || null;
+  this.buffer = buffer;
   this.options = options;
 }
 
@@ -1668,13 +1661,13 @@ GUIMessageLog.prototype.draw = function(ctx) {
   var buffer = this.buffer,
       index = buffer.length,
       count = 0,
-      row = this.pos[1],
+      row = 0,
       time = get_time(),
       max = this.options.log_max_messages;
 
   ctx.textBaseline = 'top';
-  ctx.font = LOG_FONT;
-  
+  ctx.font = MESSAGE_LOG_FONT;
+
   while (index-- && ((buffer.length - 1) - index < max)) {
     var message = buffer[index];
     if (!message.disposed) {
@@ -1705,7 +1698,8 @@ GUINetStat.prototype.is_visible = function() {
 
 GUINetStat.prototype.draw = function(ctx) {
   var stats = this.stats;
-  ctx.fillStyle = LOG_COLOR;
+  ctx.font = STATS_FONT;
+  ctx.fillStyle = CANVAS_COLOR_BRIGHT;
   var in_kps = round_number(stats.bps_in / 1024, 2);
   var out_kps = round_number(stats.bps_out / 1024, 2);
   var in_mps = round_number(stats.mps_in, 2);
@@ -1730,8 +1724,8 @@ GUIFpsCounter.prototype.is_visible = function() {
 }
 
 GUIFpsCounter.prototype.draw = function(ctx) {
-  ctx.font = LOG_FONT;
-  ctx.fillStyle = LOG_COLOR;
+  ctx.font = STATS_FONT;
+  ctx.fillStyle = CANVAS_COLOR_BRIGHT;
   draw_label(ctx, 0, 0, 'FPS count: ' + parseInt(this.stats.average_fps), 
              'right');
 }
