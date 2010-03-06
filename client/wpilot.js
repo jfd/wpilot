@@ -122,6 +122,8 @@ var DEFAULT_OPTIONS         = {
   bindings: {
     'ready':            82,
     'scoreboard':       83,
+    'netstat':          78,
+    'fps':              70,
     'rotate_west':      37,
     'rotate_east':      39,
     'thrust':           38,
@@ -359,14 +361,30 @@ WPilotClient.prototype.process_user_input = function(t, dt) {
   var player        = this.player,
       input         = this.input;
 
-  if (input.toggle('ready')) {
-    this.post_game_packet([PLAYER + READY]);
-  }
-  
   if (input.on('scoreboard')) {
     this.gui.scoreboard.visible = true;
   } else {
     this.gui.scoreboard.visible = false;
+  }
+  
+  if (input.toggle('fps')) {
+    if (this.gui.fps.visible) {
+      this.gui.fps.visible = false;
+    } else {
+      this.gui.fps.visible = true;
+    }
+  }
+
+  if (input.toggle('netstat')) {
+    if (this.gui.netstat.visible) {
+      this.gui.netstat.visible = false;
+    } else {
+      this.gui.netstat.visible = true;
+    }
+  }
+
+  if (input.toggle('ready')) {
+    this.post_game_packet([PLAYER + READY]);
   }
 
   if (!player.dead && player.entity.visible) {
@@ -413,7 +431,6 @@ WPilotClient.prototype.process_user_input = function(t, dt) {
  */
 WPilotClient.prototype.start_gameloop = function(initial_tick) {
   var self          = this,
-      player_entity = self.player.entity,
       world         = self.world,
       viewport      = self.viewport;
       
