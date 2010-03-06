@@ -501,6 +501,10 @@ WPilotClient.prototype.join = function(url) {
         
           break;
           
+        case PING_PACKET:
+          self.conn.send(JSON.stringify([PING_PACKET]));
+          break;
+          
         default:
           self.log('Recived bad packet header');
           break;
@@ -644,11 +648,6 @@ var process_control_message = match (
   [[SERVER + DISCONNECT, String], _], 
   function(reason, client) {
     client.disconnect_reason = reason;
-  },
-  
-  [[SERVER + PING], _], 
-  function(client) {
-    client.conn.send(JSON.stringify([CONTROL_PACKET, [CLIENT + PING]]));
   },
   
   function(msg) {
@@ -1896,7 +1895,7 @@ GUIScoreboard.prototype.draw_row = function(ctx, pos, player) {
       deaths = player.deaths + '(' + player.suicides + ')',
       kills = player.kills,
       time = format_timer(t - player.time, dt),
-      ping = player.ping,
+      ping = player.ping || '--',
       rank = player.rank;
       
   ctx.textBaseline = 'top';
