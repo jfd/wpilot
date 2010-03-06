@@ -646,6 +646,11 @@ var process_control_message = match (
     client.disconnect_reason = reason;
   },
   
+  [[SERVER + PING], _], 
+  function(client) {
+    client.conn.send(JSON.stringify([CONTROL_PACKET, [CLIENT + PING]]));
+  },
+  
   function(msg) {
     console.log('Unhandled message')
     console.log(msg[0]);
@@ -853,11 +858,20 @@ World.prototype.process_world_packet = function(msg) {;
   }
 }
 
-World.prototype.update_player_state = function(id, pos, angle) {
+World.prototype.update_player_state = function(id, pos, angle, ping) {
   var player = this.players[id];
-  player.entity.pos_sv = pos;
-  if (!player.is_me) {
+  if (pos) {
+    player.entity.pos_sv = pos;
+  }
+  if (!player.is_me && angle) {
     player.entity.angle = angle;
+  }
+  if (ping) {
+    if (player.ping) {
+      player.ping = parseInt(player.ping * 0.9 + ping * 0.1);
+    } else {
+      player.ping = ping;
+    }
   }
 }
 
@@ -1756,7 +1770,7 @@ function GUIScoreboard(pos) {
   this.table_width = null;
   this.table_height = null;
   this.margin = null;
-  this.alpha = 1;
+  this.alpha = 0;
   this.visible = true;
   this.pulse = 0;
   this.world = null;

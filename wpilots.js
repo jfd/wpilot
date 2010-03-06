@@ -236,7 +236,7 @@ function start_gameserver(map_data, options, shared) {
       world           = null,
       server          = null,
       conn_id         = 1,
-      post_tick       = 1,
+      update_tick       = 1,
       rules           = get_rules(DEFAULT_OPTIONS, 
                                   map_data.rules || {}, 
                                   options.rules);
@@ -370,19 +370,35 @@ function start_gameserver(map_data, options, shared) {
   }  
 
   function post_update() {
-    post_tick++;
+    var time = get_time();
+    update_tick++;
     for (var id in connections) {
       var connection = connections[id];
-      if (post_tick % connection.update_rate != 0) {
+      if (connection.last_conn_ping + 5000 < time) {
+        connection.last_conn_ping = time;
+        connection.post([SERVER + PING]);
+      }
+      if (update_tick % connection.update_rate != 0) {
         continue;
       }
       for (var id in world.players) {
         var player = world.players[id];
+        var message = [PLAYER + STATE, player.id];
         if (player.entity) {
-          connection.queue([PLAYER + STATE, 
-                            player.id, 
-                            pack_vector(player.entity.pos), 
-                            player.entity.angle]);
+          message.push(pack_vector(player.entity.pos), player.entity.angle);
+        }
+        if (update_tick % 300 == 0) {
+          if (message.length == 2) {
+            message.push(0,0);
+          }
+          var player_connection = connections[player.id];
+          message.push(player_connection.ping);
+        }
+        if (message.length > 2) {
+          if (message.length == 4) {
+            message.push(0);
+          }
+          connection.queue(message);
         }
       }
     }    
@@ -501,6 +517,8 @@ function start_gameserver(map_data, options, shared) {
     conn.rate = options.max_rate;
     conn.update_rate = 2;
     conn.last_rate_check = get_time();
+    conn.last_conn_ping = 0;
+    conn.ping = 0;
     conn.data_sent = 0;
     conn.dimensions = [640, 480];
     conn.state = IDLE;
@@ -537,7 +555,6 @@ function start_gameserver(map_data, options, shared) {
      */
     conn.post = function(data) {
       var packet = JSON.stringify([CONTROL_PACKET, data]);
-
       this.write(packet);
     }
 
@@ -720,6 +737,12 @@ var process_control_message = match (
   function(info, conn) {
     conn.set_client_info(info);
     conn.set_state(JOINED);
+  },
+  
+  [[CLIENT + PING], _],
+  function(conn)  {
+    var time = get_time();
+    conn.ping = time - conn.last_conn_ping;
   },
   
   function(data) {
