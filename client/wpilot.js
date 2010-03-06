@@ -147,7 +147,7 @@ function WPilotClient(options) {
 
   this.netstat            = { 
     start_time:         null,
-    frequence:          0.4,
+    frequence:          0.01,
     last_update:        0,
     last_received:      0, 
     bytes_received:     0, 
