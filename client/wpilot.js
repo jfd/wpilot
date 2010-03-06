@@ -739,7 +739,9 @@ World.prototype.on_player_spawn = function(player, pos) {
   this.client.sound.play('ship_spawn', volume);
   
   this.play_animation(new SpawnAnimation(pos), function() {
-    player.entity.visible = true;
+    if (player.entity) {
+      player.entity.visible = true;
+    }
   });
 
   if (player.is_me) {
