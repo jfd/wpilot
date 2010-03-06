@@ -121,6 +121,7 @@ var DEFAULT_OPTIONS         = {
   
   bindings: {
     'ready':            82,
+    'scoreboard':       83,
     'rotate_west':      37,
     'rotate_east':      39,
     'thrust':           38,
@@ -360,7 +361,13 @@ WPilotClient.prototype.process_user_input = function(t, dt) {
 
   if (input.toggle('ready')) {
     this.post_game_packet([PLAYER + READY]);
-  } 
+  }
+  
+  if (input.on('scoreboard')) {
+    this.gui.scoreboard.visible = true;
+  } else {
+    this.gui.scoreboard.visible = false;
+  }
 
   if (!player.dead && player.entity.visible) {
     var new_command   = 0,
@@ -1770,14 +1777,14 @@ function GUIScoreboard(pos) {
   this.table_height = null;
   this.margin = null;
   this.alpha = 0;
-  this.visible = true;
+  this.visible = false;
   this.pulse = 0;
   this.world = null;
   this.me = null
 }
 
 GUIScoreboard.prototype.is_visible = function() {
-  return !this.world || !this.me || !this.me.dead ? false : this.visible;
+  return this.visible || (this.world && this.me && this.me.dead) || false;
 }
 
 GUIScoreboard.prototype.set_size = function(size) {
