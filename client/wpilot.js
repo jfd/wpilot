@@ -109,7 +109,7 @@ var DEFAULT_OPTIONS         = {
   
   rotation_speed:       6,
   
-  sound_enabled:        true,
+  sound_enabled:        false,
   sound_bg_volume:      0.8,
   
   log_max_messages:     3,
@@ -770,8 +770,8 @@ World.prototype.on_player_died = function(player, old, death_cause, killer) {
   this.play_animation(new DieAnimation(old.pos, old.angle, old.vel));
   this.play_animation(new ExplodeAnimation(old.pos));
   
-  if (killer && killer.is_me) {
-    this.play_animation(new TextAnimation(old.pos, killer.color, 'score'));
+  if (killer && killer.is_me && killer.entity) {
+    this.play_animation(new TextAnimation(killer.entity.pos, COLOR_ACCENT_1, '+1'));
   }
   
   if (player.is_me) {
