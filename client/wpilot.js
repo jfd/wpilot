@@ -146,7 +146,7 @@ var DEFAULT_OPTIONS         = {
   rotation_speed:       6,
   rotation_acc:         0.5,
   
-  sound_enabled:        false,
+  sound_enabled:        true,
   sound_bg_volume:      0.8,
   
   log_max_messages:     6,
