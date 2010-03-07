@@ -393,8 +393,9 @@ function start_gameserver(map_data, options, shared) {
         }
         connection.queue(message);
         if (update_tick % 200 == 0) {
+          sys.puts('ping');
           var player_connection = connections[player.id];
-          connection.queue([PLAYER + INFO, player_connection.ping]);
+          connection.queue([PLAYER + INFO, player.id, player_connection.ping]);
         }
         
       }
