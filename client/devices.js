@@ -21,7 +21,7 @@ function KeyboardDevice(target, options) {
 
   target.onkeypress = function(e) {
     if (self.onkeypress) {
-      self.onkeypress(e.keyCode);
+      self.onkeypress(e.keyCode || e.which);
       e.preventDefault();
     }
   };
