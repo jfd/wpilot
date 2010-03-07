@@ -144,6 +144,7 @@ var DEFAULT_OPTIONS         = {
   hud_energy_v:         true,
   
   rotation_speed:       6,
+  rotation_acc:         0.5,
   
   sound_enabled:        false,
   sound_bg_volume:      0.8,
@@ -204,6 +205,8 @@ function WPilotClient(options) {
   this.handshaked         = false;
   this.is_connected       = false;
   this.disconnect_reason  = null;
+  this.current_r          = 0;
+  this.last_r             = 0;
   
   // Event callbacks
   this.onconnect          = function() {};
@@ -469,9 +472,26 @@ WPilotClient.prototype.process_user_input = function(t, dt) {
     }
     
     if (input.on('rotate_west')) {
-      new_angle -= dt * this.options.rotation_speed;
+      if (this.last_r != -1) {
+        this.last_r = -1;
+        this.current_r = 0;
+      }
+      if (this.current_r > -this.options.rotation_speed) {
+        this.current_r -= this.options.rotation_acc;
+      } 
+      new_angle += dt * this.current_r;
     }  else if (input.on('rotate_east')) {
-      new_angle += dt * this.options.rotation_speed;
+      if (this.last_r != 1) {
+        this.last_r = 1;
+        this.current_r = 0;
+      }
+      if (this.current_r < this.options.rotation_speed) {
+        this.current_r += this.options.rotation_acc;
+      } 
+      new_angle += dt * this.current_r;
+    } else {
+      this.last_r = -1;
+      this.current_r = 0;
     }
     
     if (new_angle != player.entity.angle) {
