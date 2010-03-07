@@ -124,8 +124,6 @@ var DEFAULT_OPTIONS         = {
   bindings: {
     'ready':            82,
     'scoreboard':       83,
-    'netstat':          78,
-    'fps':              70,
     'rotate_west':      37,
     'rotate_east':      39,
     'thrust':           38,
@@ -416,14 +414,6 @@ WPilotClient.prototype.process_user_input = function(t, dt) {
     this.gui.scoreboard.visible = true;
   } else {
     this.gui.scoreboard.visible = false;
-  }
-  
-  if (input.toggle('fps')) {
-    this.gui.fps.visible = !this.gui.fps.visible;
-  }
-
-  if (input.toggle('netstat')) {
-    this.gui.netstat.visible = !this.gui.netstat.visible;
   }
 
   if (input.toggle('ready')) {
@@ -731,6 +721,14 @@ var COMMANDS = match (
   
   [_, 'ready'], function(client) {
     client.post_game_packet([CLIENT + SET, 'ready']);
+  },
+  
+  [_, 'fps'], function(client) {
+    client.gui.fps.visible = !client.gui.fps.visible;
+  },
+
+  [_, 'netstat'], function(client) {
+    client.gui.netstat.visible = !client.gui.netstat.visible;
   },
   
   function(pattern) {
