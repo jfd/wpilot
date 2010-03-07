@@ -485,6 +485,7 @@ function start_gameserver(map_data, options, shared) {
     conn.player_name = null;
     conn.rate = options.max_rate;
     conn.update_rate = 2;
+    conn.max_rate = options.max_rate;
     conn.last_rate_check = get_time();
     conn.last_ping = 0;
     conn.ping = 0;
@@ -726,6 +727,11 @@ var process_control_message = match (
     } else {
       conn.chat(message);
     }
+  },
+  
+  [[CLIENT + SET, 'rate', Number], {'state =': JOINED}], 
+  function(rate, conn) {
+    conn.rate = Math.min(rate, conn.max_rate);
   },
   
   function(data) {

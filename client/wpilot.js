@@ -761,6 +761,14 @@ var COMMANDS = match (
   [_, 'netstat'], function(client) {
     client.gui.netstat.visible = !client.gui.netstat.visible;
   },
+
+  [_, 'rate', String], function(client, value) {
+    var rate = parseInt(value);
+    if (rate > 0) {
+      client.post_control_packet([CLIENT + SET, 'rate', rate]);
+      client.log('Setting "rate" is now ' + rate);
+    }
+  },
   
   function(pattern) {
     pattern[0].log('Command not found or wrong no of arguments', COLOR_ACCENT_1);
