@@ -210,12 +210,12 @@ WPilotClient.prototype.log = function(msg, color) {
  *  @return {undefined} Nothing
  */
 WPilotClient.prototype.exec = function() {
-  this.log('Command not found');
+  COMMANDS.call(null, [this].concat(Array.prototype.slice.call(arguments)));
 }
 
 /**
  *  Sends a chat message
- *  @param command {String} command to execute
+ *  @param message {String} message to send
  *  @return {undefined} Nothing
  */
 WPilotClient.prototype.chat = function(message) {
@@ -427,7 +427,7 @@ WPilotClient.prototype.process_user_input = function(t, dt) {
   }
 
   if (input.toggle('ready')) {
-    this.post_game_packet([PLAYER + READY]);
+    this.post_game_packet([CLIENT + SET, 'ready']);
   }
 
   if (!player.dead && player.entity.visible) {
@@ -724,6 +724,20 @@ var process_control_message = match (
   
 );
 
+var COMMANDS = match (
+  [_, 'name', String], function(client, new_name) {
+    client.post_game_packet([CLIENT + SET, 'name', new_name]);
+  },
+  
+  [_, 'ready'], function(client) {
+    client.post_game_packet([CLIENT + SET, 'ready']);
+  },
+  
+  function(pattern) {
+    pattern[0].log('Command not found or wrong no of arguments', COLOR_ACCENT_1);
+  }
+)
+
 Player.prototype.on_before_init = function() {
   this.angle = 0; 
   this.rank = 1;
@@ -849,6 +863,13 @@ World.prototype.on_player_ready = function(player) {
 }
 
 /**
+ * Callback for player name changed
+ */
+World.prototype.on_player_name_changed = function(player, new_name, old_name) {
+  this.client.log('"' + old_name + '" is now known as "' + new_name + '"');
+}
+
+/**
  * Callback for round state changed
  */
 World.prototype.on_round_state_changed = function(state, winners) {
@@ -891,14 +912,14 @@ World.prototype.on_powerup_die = function(powerup, player) {
 
 World.prototype.on_after_init = function() {
   this.PACKET_HANDLERS = {};
-  this.PACKET_HANDLERS[WORLD + STATE] = this.set_round_state;
+  this.PACKET_HANDLERS[WORLD + INFO] = this.set_round_state;
   this.PACKET_HANDLERS[CLIENT + CONNECT] = this.add_player;
   this.PACKET_HANDLERS[CLIENT + DISCONNECT] = this.remove_player;
-  this.PACKET_HANDLERS[PLAYER + READY] = this.set_player_ready;
+  this.PACKET_HANDLERS[PLAYER + INFO] = this.update_player_info;
   this.PACKET_HANDLERS[PLAYER + SPAWN] = this.spawn_player;
   this.PACKET_HANDLERS[PLAYER + DIE] = this.kill_player;
   this.PACKET_HANDLERS[PLAYER + FIRE] = this.fire_player_canon;
-  this.PACKET_HANDLERS[PLAYER + STATE] = this.update_player_state;
+  this.PACKET_HANDLERS[PLAYER + POS] = this.update_player_pos;
   this.PACKET_HANDLERS[PLAYER + COMMAND] = this.set_player_command;
   this.PACKET_HANDLERS[PLAYER + CHAT] = this.player_chat;
   this.PACKET_HANDLERS[POWERUP + SPAWN] = this.spawn_powerup;
@@ -927,20 +948,30 @@ World.prototype.process_world_packet = function(msg) {;
   }
 }
 
-World.prototype.update_player_state = function(id, pos, angle, ping) {
+World.prototype.update_player_info = function(id, ping, ready, name) {
   var player = this.players[id];
-  if (pos) {
-    player.entity.pos_sv = pos;
-  }
-  if (!player.is_me && angle) {
-    player.entity.angle = angle;
-  }
   if (ping) {
     if (player.ping) {
       player.ping = parseInt(player.ping * 0.9 + ping * 0.1);
     } else {
       player.ping = ping;
     }
+  }
+  if (ready) {
+    this.set_player_ready(id);
+  }
+  if (name) {
+    this.set_player_name(id, name);
+  }
+}
+
+World.prototype.update_player_pos = function(id, pos, angle) {
+  var player = this.players[id];
+  if (pos) {
+    player.entity.pos_sv = pos;
+  }
+  if (!player.is_me && angle) {
+    player.entity.angle = angle;
   }
 }
 

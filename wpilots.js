@@ -277,7 +277,7 @@ function start_gameserver(map_data, options, shared) {
   
   // Listen for round state changes
   world.on_round_state_changed = function(state, winners) {
-    broadcast(WORLD + STATE, state, winners);
+    broadcast(WORLD + INFO, state, winners);
   }
 
   // Listen for events on player
@@ -302,7 +302,11 @@ function start_gameserver(map_data, options, shared) {
   }
   
   world.on_player_ready = function(player) {
-    broadcast(PLAYER + READY, player.id);
+    broadcast(PLAYER + INFO, player.id, 0, true);
+  }
+
+  world.on_player_name_changed = function(player, new_name, old_name) {
+    broadcast(PLAYER + INFO, player.id, 0, 0, new_name);
   }
   
   world.on_player_command = function(player, command) {
@@ -383,23 +387,16 @@ function start_gameserver(map_data, options, shared) {
       }
       for (var id in world.players) {
         var player = world.players[id];
-        var message = [PLAYER + STATE, player.id];
+        var message = [PLAYER + POS, player.id];
         if (player.entity) {
           message.push(pack_vector(player.entity.pos), player.entity.angle);
         }
+        connection.queue(message);
         if (update_tick % 200 == 0) {
-          if (message.length == 2) {
-            message.push(0,0);
-          }
           var player_connection = connections[player.id];
-          message.push(player_connection.ping);
+          connection.queue([PLAYER + INFO, player_connection.ping]);
         }
-        if (message.length > 2) {
-          if (message.length == 4) {
-            message.push(0);
-          }
-          connection.queue(message);
-        }
+        
       }
     }    
   }
@@ -772,6 +769,16 @@ var process_control_message = match (
  */
 var process_game_message = match (
 
+  [[CLIENT + SET, 'ready'], _, _], 
+  function(player, world) {
+    world.set_player_ready(player.id);
+  },
+
+  [[CLIENT + SET, 'name', String], _, _], 
+  function(name, player, world) {
+    world.set_player_name(player.id, name);
+  },
+
   /**
    *  Players command state has changed.
    */
@@ -785,13 +792,6 @@ var process_game_message = match (
     if (!player.dead) {
       player.entity.angle = value;
     }
-  },
-
-  /**
-   *  Indicates that player is ready to start the round
-   */
-  [[PLAYER + READY], _, _], function(player, world) {
-    world.set_player_ready(player.id);
   },
 
   /**
