@@ -149,38 +149,6 @@ const CLIENT_DATA = [
   'client/crossdomain.xml' 
 ];
 
-// Player colors
-const PLAYER_COLORS = [
-  '255,176,0',
-  '51,182,255',
-  '172,48,224',
-  '230,21,90',
-  '166,219,0',
-  '125,142,22',
-  '244,52, 0',
-  '199,244,136',
-  '227,111,160',
-  '63,140,227',
-  '227,126,76',
-  '134,213,227'
-];
-
-// Player names
-const PLAYER_NAMES = [
-  'Boba Fett', 
-  'Han Solo', 
-  'Luke Skywalker', 
-  'Princess Leia',
-  'R2-D2',
-  'C-3PO',
-  'Chewbacca',
-  'Darth Vader',
-  'Lando',
-  'Yoda',
-  'Teboo',
-  'Admiral Ackbar'
-];
-
 /**
  *  Entry point for server.
  *  @returns {undefined} Nothing.
@@ -236,7 +204,7 @@ function start_gameserver(map_data, options, shared) {
       world           = null,
       server          = null,
       conn_id         = 1,
-      update_tick       = 1,
+      update_tick     = 1,
       rules           = get_rules(DEFAULT_OPTIONS, 
                                   map_data.rules || {}, 
                                   options.rules);
@@ -282,8 +250,9 @@ function start_gameserver(map_data, options, shared) {
 
   // Listen for events on player
   world.on_player_join = function(player) {
+    player.name = get_unique_name(world.players, player.id, player.name);
     broadcast_each(
-      [CLIENT + CONNECT, player.id, player.name, player.color],
+      [CLIENT + CONNECT, player.id, player.name],
       function(msg, conn) {
         if (player.id == conn.id) {
           return PRIO_PASS;
@@ -306,7 +275,8 @@ function start_gameserver(map_data, options, shared) {
   }
 
   world.on_player_name_changed = function(player, new_name, old_name) {
-    broadcast(PLAYER + INFO, player.id, 0, 0, new_name);
+    player.name = get_unique_name(world.players, player.id, new_name);
+    broadcast(PLAYER + INFO, player.id, 0, 0, player.name);
   }
   
   world.on_player_command = function(player, command) {
@@ -393,7 +363,6 @@ function start_gameserver(map_data, options, shared) {
         }
         connection.queue(message);
         if (update_tick % 200 == 0) {
-          sys.puts('ping');
           var player_connection = connections[player.id];
           connection.queue([PLAYER + INFO, player.id, player_connection.ping]);
         }
@@ -505,10 +474,12 @@ function start_gameserver(map_data, options, shared) {
    *  @return {undefined} Nothing
    */
   server = ws.createServer(function(conn) {
-    var connection_id     = conn_id++,
+    var connection_id     = 0,
         disconnect_reason = 'Closed by client',
         message_queue     = [],
         player            = null;
+        
+    while (connections[++connection_id]);
     
     conn.id = connection_id;
     conn.player_name = null;
@@ -633,11 +604,9 @@ function start_gameserver(map_data, options, shared) {
         case JOINED:
           // BE CAREFUL WITH THIS. Position of conn.post has changed with 
           // on_player_join broadcast
-          player = world.add_player(connection_id, 
-                                    conn.player_name || get_random_value(PLAYER_NAMES, world.players, 'name'), 
-                                    get_random_value(PLAYER_COLORS, world.players, 'color'));
+          player = world.add_player(connection_id, conn.player_name);
 
-          conn.post([SERVER + CONNECT, world.tick, player.id, player.name, player.color]);
+          conn.post([SERVER + CONNECT, world.tick, player.id, player.name]);
           
           log(conn + ' joined the game.');
           break;
@@ -852,27 +821,6 @@ function get_rules(default_rules, map_rules, user_rules) {
   return process.mixin(rules, process.mixin(map_rules, user_rules)); 
 }
 
-/**
- *  Returns a random value from an array and discards values that is already
- *  picked. 
- *  @param {Array} src Source array.
- *  @param {Array} list An array that contains objects that already has been  
-                        assigned a value.
- *  @param {String} prop_name The name of the property to check against. 
- *  @return {Object} The value
- */
-function get_random_value(src, list, prop_name) {
-  var value = null, count = 0;
-  while (!value && count++ <= src.length) {
-    value = src[Math.floor(Math.random() * src.length)];
-    src.forEach(function(item){
-      if (item[prop_name] == value) value = null;
-    });
-    if (value) return value;
-  }
-  return src[0];
-}
-
 
 /**
  *  Parses and returns server options from ARGV.
@@ -895,6 +843,26 @@ function parse_options() {
   });      
   parser.parse(process.ARGV);
   return parser._halt ? null : process.mixin(DEFAULT_OPTIONS, result);
+}
+
+function get_unique_name(players, player_id, name) {
+  var count = 0;
+  var unique_name = name;
+  while (true) {
+    for (var id in players) {
+      if (player_id == id) {
+        continue;
+      }
+      if (players[id].name != unique_name) {
+        return unique_name;
+      }
+      count++
+    }
+    if (count == 0) {
+      return name;
+    } 
+    unique_name += '_';
+  }
 }
 
 /**

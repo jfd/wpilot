@@ -25,7 +25,38 @@ var CANVAS_COLOR_BRIGHT   = 'rgb(' + COLOR_BRIGHT + ')',
     CANVAS_COLOR_DARK     = 'rgb(' + COLOR_DARK + ')';
     CANVAS_COLOR_ACCENT_1 = 'rgb(' + COLOR_ACCENT_1 + ')';
     CANVAS_COLOR_ACCENT_2 = 'rgb(' + COLOR_ACCENT_2 + ')';
-    
+
+var PLAYER_COLORS = {
+  1: '255,176,0',
+  2: '51,182,255',
+  3: '172,48,224',
+  4: '230,21,90',
+  5: '166,219,0',
+  6: '125,142,22',
+  7: '244,52, 0',
+  8: '199,244,136',
+  9: '227,111,160',
+  10: '63,140,227',
+  11: '227,126,76',
+  12: '134,213,227'
+}
+
+// Player names
+var PLAYER_NAMES = [
+  'Boba Fett', 
+  'Han Solo', 
+  'Luke Skywalker', 
+  'Princess Leia',
+  'R2-D2',
+  'C-3PO',
+  'Chewbacca',
+  'Darth Vader',
+  'Lando',
+  'Yoda',
+  'Teboo',
+  'Admiral Ackbar'
+];
+
 // Font variations
 var FONT_NAME = 'Arial',
 
@@ -361,7 +392,7 @@ WPilotClient.prototype.set_state = function(state) {
     case CLIENT_CONNECTED:
       this.log('Joined server ' + this.conn.URL + '...');
       this.post_control_packet([CLIENT + HANDSHAKE, {
-        name: this.options.name,
+        name: this.options.name || get_random_value(PLAYER_NAMES),
         rate: this.options.rate,
         dimensions: [this.viewport.w, this.viewport.h] 
       }]);  
@@ -692,9 +723,9 @@ var process_control_message = match (
     client.set_state(CLIENT_CONNECTED);
   },
   
-  [[SERVER + CONNECT, Number, Number, String, String], _],
-  function(tick, id, name, color, client) {
-    var player = client.world.add_player(id, name, color);
+  [[SERVER + CONNECT, Number, Number, String], _],
+  function(tick, id, name, client) {
+    var player = client.world.add_player(id, name);
     client.set_player(player);
     client.start_gameloop(tick);
   },
@@ -744,6 +775,10 @@ Player.prototype.on_before_init = function() {
   // Used by score board to write information
   this.death_cause = 0;
   this.killed_by = null;
+}
+
+Player.prototype.on_after_init = function() {
+  this.color = PLAYER_COLORS[this.id] || COLOR_BRIGHT;
 }
 
 World.prototype.on_before_init = function() {
@@ -2169,6 +2204,15 @@ function format_timer(value, delta) {
   seconds = seconds < 0 ? 0 : seconds - minutes * 60;
 
   return minutes + ':' + (seconds < 10 ? '0' + seconds : seconds);
+}
+
+/**
+ *  Returns a random value from specified Array
+ *  @param {Array} src Source array.
+ *  @return {Object} The value
+ */
+function get_random_value(src) {
+  return src[Math.floor(Math.random() * src.length)];
 }
 
 /**
