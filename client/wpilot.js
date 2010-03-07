@@ -2063,8 +2063,16 @@ GUIPrompt.prototype.draw = function(ctx) {
   ctx.fillStyle = CANVAS_COLOR_ACCENT_1;
   ctx.font = PROMPT_FONT;
   ctx.textBaseline = 'top';
-  
-  draw_label(ctx, this.margin + 4, 4, this.buffer + PROMPT_CURSOR);
+
+  var clip_width = this.size[0] - (this.margin * 2) - 8;
+  var text_width = ctx.measureText(this.buffer + PROMPT_CURSOR).width;
+  var text_pos = text_width > clip_width ? 
+                    (this.margin + 4) - (text_width - clip_width) : 
+                    (this.margin + 4);
+  ctx.beginPath();
+  ctx.rect(this.margin + 4, 4, clip_width, this.size[1] - 8);
+  ctx.clip();
+  draw_label(ctx, text_pos, 4, this.buffer + PROMPT_CURSOR);
 }
 
 /**
