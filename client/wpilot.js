@@ -2112,7 +2112,28 @@ GUIPrompt.prototype.handle_key_stroke = function(char) {
       break;
     case 13:
       if (this.buffer.length > 1 && this.buffer[0] == '/') {
-        this.oncommand.apply(null, this.buffer.substr(1).split(' '));
+        var args = [],
+            word = '',
+            smode = false,
+            count = 0;
+
+        for (var i = 1; i < this.buffer.length; i++) {
+          var char = this.buffer[i];
+          if (char == '"') {
+            smode = !smode;
+          } else if (char == ' ' && !smode) {
+            args.push(word),
+            word = '';
+          } else {
+            word += char;
+          }
+        }
+        
+        if (word.length) {
+          args.push(word);
+        }
+
+        this.oncommand.apply(null, args);
       } else if (this.buffer.length) {
         this.onchat(this.buffer);
       }
