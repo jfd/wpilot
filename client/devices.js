@@ -31,7 +31,7 @@ function KeyboardDevice(target, options) {
   };
 
   target.onkeyup = function(e) {
-    if(key_states[e.keyCode] == 1) key_states[e.keyCode] = 0;
+    if(key_states[e.keyCode] > 0) key_states[e.keyCode] = 0;
   };
 }
 
@@ -53,8 +53,8 @@ KeyboardDevice.prototype.on = function(name) {
  */
 KeyboardDevice.prototype.toggle = function(name) {
   var key = this.bindings[name];
-  if (this.key_states[key]) {
-    this.key_states[key] = 0;
+  if (this.key_states[key] == 1) {
+    this.key_states[key] = 2;
     return 1;
   }
   return 0;
