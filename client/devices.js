@@ -4,11 +4,13 @@
  *  @param {Object} options Options with .bindings
  */
 function KeyboardDevice(target, options) {
+  var self = this;
   var key_states = this.key_states = {};
   this.target = target;
-  this.bindings = options.bindings
+  this.bindings = options.bindings;
+  this.onkeypress = null;
   
-  for (var i=16; i < 128; i++) {
+  for (var i=0; i < 255; i++) {
     key_states[i] = 0;
   }
   
@@ -16,6 +18,13 @@ function KeyboardDevice(target, options) {
   key_states['ctrl'] = 0;
   key_states['alt'] = 0;
   key_states['meta'] = 0;
+
+  target.onkeypress = function(e) {
+    if (self.onkeypress) {
+      self.onkeypress(e.keyCode);
+      e.preventDefault();
+    }
+  };
   
   target.onkeydown = function(e) {
     if(key_states[e.keyCode] == 0) key_states[e.keyCode] = 1;

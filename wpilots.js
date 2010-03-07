@@ -532,6 +532,15 @@ function start_gameserver(map_data, options, shared) {
       conn.player_name = info.name;
       conn.dimensions = info.dimensions;
     }
+
+    /**
+     *  Sends a chat message 
+     */
+    conn.chat = function(message) {
+      if (player) {
+        broadcast(PLAYER + CHAT, player.id, message);
+      }
+    }
     
     /**
      *  Forces a connection to be disconnected. 
@@ -741,6 +750,15 @@ var process_control_message = match (
   function(info, conn) {
     conn.set_client_info(info);
     conn.set_state(JOINED);
+  },
+
+  [[CLIENT + CHAT, String], {'state =': JOINED}], 
+  function(message, conn) {
+    if (message.length > 200) {
+      conn.kill('Bad chat message');
+    } else {
+      conn.chat(message);
+    }
   },
   
   function(data) {
