@@ -972,6 +972,15 @@ World.prototype.on_round_state_changed = function(state, winners) {
 World.prototype.on_powerup_spawn = function(powerup) {
   var volume = calculate_sfx_volume(this.client, powerup.pos);
   this.client.sound.play('powerup_spawn', volume);
+  
+  this.play_animation(new PowerupSpawnAnimation(
+    powerup.pos, 
+    powerup.size,
+    powerup.color
+  ), function() {
+    powerup.visible = true;
+  });
+  
 }
 
 World.prototype.on_powerup_die = function(powerup, player) {
@@ -1365,9 +1374,12 @@ Powerup.prototype.on_after_init = function() {
   this.pulse = 0;
   this.color = get_powerup_color(this.powerup_type);
   this.ch = get_powerup_text(this.powerup_type)[0];
+  this.visible = false;
 }
 
 Powerup.prototype.update = function(t, dt) {
+  if (!this.visible) return;
+  
   this.pulse += (dt * 6);
   
   if (this.pulse > 20) {
@@ -1379,6 +1391,7 @@ Powerup.prototype.update = function(t, dt) {
  *  Draws the Powerup instance
  */
 Powerup.prototype.draw = function(ctx) {
+  if (!this.visible) return;
   var color = this.color,
       text_alpha = 1 - ((this.pulse * 8) / 100),
       outer_alpha = 0.7 - ((this.pulse * 5) / 100),
@@ -1719,6 +1732,48 @@ TextAnimation.prototype.draw = function(ctx) {
   ctx.font = 'bold ' + size + 'px Arial';
   draw_label(ctx, 0, 0, this.text, 'center');
 }
+
+/**
+ *  Constructor for PowerupSpawnAnimation instance.
+ */
+function PowerupSpawnAnimation(pos, size, color) {
+  this.alpha = 0;
+  this.color = color;
+  this.pos = pos;
+  this.size = size;
+  this.is_done = false;
+}
+
+/**
+ *  Updates the PowerupSpawnAnimation instance.
+ *  @param {Number} t Current world time.
+ *  @param {Number} dt Current delta time,
+ *  @return {undefined} Nothing
+ */
+PowerupSpawnAnimation.prototype.update = function(t, dt) {
+  this.alpha += dt;
+  if (this.alpha >= 0.8) {
+    this.is_done = true;
+  }
+}
+
+/**
+ *  Draws the PowerupSpawnAnimation instance on specified context.
+ *  @param {Context2D} ctx The context to draw on.
+ *  @return {undefined} Nothing
+ */
+PowerupSpawnAnimation.prototype.draw = function(ctx) {
+  var color = this.color,
+      alpha = this.alpha,
+      radius = this.size[0] / 1.8;
+      
+  ctx.beginPath();
+  ctx.lineWidth = 1.5;
+  ctx.strokeStyle = 'rgba(' + color + ', ' + alpha + ')';
+  ctx.arc(0, 0, radius, 0, Math.PI / 180, true);
+  ctx.stroke();
+}
+
 
 function get_powerup_color(type) {
   switch (type) {
