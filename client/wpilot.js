@@ -413,8 +413,8 @@ WPilotClient.prototype.set_state = function(state) {
       this.stop_gameloop();
       
       this.log('You where disconnected from server ' +
-                this.disconnect_reason ? '(Reason: ' + this.disconnect_reason + ').' :
-                '');
+                this.disconnect_reason ? 
+                '(Reason: ' + this.disconnect_reason + ').' : '');
       break;
     
   }
@@ -533,7 +533,8 @@ WPilotClient.prototype.start_gameloop = function(initial_tick) {
   }
 
   this.viewport.set_autorefresh(false);
-  this.netstat.start_time = this.netstat.last_update = this.netstat.last_received = get_time();
+  this.netstat.start_time = this.netstat.last_update = 
+                            this.netstat.last_received = get_time();
   gameloop.start();
   self.gameloop = gameloop;
   return gameloop;
@@ -757,6 +758,14 @@ var process_control_message = match (
   function(reason, client) {
     client.disconnect_reason = reason;
   },
+
+  /**
+   *  Is recieved when disconnected from server.
+   */
+  [[SERVER + EXEC_RESP, String], _], 
+  function(message, client) {
+    client.log(message);
+  },
   
   function(msg) {
     console.log('Unhandled message')
@@ -788,6 +797,14 @@ var COMMANDS = match (
       client.post_control_packet([CLIENT + SET, 'rate', rate]);
       client.log('Setting "rate" is now ' + rate);
     }
+  },
+
+  [_, 'auth', String], function(client, password) {
+    client.post_control_packet([CLIENT + EXEC, 'auth', password]);
+  },
+
+  [_, 'kick', String, String], function(client, name, reason) {
+    client.post_control_packet([CLIENT + EXEC, 'kick', name, reason]);
   },
   
   function(pattern) {

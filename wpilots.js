@@ -59,6 +59,7 @@ const SWITCHES = [
   ['-H', '--help',                'Shows this help section'],
   ['--name NAME',                 'The name of the server.'],
   ['--host HOST',                 'The host adress (default: 127.0.0.1).'],
+  ['--admin_password PASSWORD',   'Admin password (default: "none").'],
   ['--map PATH',                  'Path to world map (default: built-in map).'],
   ['--pub_host HOST',             'Set if the public host differs from the local one'],
   ['--http_port PORT',            'Port number for the HTTP server (default: 6114)'],
@@ -86,6 +87,7 @@ const DEFAULT_OPTIONS = {
   debug:                true, 
   name:                 'WPilot Server',
   host:                 '127.0.0.1',
+  admin_password:       null,
   map:                  null, 
   pub_host:             null,
   http_port:            6114,
@@ -483,6 +485,7 @@ function start_gameserver(map_data, options, shared) {
     
     conn.id = connection_id;
     conn.player_name = null;
+    conn.is_admin = false;
     conn.rate = options.max_rate;
     conn.update_rate = 2;
     conn.max_rate = options.max_rate;
@@ -509,6 +512,31 @@ function start_gameserver(map_data, options, shared) {
     conn.chat = function(message) {
       if (player) {
         broadcast(PLAYER + CHAT, player.id, message);
+      }
+    }
+    
+    conn.auth = function(password) {
+      conn.is_admin = password == options.admin_password ? true : false;
+      return conn.is_admin;
+    }
+    
+    conn.exec = function() {
+      if (!conn.is_admin) {
+        return 'You need admin privileges in order to perform server commands';
+      }
+      var args = Array.prototype.slice.call(arguments);
+      var command = args.shift();
+      switch (command) {
+        case 'kick':
+          var name = args.shift();
+          var reason = args.shift();
+          world.forEachPlayer(function(player) {
+            if (player.name == name) {
+              connections[player.id].kill(reason);
+              return "Player kicked";
+            }
+          })
+          return "Player not found";
       }
     }
     
@@ -732,6 +760,21 @@ var process_control_message = match (
   [[CLIENT + SET, 'rate', Number], {'state =': JOINED}], 
   function(rate, conn) {
     conn.rate = Math.min(rate, conn.max_rate);
+  },
+
+  [[CLIENT + EXEC, 'auth', String], {'state =': JOINED}], 
+  function(password, conn) {
+    if (conn.auth(password)) {
+      conn.post([SERVER + EXEC_RESP, 'Admin granted']);
+    } else {
+      conn.post([SERVER + EXEC_RESP, 'Wrong admin password']);
+    }
+  },
+
+  [[CLIENT + EXEC, 'kick', String, String], {'state =': JOINED}], 
+  function(player_name, reason, conn) {
+    var resp = conn.exec('kick', player_name, reason);
+    conn.post([SERVER + EXEC_RESP, resp]);
   },
   
   function(data) {
