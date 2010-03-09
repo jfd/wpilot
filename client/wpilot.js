@@ -178,7 +178,8 @@ function WPilotClient(options) {
   this.player             = null;
   this.conn               = null;
   this.message_log        = [];
-  this.gui                = { hud: null, scoreboard: null, warmupnotice: null,
+  this.gui                = { hud: null, energy: null, powerup: null, 
+                              scoreboard: null, warmupnotice: null, 
                               netstat: null, fps: null, messages: null, 
                               prompt: null };
 
@@ -284,6 +285,10 @@ WPilotClient.prototype.set_viewport = function(viewport) {
 
   // Initialize GUI elements
   gui.hud = new GUIPlayerHUD([viewport.w / 2, viewport.h / 2]);
+  gui.energy = new GUIEnergyHUD([(viewport.w / 2) - 100, 
+                                 viewport.h - 50], [200, 8]);
+  gui.powerup = new GUIPowerupHUD([(viewport.w / 2) - 100, 
+                                   viewport.h - 38], [200, 14]);
   gui.netstat = new GUINetStat([6, 12], this.netstat);
   gui.fps = new GUIFpsCounter([viewport.w - 6, 12], viewport);
   gui.messages = new GUIMessageLog([6, viewport.h - 2], 
@@ -291,7 +296,8 @@ WPilotClient.prototype.set_viewport = function(viewport) {
                                    this.options);
   gui.scoreboard = new GUIScoreboard([0, 0]);
   gui.scoreboard.set_size([viewport.w, viewport.h]);
-  gui.warmupnotice = new GUIWarmupNotice([viewport.w / 2, viewport.h - 50]);
+  gui.warmupnotice = new GUIWarmupNotice([viewport.w / 2, 
+                                          50]);
   gui.prompt = new GUIPrompt([40, viewport.h - 40]);
   gui.prompt.set_size([viewport.w - 80, 26]);
   gui.prompt.oncommand = function() { self.exec.apply(self, arguments) };
@@ -300,7 +306,8 @@ WPilotClient.prototype.set_viewport = function(viewport) {
   // Set the draw callback
   viewport.ondraw = function(ctx) {
     var world = self.world,
-        player = self.player;
+        player = self.player,
+        tick = tick;
 
     if (player && !player.dead) {
       viewport.set_camera_pos(player.entity.pos);
@@ -308,6 +315,7 @@ WPilotClient.prototype.set_viewport = function(viewport) {
     
     if (world) {
       world.draw(viewport);
+      tick = world.tick;
     }
 
     // Draw GUI elements
@@ -319,7 +327,7 @@ WPilotClient.prototype.set_viewport = function(viewport) {
         ctx.save();
         ctx.globalAlpha = element.alpha;
         ctx.translate(element.pos[0], element.pos[1]);
-        element.draw(ctx);
+        element.draw(ctx, tick);
         ctx.restore();
       }
 
@@ -363,6 +371,8 @@ WPilotClient.prototype.set_player = function(player) {
   player.is_me = true;
   this.player = player;
   this.gui.hud.me = player;
+  this.gui.energy.me = player;
+  this.gui.powerup.me = player;
   this.gui.scoreboard.me = player;
   this.gui.warmupnotice.me = player;
   this.log('You are now known as "' + player.name  + '"...');
@@ -1836,28 +1846,105 @@ GUIPlayerHUD.prototype.draw = function(ctx) {
   //   draw_label(ctx, center_w - 72, center_h + 55, parseInt(player_entity.pos[0]) + ' x ' + parseInt(player_entity.pos[1]));
   // }    
   
-  draw_v_bar(ctx, 62, -37, 7, 78, me.energy);
-  
-  if (me.powerup) {
-    if (me.has_powerup(POWERUP_SPEED)) {
-      ctx.fillStyle = 'rgba(' + POWERUP_SPEED_COLOR + ',0.7)';
-      draw_label(ctx, -70, -10, 'S');
-    }
-    if (me.has_powerup(POWERUP_RAPID)) {
-      ctx.fillStyle = 'rgba(' + POWERUP_RAPID_COLOR + ',0.7)';
-      draw_label(ctx, -70, 0 , 'R');
-    }
-    if (me.has_powerup(POWERUP_ENERGY)) {
-      ctx.fillStyle = 'rgba(' + POWERUP_ENERGY_COLOR + ',0.7)';
-      draw_label(ctx, -70, 10, 'E');
-    }
-  }
+  // if (!me.powerup) {
+  //   if (!me.has_powerup(POWERUP_SPEED)) {
+  //     
+  //     ctx.fillStyle = 'rgba(' + POWERUP_SPEED_COLOR + ',0.7)';
+  //     draw_label(ctx, -70, -10, 'S');
+  //   }
+  //   if (me.has_powerup(POWERUP_RAPID)) {
+  //   }
+  //   if (me.has_powerup(POWERUP_ENERGY)) {
+  //     ctx.fillStyle = 'rgba(' + POWERUP_ENERGY_COLOR + ',0.7)';
+  //     draw_label(ctx, -70, 10, 'E');
+  //   }
+  // }
 
   // Draw ship
   if (me.entity) {
     me.entity.draw(ctx);    
   }
+}
 
+function GUIPowerupHUD(pos, size) {
+  this.pos = pos;
+  this.size = size;
+  this.margin = 2;
+  this.actual_height = (size[1] - (this.margin * 2)) / 3;
+  this.alpha = 0;
+  this.visible = true;
+  this.me = null;
+}
+
+GUIPowerupHUD.prototype.is_visible = function() {
+  return !this.me || this.me.dead ? false : this.visible;
+}
+
+GUIPowerupHUD.prototype.draw = function(ctx, t) {
+  var me = this.me,
+      y = 0;
+
+  if (me.has_powerup(POWERUP_SPEED)) {
+    var powerup = me.powerup_timers[POWERUP_SPEED];
+    var perc = (powerup.end - t) / (powerup.end - powerup.start);
+    this.draw_powerup_meter(ctx, y, perc, POWERUP_SPEED_COLOR);
+    y += this.actual_height + 2;
+  }
+
+  if (me.has_powerup(POWERUP_RAPID)) {
+    var powerup = me.powerup_timers[POWERUP_RAPID];
+    var perc = (powerup.end - t) / (powerup.end - powerup.start);
+    this.draw_powerup_meter(ctx, y, perc, POWERUP_RAPID_COLOR);
+    y += this.actual_height + 2;
+  }
+
+  if (me.has_powerup(POWERUP_ENERGY)) {
+    var powerup = me.powerup_timers[POWERUP_ENERGY];
+    var perc = (powerup.end - t) / (powerup.end - powerup.start);
+    this.draw_powerup_meter(ctx, y, perc, POWERUP_ENERGY_COLOR);
+  }
+  
+}
+
+GUIPowerupHUD.prototype.draw_powerup_meter = function(ctx, y, perc, color) {
+  var w     = this.size[0],
+      h     = this.actual_height,
+      me    = this.me,
+      e     = (w / 2) * perc;
+
+  ctx.fillStyle = 'rgba(' + color + ', 0.4)';
+  ctx.fillRect((w / 2) - e, y, e * 2, h);
+}
+
+/**
+ *  GUIPlayerHUD
+ */
+function GUIEnergyHUD(pos, size) {
+  this.pos = pos;
+  this.size = size;
+  this.alpha = 0;
+  this.visible = true;
+  this.me = null;
+}
+
+GUIEnergyHUD.prototype.is_visible = function() {
+  return !this.me || this.me.dead ? false : this.visible;
+}
+
+GUIEnergyHUD.prototype.draw = function(ctx) {
+  var w     = this.size[0],
+      h     = this.size[1],
+      me    = this.me,
+      e     = ((w - 4) / 2) * (me.energy / 100);
+
+  ctx.lineWidth = 0.2;
+  ctx.strokeStyle = 'rgba(255,255,255,0.8)';
+  ctx.fillStyle = 'rgba(255,255,255,0.4)';
+  ctx.beginPath();
+  ctx.rect(0, 0, w, h);
+  ctx.fillRect(2 + ((w - 4) / 2) - e, 2, 
+               e * 2, (h - 4));
+  ctx.stroke();
 }
 
 /**
@@ -2258,20 +2345,6 @@ GUIPrompt.prototype.draw = function(ctx) {
   ctx.rect(this.margin + 4, 4, clip_width, this.size[1] - 8);
   ctx.clip();
   draw_label(ctx, text_pos, 4, this.buffer + PROMPT_CURSOR);
-}
-
-/**
- *  Draws a vertical bar 
- *  
- */
-function draw_v_bar(ctx, x, y, w, h, percent) {
-  ctx.lineWidth = 0.2;
-  ctx.strokeStyle = 'rgba(255,255,255,0.8)';
-  ctx.fillStyle = 'rgba(255,255,255,0.3)';
-  ctx.beginPath();
-  ctx.rect(x, y, w, h);
-  ctx.fillRect(x + 2, (y + 2) + ((h - 4) - (h - 4) * (percent / 100)), (w - 4) , (h - 4) * (percent / 100));
-  ctx.stroke();   
 }
 
 function draw_triangle(ctx, centerx, centery) {
