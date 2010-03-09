@@ -1788,7 +1788,7 @@ function GUIPlayerHUD(pos) {
 }
 
 GUIPlayerHUD.prototype.is_visible = function() {
-  return !this.world || !this.me || !this.me.dead || !this.me.entity ? 
+  return !this.world || !this.me || this.me.dead || !this.me.entity ? 
                                                             false : this.visible;
 }
 
