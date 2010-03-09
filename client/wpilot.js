@@ -66,9 +66,10 @@ var FONT_NAME = 'Arial',
 
     // Font sizes
     SIZE_XSMALL = '9px',
-    SIZE_SMALL = '11px',
+    SIZE_SMALL  = '11px',
     SIZE_MEDIUM = '13px',
-    SIZE_LARGE = '16px';
+    SIZE_LARGE  = '16px',
+    SIZE_XLARGE = '20px',
     
 
 var WARMUP_NOTICE_FONT  = [WEIGHT_HEAVY, SIZE_MEDIUM, FONT_NAME].join(' ');
@@ -112,6 +113,8 @@ var POWERUP_FONT            = '7px Arial',
     POWERUP_SPEED_COLOR     = '230,21,90',
     POWERUP_RAPID_COLOR     = '166,219,0',
     POWERUP_ENERGY_COLOR    = '51,182,255';
+    
+var HUD_FONT = [WEIGHT_HEAVY, SIZE_XLARGE, FONT_NAME].join(' ');    
     
 var CHAT_MAX_CHARS  = 200;
     
@@ -178,8 +181,7 @@ function WPilotClient(options) {
   this.player             = null;
   this.conn               = null;
   this.message_log        = [];
-  this.gui                = { hud: null, energy: null, powerup: null, 
-                              scoreboard: null, warmupnotice: null, 
+  this.gui                = { hud: null, scoreboard: null, warmupnotice: null, 
                               netstat: null, fps: null, messages: null, 
                               prompt: null };
 
@@ -269,9 +271,10 @@ WPilotClient.prototype.set_world = function(world) {
   world.client = this;
   this.viewport.set_camera_pos(vector_div(world.size, 2));
   this.world = world;
-  this.log('World data loaded...');
+  this.gui.hud.world = world;
   this.gui.scoreboard.world = world;
   this.gui.warmupnotice.world = world;
+  this.log('World data loaded...');
 }
 
 /**
@@ -285,10 +288,6 @@ WPilotClient.prototype.set_viewport = function(viewport) {
 
   // Initialize GUI elements
   gui.hud = new GUIPlayerHUD([viewport.w / 2, viewport.h / 2]);
-  gui.energy = new GUIEnergyHUD([(viewport.w / 2) - 100, 
-                                 viewport.h - 50], [200, 8]);
-  gui.powerup = new GUIPowerupHUD([(viewport.w / 2) - 100, 
-                                   viewport.h - 38], [200, 14]);
   gui.netstat = new GUINetStat([6, 12], this.netstat);
   gui.fps = new GUIFpsCounter([viewport.w - 6, 12], viewport);
   gui.messages = new GUIMessageLog([6, viewport.h - 2], 
@@ -297,7 +296,7 @@ WPilotClient.prototype.set_viewport = function(viewport) {
   gui.scoreboard = new GUIScoreboard([0, 0]);
   gui.scoreboard.set_size([viewport.w, viewport.h]);
   gui.warmupnotice = new GUIWarmupNotice([viewport.w / 2, 
-                                          50]);
+                                          viewport.h - 50]);
   gui.prompt = new GUIPrompt([40, viewport.h - 40]);
   gui.prompt.set_size([viewport.w - 80, 26]);
   gui.prompt.oncommand = function() { self.exec.apply(self, arguments) };
@@ -371,8 +370,6 @@ WPilotClient.prototype.set_player = function(player) {
   player.is_me = true;
   this.player = player;
   this.gui.hud.me = player;
-  this.gui.energy.me = player;
-  this.gui.powerup.me = player;
   this.gui.scoreboard.me = player;
   this.gui.warmupnotice.me = player;
   this.log('You are now known as "' + player.name  + '"...');
@@ -511,10 +508,6 @@ WPilotClient.prototype.process_user_input = function(t, dt) {
       player.entity.angle = new_angle;
       this.post_game_packet([PLAYER + ANGLE, new_angle]);
     }
-
-    // if (this.is(ROTATE_W)) ;
-    // else if (this.is(ROTATE_E)) angle += dt * SHIP_ROTATION_SPEED;
-    // 
   }  
 }
 
@@ -1437,7 +1430,6 @@ function ThrustAnimation() {
   particles.gravity = Vector.create( 0.01, 0.01 );
   particles.speed = 1.5;
   particles.lifeSpan = 10;
-  // particles.lifeSpanRandom = 5;
   particles.size = 1;
   particles.sizeRandom = 1;
   particles.angle = 90;
@@ -1784,37 +1776,6 @@ PowerupSpawnAnimation.prototype.draw = function(ctx) {
   ctx.stroke();
 }
 
-
-function get_powerup_color(type) {
-  switch (type) {
-
-    case POWERUP_SPEED:
-      return POWERUP_SPEED_COLOR;
-
-    case POWERUP_RAPID:
-      return POWERUP_RAPID_COLOR;
-      
-    case POWERUP_ENERGY:
-      return POWERUP_ENERGY_COLOR;
-
-  }
-}
-
-function get_powerup_text(type) {
-  switch (type) {
-
-    case POWERUP_SPEED:
-      return 'Speed x1.3';
-
-    case POWERUP_RAPID:
-      return 'Rapid fire';
-      
-    case POWERUP_ENERGY:
-      return 'Energy boost';
-
-  }
-}
-
 /**
  *  GUIPlayerHUD
  */
@@ -1823,128 +1784,92 @@ function GUIPlayerHUD(pos) {
   this.alpha = 0;
   this.visible = true;
   this.me = null;
+  this.world = null;
 }
 
 GUIPlayerHUD.prototype.is_visible = function() {
-  return !this.me || this.me.dead ? false : this.visible;
+  return !this.world || !this.me || !this.me.entity ? false : this.visible;
 }
 
-GUIPlayerHUD.prototype.draw = function(ctx) {
-  var x        = this.pos[0],
-      y        = this.pos[1],
-      me       = this.me;
+GUIPlayerHUD.prototype.draw = function(ctx, t) {
+  var me    = this.me,
+      world = this.world;
   
-  // if (opt.hud_player_pos_v) {
-  //   var my_rank = this.player.rank;
-  //   var max_rank = this.world.no_players;
-  //   ctx.fillStyle = HUD_WHITE_COLOR;
-  //   draw_label(ctx, center_w + 72, center_h - 45, 'Pos ' + my_rank + '/' + max_rank, 'right', 45);
-  // }
-  // 
-  // if (opt.hud_coords_v)  {
-  //   ctx.fillStyle = HUD_GREY_COLOR;
-  //   draw_label(ctx, center_w - 72, center_h + 55, parseInt(player_entity.pos[0]) + ' x ' + parseInt(player_entity.pos[1]));
-  // }    
+  var angle = (Math.PI * 2 * me.energy / 100);
+
+  ctx.beginPath();
+  ctx.lineWidth = 22;
+  ctx.strokeStyle = 'rgba(' + COLOR_BRIGHT + ', 0.03)';
+  ctx.arc(0, 0, 95, -Math.PI/2, -angle - Math.PI / 2, true);
+  ctx.stroke();
+
+  ctx.beginPath();
+  ctx.lineWidth = 1;
+  ctx.strokeStyle = 'rgba(' + COLOR_BRIGHT + ', 0.05)';
+  ctx.arc(0, 0, 108, 0, Math.PI / 180, true);
+  ctx.stroke();
   
-  // if (!me.powerup) {
-  //   if (!me.has_powerup(POWERUP_SPEED)) {
-  //     
-  //     ctx.fillStyle = 'rgba(' + POWERUP_SPEED_COLOR + ',0.7)';
-  //     draw_label(ctx, -70, -10, 'S');
-  //   }
-  //   if (me.has_powerup(POWERUP_RAPID)) {
-  //   }
-  //   if (me.has_powerup(POWERUP_ENERGY)) {
-  //     ctx.fillStyle = 'rgba(' + POWERUP_ENERGY_COLOR + ',0.7)';
-  //     draw_label(ctx, -70, 10, 'E');
-  //   }
-  // }
-
-  // Draw ship
-  if (me.entity) {
-    me.entity.draw(ctx);    
-  }
-}
-
-function GUIPowerupHUD(pos, size) {
-  this.pos = pos;
-  this.size = size;
-  this.margin = 2;
-  this.actual_height = (size[1] - (this.margin * 2)) / 3;
-  this.alpha = 0;
-  this.visible = true;
-  this.me = null;
-}
-
-GUIPowerupHUD.prototype.is_visible = function() {
-  return !this.me || this.me.dead ? false : this.visible;
-}
-
-GUIPowerupHUD.prototype.draw = function(ctx, t) {
-  var me = this.me,
-      y = 0;
-
   if (me.has_powerup(POWERUP_SPEED)) {
     var powerup = me.powerup_timers[POWERUP_SPEED];
     var perc = (powerup.end - t) / (powerup.end - powerup.start);
-    this.draw_powerup_meter(ctx, y, perc, POWERUP_SPEED_COLOR);
-    y += this.actual_height + 2;
+    angle = (Math.PI * 2 * perc)
+    
+    ctx.beginPath();
+    ctx.lineWidth = 6;
+    ctx.strokeStyle = 'rgba(' + POWERUP_SPEED_COLOR + ', 0.08)';
+    ctx.arc(0, 0, 81, Math.PI * 3 / 2, angle - Math.PI / 2, false);
+    ctx.stroke();    
   }
 
   if (me.has_powerup(POWERUP_RAPID)) {
     var powerup = me.powerup_timers[POWERUP_RAPID];
     var perc = (powerup.end - t) / (powerup.end - powerup.start);
-    this.draw_powerup_meter(ctx, y, perc, POWERUP_RAPID_COLOR);
-    y += this.actual_height + 2;
+    angle = (Math.PI * 2 * perc);
+    
+    ctx.beginPath();
+    ctx.lineWidth = 6;
+    ctx.strokeStyle = 'rgba(' + POWERUP_RAPID_COLOR + ', 0.08)';
+    ctx.arc(0, 0, 75, Math.PI * 3 / 2, angle - Math.PI / 2, false);
+    ctx.stroke();
   }
 
   if (me.has_powerup(POWERUP_ENERGY)) {
     var powerup = me.powerup_timers[POWERUP_ENERGY];
     var perc = (powerup.end - t) / (powerup.end - powerup.start);
-    this.draw_powerup_meter(ctx, y, perc, POWERUP_ENERGY_COLOR);
+    angle = (Math.PI * 2 * perc)
+    
+    ctx.beginPath();
+    ctx.lineWidth = 6;
+    ctx.strokeStyle = 'rgba(' + POWERUP_ENERGY_COLOR + ', 0.08)';
+    ctx.arc(0, 0, 69, Math.PI * 3 / 2, angle - Math.PI / 2, false);
+    ctx.stroke();
   }
-  
-}
 
-GUIPowerupHUD.prototype.draw_powerup_meter = function(ctx, y, perc, color) {
-  var w     = this.size[0],
-      h     = this.actual_height,
-      me    = this.me,
-      e     = (w / 2) * perc;
+  if (world.r_state == ROUND_RUNNING && world.ranked_player_list.length > 1) {
+    var ahead = 0;
+    if (world.ranked_player_list[0] == me) {
+      ahead = me.score - world.ranked_player_list[1].score;
+      if (ahead > 0) {
+        ahead = '+' + ahead;
+      }
+    } else {
+      ahead =  me.score - world.ranked_player_list[0].score;
+    }
+    ctx.font = HUD_FONT;
+    ctx.fillStyle = 'rgba(' + COLOR_BRIGHT + ', 0.6)';
+    draw_label(ctx, 0, 240, ahead, 'center');
+  }
 
-  ctx.fillStyle = 'rgba(' + color + ', 0.4)';
-  ctx.fillRect((w / 2) - e, y, e * 2, h);
-}
-
-/**
- *  GUIPlayerHUD
- */
-function GUIEnergyHUD(pos, size) {
-  this.pos = pos;
-  this.size = size;
-  this.alpha = 0;
-  this.visible = true;
-  this.me = null;
-}
-
-GUIEnergyHUD.prototype.is_visible = function() {
-  return !this.me || this.me.dead ? false : this.visible;
-}
-
-GUIEnergyHUD.prototype.draw = function(ctx) {
-  var w     = this.size[0],
-      h     = this.size[1],
-      me    = this.me,
-      e     = ((w - 4) / 2) * (me.energy / 100);
-
-  ctx.lineWidth = 0.2;
-  ctx.strokeStyle = 'rgba(255,255,255,0.8)';
-  ctx.fillStyle = 'rgba(255,255,255,0.4)';
-  ctx.beginPath();
-  ctx.rect(0, 0, w, h);
-  ctx.fillRect(2 + ((w - 4) / 2) - e, 2, 
-               e * 2, (h - 4));
-  ctx.stroke();
+  // Draw ship and crosshair
+  if (me.entity) {
+    ctx.save();
+    me.entity.draw(ctx);
+    ctx.restore();
+    
+    ctx.rotate(me.entity.angle);  
+    ctx.fillStyle = 'rgba(' + COLOR_BRIGHT + ', 0.8)';
+    ctx.fillRect(0, -110, 1, 6);
+  }
 }
 
 /**
@@ -2345,6 +2270,36 @@ GUIPrompt.prototype.draw = function(ctx) {
   ctx.rect(this.margin + 4, 4, clip_width, this.size[1] - 8);
   ctx.clip();
   draw_label(ctx, text_pos, 4, this.buffer + PROMPT_CURSOR);
+}
+
+function get_powerup_color(type) {
+  switch (type) {
+
+    case POWERUP_SPEED:
+      return POWERUP_SPEED_COLOR;
+
+    case POWERUP_RAPID:
+      return POWERUP_RAPID_COLOR;
+      
+    case POWERUP_ENERGY:
+      return POWERUP_ENERGY_COLOR;
+
+  }
+}
+
+function get_powerup_text(type) {
+  switch (type) {
+
+    case POWERUP_SPEED:
+      return 'Speed x1.3';
+
+    case POWERUP_RAPID:
+      return 'Rapid fire';
+      
+    case POWERUP_ENERGY:
+      return 'Energy boost';
+
+  }
 }
 
 function draw_triangle(ctx, centerx, centery) {
