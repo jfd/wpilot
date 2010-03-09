@@ -1788,7 +1788,8 @@ function GUIPlayerHUD(pos) {
 }
 
 GUIPlayerHUD.prototype.is_visible = function() {
-  return !this.world || !this.me || !this.me.entity ? false : this.visible;
+  return !this.world || !this.me || !this.me.dead || !this.me.entity ? 
+                                                            false : this.visible;
 }
 
 GUIPlayerHUD.prototype.draw = function(ctx, t) {
