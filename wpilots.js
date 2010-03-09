@@ -107,7 +107,7 @@ const DEFAULT_OPTIONS = {
   r_powerup_respawn:    600,
   r_powerup_speed_t:    700,
   r_powerup_rapid_t:    600,
-  r_powerup_energy_t:   800  
+  r_powerup_energy_t:   800 
 };
 
 // Paths to all files that should be server to client.
