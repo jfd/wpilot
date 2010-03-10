@@ -69,7 +69,7 @@ var FONT_NAME = 'Arial',
     SIZE_SMALL  = '11px',
     SIZE_MEDIUM = '13px',
     SIZE_LARGE  = '16px',
-    SIZE_XLARGE = '18px',
+    SIZE_XLARGE = '18px';
     
 
 var WARMUP_NOTICE_FONT  = [WEIGHT_HEAVY, SIZE_MEDIUM, FONT_NAME].join(' ');
