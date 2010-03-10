@@ -1856,11 +1856,11 @@ GUIPlayerHUD.prototype.draw = function(ctx, t) {
     } else if (ahead < 0) {
       ahead = 'Behind ' + ahead;
     } else {
-      ahead = 'Tie for the lead';
+      ahead = 'Tied for the lead';
     }
     
     ctx.font = HUD_FONT;
-    ctx.fillStyle = 'rgba(' + COLOR_BRIGHT + ', 0.4)';
+    ctx.fillStyle = 'rgba(' + COLOR_BRIGHT + ', 0.3)';
     draw_label(ctx, 0, 240, ahead, 'center');
   }
 
