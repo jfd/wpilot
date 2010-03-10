@@ -69,7 +69,7 @@ var FONT_NAME = 'Arial',
     SIZE_SMALL  = '11px',
     SIZE_MEDIUM = '13px',
     SIZE_LARGE  = '16px',
-    SIZE_XLARGE = '20px',
+    SIZE_XLARGE = '18px',
     
 
 var WARMUP_NOTICE_FONT  = [WEIGHT_HEAVY, SIZE_MEDIUM, FONT_NAME].join(' ');
@@ -1847,17 +1847,20 @@ GUIPlayerHUD.prototype.draw = function(ctx, t) {
   }
 
   if (world.r_state == ROUND_RUNNING && world.ranked_player_list.length > 1) {
-    var ahead = 0;
-    if (world.ranked_player_list[0] == me) {
-      ahead = me.score - world.ranked_player_list[1].score;
-      if (ahead > 0) {
-        ahead = '+' + ahead;
-      }
+    var ahead = world.ranked_player_list[0] == me ? 
+                    me.score - world.ranked_player_list[1].score :
+                    me.score - world.ranked_player_list[0].score;
+
+    if (ahead > 0) {
+      ahead = 'In lead +' + ahead;
+    } else if (ahead < 0) {
+      ahead = 'Behind ' + ahead;
     } else {
-      ahead =  me.score - world.ranked_player_list[0].score;
+      ahead = 'Tie for the lead';
     }
+    
     ctx.font = HUD_FONT;
-    ctx.fillStyle = 'rgba(' + COLOR_BRIGHT + ', 0.6)';
+    ctx.fillStyle = 'rgba(' + COLOR_BRIGHT + ', 0.4)';
     draw_label(ctx, 0, 240, ahead, 'center');
   }
 
