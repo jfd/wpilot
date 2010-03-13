@@ -149,7 +149,7 @@ var DEFAULT_OPTIONS         = {
   rotation_speed:       6,
   rotation_acc:         0.5,
   
-  sound_enabled:        true,
+  sound_enabled:        false,
   sound_bg_volume:      0.8,
   
   log_max_messages:     6,
@@ -255,7 +255,7 @@ WPilotClient.prototype.exec = function() {
  */
 WPilotClient.prototype.chat = function(message) {
   if (this.state == CLIENT_CONNECTED) {
-    this.post_control_packet([CLIENT + CHAT, 
+    this.post_control_packet([OP_CLIENT_SAY, 
                               message.length > CHAT_MAX_CHARS ?
                               message.substr(0, CHAT_MAX_CHARS) :
                               message]);
@@ -379,7 +379,7 @@ WPilotClient.prototype.set_server_state = function(state) {
   if (state.no_players != state.max_players) {
     this.server_state = state;
     this.log('Recived server state, now joining game...');
-    this.post_control_packet([CLIENT + CONNECT]);
+    this.post_control_packet([OP_CLIENT_CONNECT]);
   } else {
     this.log('Server is full');
   }
@@ -401,7 +401,7 @@ WPilotClient.prototype.set_state = function(state) {
 
     case CLIENT_CONNECTED:
       this.log('Joined server ' + this.conn.URL + '...');
-      this.post_control_packet([CLIENT + HANDSHAKE, {
+      this.post_control_packet([OP_CLIENT_JOIN, {
         name: this.options.name || get_random_value(PLAYER_NAMES),
         rate: this.options.rate,
         dimensions: [this.viewport.w, this.viewport.h] 
@@ -462,17 +462,12 @@ WPilotClient.prototype.process_user_input = function(t, dt) {
   }
 
   if (!player.dead && player.entity.visible) {
-    var new_command   = 0,
+    var new_action   = 0,
         new_angle     = player.entity.angle;
     
-    if (input.on('thrust')) new_command |= THRUST;
-    if (input.on('shield')) new_command |= SHIELD;
-    if (input.on('shoot')) new_command |= SHOOT;
-
-    if (new_command != player.command) {
-      player.command = new_command;
-      this.post_game_packet([PLAYER + COMMAND, new_command]);
-    }
+    if (input.on('thrust')) new_action |= THRUST;
+    if (input.on('shield')) new_action |= SHIELD;
+    if (input.on('shoot')) new_action |= SHOOT;
     
     if (player.is(THRUST) && (parseInt(t * 1000)) % 10 == 0) {
       this.sound.play('ship_thrust', 0.05);
@@ -500,13 +495,15 @@ WPilotClient.prototype.process_user_input = function(t, dt) {
       this.last_r = -1;
       this.current_r = 0;
     }
-    
-    if (new_angle != player.entity.angle) {
+
+    if (new_action != player.action || new_angle != player.entity.angle) {
+      
       if (new_angle > Math.PI) new_angle = -Math.PI;
       else if(new_angle < -Math.PI) new_angle = Math.PI;
       
+      player.action = new_action;
       player.entity.angle = new_angle;
-      this.post_game_packet([PLAYER + ANGLE, new_angle]);
+      this.post_game_packet([OP_CLIENT_STATE, new_action, new_angle]);
     }
   }  
 }
@@ -586,11 +583,11 @@ WPilotClient.prototype.join = function(url) {
       var packet        = JSON.parse(event.data);
       
       switch (packet[0]) {
-        
-        case CONTROL_PACKET:
-          process_control_message([packet[1], self]);
+
+        case PING_PACKET:
+          self.conn.send(JSON.stringify([PING_PACKET]));
           break;
-          
+        
         case GAME_PACKET:
           if (!self.world) return;
           
@@ -613,12 +610,9 @@ WPilotClient.prototype.join = function(url) {
         
           break;
           
-        case PING_PACKET:
-          self.conn.send(JSON.stringify([PING_PACKET]));
-          break;
           
         default:
-          self.log('Recived bad packet header');
+          process_control_message([packet, self]);
           break;
       }
 
@@ -668,7 +662,7 @@ WPilotClient.prototype.post_game_packet = function(msg) {
  *  @return {undefined} Nothing
  */
 WPilotClient.prototype.post_control_packet = function(msg) {
-  var packet = JSON.stringify([CONTROL_PACKET, msg]);
+  var packet = JSON.stringify(msg);
   this.conn.send(packet);
 }
 
@@ -705,7 +699,7 @@ var process_control_message = match (
    *  The first message recieved from server on connect. Contains the 
    *  state of the server. 
    */
-  [[SERVER + INFO, Object], _], 
+  [[OP_SERVER_INFO, Object], _], 
   function(state, client) {
     client.set_server_state(state);
   },
@@ -714,7 +708,7 @@ var process_control_message = match (
    *  Is received after the client has sent a CLIENT CONNECT message. The message
    *  contains all data necessary to set up the game world.
    */
-  [[SERVER + HANDSHAKE, Object, Array, Array], _], 
+  [[OP_WORLD_DATA, Object, Array, Array], _], 
   function(world_data, players_data, powerups_data, client) {
     var world = new World(world_data);
     world.build(world_data.map_data);
@@ -747,7 +741,7 @@ var process_control_message = match (
     client.set_state(CLIENT_CONNECTED);
   },
   
-  [[SERVER + CONNECT, Number, Number, String], _],
+  [[OP_SERVER_CONNECT, Number, Number, String], _],
   function(tick, id, name, client) {
     var player = client.world.add_player(id, name);
     client.set_player(player);
@@ -757,7 +751,7 @@ var process_control_message = match (
   /**
    *  Is recieved when disconnected from server.
    */
-  [[SERVER + DISCONNECT, String], _], 
+  [[OP_DISCONNECT_REASON, String], _], 
   function(reason, client) {
     client.disconnect_reason = reason;
   },
@@ -765,7 +759,7 @@ var process_control_message = match (
   /**
    *  Is recieved when disconnected from server.
    */
-  [[SERVER + EXEC_RESP, String], _], 
+  [[OP_SERVER_EXEC_RESP, String], _], 
   function(message, client) {
     client.log(message);
   },
@@ -779,11 +773,11 @@ var process_control_message = match (
 
 var COMMANDS = match (
   [_, 'name', String], function(client, new_name) {
-    client.post_game_packet([CLIENT + SET, 'name', new_name]);
+    client.post_game_packet([OP_CLIENT_SET, 'name', new_name]);
   },
   
   [_, 'ready'], function(client) {
-    client.post_game_packet([CLIENT + SET, 'ready']);
+    client.post_game_packet([OP_CLIENT_SET, 'ready']);
   },
   
   [_, 'fps'], function(client) {
@@ -797,17 +791,17 @@ var COMMANDS = match (
   [_, 'rate', String], function(client, value) {
     var rate = parseInt(value);
     if (rate > 0) {
-      client.post_control_packet([CLIENT + SET, 'rate', rate]);
+      client.post_control_packet([OP_CLIENT_SET, 'rate', rate]);
       client.log('Setting "rate" is now ' + rate);
     }
   },
 
   [_, 'auth', String], function(client, password) {
-    client.post_control_packet([CLIENT + EXEC, 'auth', password]);
+    client.post_control_packet([OP_CLIENT_EXEC, 'auth', password]);
   },
 
   [_, 'kick', String, String], function(client, name, reason) {
-    client.post_control_packet([CLIENT + EXEC, 'kick', name, reason]);
+    client.post_control_packet([OP_CLIENT_EXEC, 'kick', name, reason]);
   },
   
   function(pattern) {
@@ -1002,18 +996,17 @@ World.prototype.on_powerup_die = function(powerup, player) {
 
 World.prototype.on_after_init = function() {
   this.PACKET_HANDLERS = {};
-  this.PACKET_HANDLERS[WORLD + INFO] = this.set_round_state;
-  this.PACKET_HANDLERS[CLIENT + CONNECT] = this.add_player;
-  this.PACKET_HANDLERS[CLIENT + DISCONNECT] = this.remove_player;
-  this.PACKET_HANDLERS[PLAYER + INFO] = this.update_player_info;
-  this.PACKET_HANDLERS[PLAYER + SPAWN] = this.spawn_player;
-  this.PACKET_HANDLERS[PLAYER + DIE] = this.kill_player;
-  this.PACKET_HANDLERS[PLAYER + FIRE] = this.fire_player_canon;
-  this.PACKET_HANDLERS[PLAYER + POS] = this.update_player_pos;
-  this.PACKET_HANDLERS[PLAYER + COMMAND] = this.set_player_command;
-  this.PACKET_HANDLERS[PLAYER + CHAT] = this.player_chat;
-  this.PACKET_HANDLERS[POWERUP + SPAWN] = this.spawn_powerup;
-  this.PACKET_HANDLERS[POWERUP + DIE] = this.kill_powerup;
+  this.PACKET_HANDLERS[OP_ROUND_STATE] = this.set_round_state;
+  this.PACKET_HANDLERS[OP_PLAYER_CONNECT] = this.add_player;
+  this.PACKET_HANDLERS[OP_PLAYER_DISCONNECT] = this.remove_player;
+  this.PACKET_HANDLERS[OP_PLAYER_INFO] = this.update_player_info;
+  this.PACKET_HANDLERS[OP_PLAYER_SPAWN] = this.spawn_player;
+  this.PACKET_HANDLERS[OP_PLAYER_DIE] = this.kill_player;
+  this.PACKET_HANDLERS[OP_PLAYER_FIRE] = this.fire_player_canon;
+  this.PACKET_HANDLERS[OP_PLAYER_STATE] = this.update_player_state;
+  this.PACKET_HANDLERS[OP_PLAYER_SAY] = this.player_say;
+  this.PACKET_HANDLERS[OP_POWERUP_SPAWN] = this.spawn_powerup;
+  this.PACKET_HANDLERS[OP_POWERUP_DIE] = this.kill_powerup;
 }
 
 World.prototype.play_animation = function(animation, callback) {
@@ -1034,6 +1027,7 @@ World.prototype.process_world_packet = function(msg) {;
   if (handler) {
     handler.apply(this, msg);
   } else {
+    console.log('pl.' + OP_PLAYER_STATE);
     console.log(id);
   }
 }
@@ -1055,7 +1049,7 @@ World.prototype.update_player_info = function(id, ping, ready, name) {
   }
 }
 
-World.prototype.update_player_pos = function(id, pos, angle) {
+World.prototype.update_player_state = function(id, pos, angle, action) {
   var player = this.players[id];
   if (pos) {
     player.entity.pos_sv = pos;
@@ -1063,9 +1057,12 @@ World.prototype.update_player_pos = function(id, pos, angle) {
   if (!player.is_me && angle) {
     player.entity.angle = angle;
   }
+  if (!player.is_me && action) {
+    player.entity.action = action;
+  }
 }
 
-World.prototype.player_chat = function(player_id, message) {
+World.prototype.player_say = function(player_id, message) {
   var player = this.players[player_id];
   this.client.log(player.name + ': ' + message, player.color);
 }

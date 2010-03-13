@@ -247,14 +247,14 @@ function start_gameserver(map_data, options, shared) {
   
   // Listen for round state changes
   world.on_round_state_changed = function(state, winners) {
-    broadcast(WORLD + INFO, state, winners);
+    broadcast(OP_ROUND_STATE, state, winners);
   }
 
   // Listen for events on player
   world.on_player_join = function(player) {
     player.name = get_unique_name(world.players, player.id, player.name);
     broadcast_each(
-      [CLIENT + CONNECT, player.id, player.name],
+      [OP_PLAYER_CONNECT, player.id, player.name],
       function(msg, conn) {
         if (player.id == conn.id) {
           return PRIO_PASS;
@@ -265,50 +265,38 @@ function start_gameserver(map_data, options, shared) {
   }
   
   world.on_player_spawn = function(player, pos) {
-    broadcast(PLAYER + SPAWN, player.id, pos);
+    broadcast(OP_PLAYER_SPAWN, player.id, pos);
   }
 
   world.on_player_died = function(player, old_entity, death_cause, killer) {
-    broadcast(PLAYER + DIE, player.id, death_cause, killer ? killer.id : -1);
+    broadcast(OP_PLAYER_DIE, player.id, death_cause, killer ? killer.id : -1);
   }
   
   world.on_player_ready = function(player) {
-    broadcast(PLAYER + INFO, player.id, 0, true);
+    broadcast(OP_PLAYER_INFO, player.id, 0, true);
   }
 
   world.on_player_name_changed = function(player, new_name, old_name) {
     player.name = get_unique_name(world.players, player.id, new_name);
-    broadcast(PLAYER + INFO, player.id, 0, 0, player.name);
+    broadcast(OP_PLAYER_INFO, player.id, 0, 0, player.name);
   }
   
-  world.on_player_command = function(player, command) {
-    broadcast_each(
-      [PLAYER + COMMAND, player.id, command],
-      function(msg, conn) {
-        if (player.id == conn.id) {
-          return PRIO_PASS;
-        } 
-        return PRIO_HIGH;
-      }
-    );
-  }
-
   world.on_player_fire = function(player, angle) {
-   broadcast(PLAYER + FIRE, player.id, angle);
+   broadcast(OP_PLAYER_FIRE, player.id, angle);
   }
   
   world.on_player_leave = function(player, reason) {
-    broadcast(CLIENT + DISCONNECT, player.id, reason);
+    broadcast(OP_PLAYER_DISCONNECT, player.id, reason);
   }
   
   world.on_powerup_spawn = function(powerup) {
-    broadcast(POWERUP + SPAWN, powerup.powerup_id, 
+    broadcast(OP_POWERUP_SPAWN, powerup.powerup_id, 
                                powerup.powerup_type, 
                                powerup.pos);
   }
   
   world.on_powerup_die = function(powerup, player) {
-    broadcast(POWERUP + DIE, powerup.powerup_id, player.id);
+    broadcast(OP_POWERUP_DIE, powerup.powerup_id, player.id);
   }
   
   /**
@@ -359,14 +347,15 @@ function start_gameserver(map_data, options, shared) {
       }
       for (var id in world.players) {
         var player = world.players[id];
-        var message = [PLAYER + POS, player.id];
+        var message = [OP_PLAYER_STATE, player.id];
         if (player.entity) {
-          message.push(pack_vector(player.entity.pos), player.entity.angle);
+          message.push(pack_vector(player.entity.pos), player.entity.angle, 
+                                                       player.entity.action);
         }
         connection.queue(message);
         if (update_tick % 200 == 0) {
           var player_connection = connections[player.id];
-          connection.queue([PLAYER + INFO, player.id, player_connection.ping]);
+          connection.queue([OP_PLAYER_INFO, player.id, player_connection.ping]);
         }
         
       }
@@ -511,7 +500,7 @@ function start_gameserver(map_data, options, shared) {
      */
     conn.chat = function(message) {
       if (player) {
-        broadcast(PLAYER + CHAT, player.id, message);
+        broadcast(OP_PLAYER_SAY, player.id, message);
       }
     }
     
@@ -545,7 +534,7 @@ function start_gameserver(map_data, options, shared) {
      */
     conn.kill = function(reason) {
       disconnect_reason = reason || 'Unknown Reason';
-      this.post([SERVER + DISCONNECT, disconnect_reason]);
+      this.post([OP_DISCONNECT_REASON, disconnect_reason]);
       this.close();
       message_queue = [];
     }
@@ -561,7 +550,7 @@ function start_gameserver(map_data, options, shared) {
      *  Stringify speicified object and sends it to remote part.
      */
     conn.post = function(data) {
-      var packet = JSON.stringify([CONTROL_PACKET, data]);
+      var packet = JSON.stringify(data);
       this.write(packet);
     }
 
@@ -611,7 +600,7 @@ function start_gameserver(map_data, options, shared) {
             log('Debug: Sending server state to ' + conn);
           }
           
-          conn.post([SERVER + INFO, shared.get_state()]);
+          conn.post([OP_SERVER_INFO, shared.get_state()]);
           break;
 
         case HANDSHAKING:
@@ -622,7 +611,7 @@ function start_gameserver(map_data, options, shared) {
           if (world.no_players >= world.max_players) {
             conn.kill('Server is full');
           } else {
-            conn.post([SERVER + HANDSHAKE].concat(world.get_repr()));
+            conn.post([OP_WORLD_DATA].concat(world.get_repr()));
 
             if (conn.debug) {
               log('Debug: ' + conn + ' connected to server. Sending handshake...');
@@ -635,7 +624,7 @@ function start_gameserver(map_data, options, shared) {
           // on_player_join broadcast
           player = world.add_player(connection_id, conn.player_name);
 
-          conn.post([SERVER + CONNECT, world.tick, player.id, player.name]);
+          conn.post([OP_SERVER_CONNECT, world.tick, player.id, player.name]);
           
           log(conn + ' joined the game.');
           break;
@@ -690,22 +679,18 @@ function start_gameserver(map_data, options, shared) {
 
       switch(packet[0]) {
 
-        case CONTROL_PACKET:
-          process_control_message([packet[1], conn]);
-          break;
-          
         case GAME_PACKET:
           if (world) {
             process_game_message([packet[1], player, world]);
           }
           break;
-          
+
         case PING_PACKET:
           conn.ping = get_time() - conn.last_ping;
           break;
-        
+
         default:
-          conn.kill('Bad header');
+          process_control_message([packet, conn]);
           break;
           
       }
@@ -734,7 +719,7 @@ var process_control_message = match (
    *  MUST be sent by the client when connected to server. It's used to validate
    *  the session.
    */
-  [[CLIENT + CONNECT], {'state =': CONNECTED}], 
+  [[OP_CLIENT_CONNECT], {'state =': CONNECTED}], 
   function(conn) {
     conn.set_state(HANDSHAKING);
   },
@@ -742,13 +727,13 @@ var process_control_message = match (
   /**
    *  Client has received world data. Client is now a player of the world.
    */
-  [[CLIENT + HANDSHAKE, Object], {'state =': HANDSHAKING}], 
+  [[OP_CLIENT_JOIN, Object], {'state =': HANDSHAKING}], 
   function(info, conn) {
     conn.set_client_info(info);
     conn.set_state(JOINED);
   },
 
-  [[CLIENT + CHAT, String], {'state =': JOINED}], 
+  [[OP_CLIENT_SAY, String], {'state =': JOINED}], 
   function(message, conn) {
     if (message.length > 200) {
       conn.kill('Bad chat message');
@@ -757,24 +742,24 @@ var process_control_message = match (
     }
   },
   
-  [[CLIENT + SET, 'rate', Number], {'state =': JOINED}], 
+  [[OP_CLIENT_SET, 'rate', Number], {'state =': JOINED}], 
   function(rate, conn) {
     conn.rate = Math.min(rate, conn.max_rate);
   },
 
-  [[CLIENT + EXEC, 'auth', String], {'state =': JOINED}], 
+  [[OP_CLIENT_EXEC, 'auth', String], {'state =': JOINED}], 
   function(password, conn) {
     if (conn.auth(password)) {
-      conn.post([SERVER + EXEC_RESP, 'Admin granted']);
+      conn.post([OP_SERVER_EXEC_RESP, 'Admin granted']);
     } else {
-      conn.post([SERVER + EXEC_RESP, 'Wrong admin password']);
+      conn.post([OP_SERVER_EXEC_RESP, 'Wrong admin password']);
     }
   },
 
-  [[CLIENT + EXEC, 'kick', String, String], {'state =': JOINED}], 
+  [[OP_CLIENT_EXEC, 'kick', String, String], {'state =': JOINED}], 
   function(player_name, reason, conn) {
     var resp = conn.exec('kick', player_name, reason);
-    conn.post([SERVER + EXEC_RESP, resp]);
+    conn.post([OP_SERVER_EXEC_RESP, resp]);
   },
   
   function(data) {
@@ -788,12 +773,12 @@ var process_control_message = match (
  */
 var process_game_message = match (
 
-  [[CLIENT + SET, 'ready'], _, _], 
+  [[OP_CLIENT_SET, 'ready'], _, _], 
   function(player, world) {
     world.set_player_ready(player.id);
   },
 
-  [[CLIENT + SET, 'name', String], _, _], 
+  [[OP_CLIENT_SET, 'name', String], _, _], 
   function(name, player, world) {
     world.set_player_name(player.id, name);
   },
@@ -801,18 +786,14 @@ var process_game_message = match (
   /**
    *  Players command state has changed.
    */
-  [[PLAYER + COMMAND, Number], _, _], 
-  function(value, player, world) {
-    world.set_player_command(player.id, value);
-  },
-  
-  [[PLAYER + ANGLE, Number], _, _],
-  function(value, player, world) {
+  [[OP_CLIENT_STATE, Number, Number], _, _], 
+  function(action, angle, player, world) {
+    player.action = action;
     if (!player.dead) {
-      player.entity.angle = value;
+      player.entity.angle = angle;
     }
   },
-
+  
   /**
    *  The message sent by client could not be matched. Kill the session
    */
