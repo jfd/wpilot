@@ -66,7 +66,7 @@ const SWITCHES = [
   ['--ws_port PORT',              'Port number for the WebSocket server (default: 6115)'],
   ['--pub_ws_port PORT',          'Set if the public WebSocket port differs from the local one'],
   ['--max_rate NUMBER',           'The maximum rate per client and second (default: 1000)'],
-  ['--max_players NUMBER',        'Max connected players allowed in server simultaneously (default: map setting)'],
+  ['--max_players NUMBER',        'Max connected players allowed in server simultaneously (default: 8)'],
   ['--r_respawn_time NUMBER',     'Rule: Player respawn time after death. (Default: 500)'],
   ['--r_reload_time NUMBER',      'Rule: The reload time after fire. (Default: 15)'],
   ['--r_shoot_cost NUMBER',       'Rule: Energy cost of shooting a bullet. (Default: 800)'],
@@ -93,7 +93,7 @@ const DEFAULT_OPTIONS = {
   http_port:            6114,
   ws_port:              6115,
   pub_ws_port:          null,
-  max_players:          null,
+  max_players:          8,
   max_rate:             5000,
   r_respawn_time:       400,
   r_reload_time:        15,
@@ -161,36 +161,16 @@ function main() {
       webserver       = null,
       gameserver      = null,
       policy_server   = null,
-      map_data        = DEFAULT_MAP;
+      maps            = null;
 
   if (!options) return;
 
   sys.puts('WPilot server ' + SERVER_VERSION);
   
-  function start() {
-    webserver = start_webserver(options, shared);
-    gameserver = start_gameserver(map_data, options, shared);
-  }
+  maps = options.maps;
   
-  if (options.map) {
-    fs.readFile(options.map, function (err, data) {
-      if (err) {
-        sys.puts('Failed to read map: ' + err);
-        return;
-      }
-      try {
-        map_data = JSON.parse(data);
-      } catch(e) {
-        sys.puts(e);
-        sys.puts('Map file is invalid, bad format');
-        return;
-      }
-      start();
-    });
-    
-  } else {
-    start();
-  }
+  webserver = start_webserver(options, shared);
+  gameserver = start_gameserver(maps, options, shared);
   
 }
 
@@ -200,16 +180,14 @@ function main() {
  *  @returns {WebSocketServer} Returns the newly created WebSocket server 
  *                             instance.
  */
-function start_gameserver(map_data, options, shared) {
+function start_gameserver(maps, options, shared) {
   var connections     = {},
       gameloop        = null,
       world           = null,
       server          = null,
       conn_id         = 1,
       update_tick     = 1,
-      rules           = get_rules(DEFAULT_OPTIONS, 
-                                  map_data.rules || {}, 
-                                  options.rules);
+      next_map_index  = 0;
   
   // Is called by the web instance to get current state
   shared.get_state = function() {
@@ -217,11 +195,11 @@ function start_gameserver(map_data, options, shared) {
       server_name:      options.name,
       game_server_url:  'ws://' + (options.pub_host || options.host) + ':' + 
                                 (options.pub_ws_port || options.ws_port) + '/',
-      map_name:         map_data.name,
-      max_players:      options.max_players || map_data.recommended_players,
+      map_name:         world.map_name,
+      max_players:      options.max_players,
       no_players:       world.no_players,
       no_ready_players: world.no_ready_players,
-      rules:            rules
+      rules:            world.rules
     }
   }
 
@@ -239,11 +217,8 @@ function start_gameserver(map_data, options, shared) {
   }
   
   // Create the world instance
-  world = new World({
-    max_players: options.max_players || map_data.recommended_players,
-    rules: rules,
-    server_mode: true
-  });
+  world = new World(true);
+  world.max_players = options.max_players,
   
   // Listen for round state changes
   world.on_round_state_changed = function(state, winners) {
@@ -304,8 +279,9 @@ function start_gameserver(map_data, options, shared) {
    *  @return {undefined} Nothing
    */
   function start_gameloop() {
-    log('Creating server World...');
-    world.build(map_data);
+
+    // Reset game world
+    world.build(world.map_data, world.rules);
 
     gameloop = new GameLoop();
     gameloop.ontick = gameloop_tick;
@@ -324,8 +300,6 @@ function start_gameserver(map_data, options, shared) {
     for (var id in connections) {
       connections[id].kill(reason || 'Server is shutting down');
     }
-    
-    world.reset();
     
     if (gameloop) {
       gameloop.kill();
@@ -405,7 +379,7 @@ function start_gameserver(map_data, options, shared) {
       case ROUND_RUNNING:
         var winners = [];
         world.forEachPlayer(function(player) {
-          if (player.score == rules.round_limit) {
+          if (player.score == world.rules.round_limit) {
             winners.push(player.id);
           }
         });
@@ -417,7 +391,13 @@ function start_gameserver(map_data, options, shared) {
       // The round is finished. Wait for restart
       case ROUND_FINISHED:
         if (t >= world.r_timer) {
-          world.set_round_state(ROUND_WARMUP);
+          load_map(null, true, function() {
+            for(var id in connections) {
+              var conn = connections[id];
+              conn.write(JSON.stringify([OP_WORLD_RECONNECT]));
+              conn.set_state(HANDSHAKING);
+            }
+          });
         }
         break;
     }
@@ -432,7 +412,10 @@ function start_gameserver(map_data, options, shared) {
   function broadcast() {
     var msg = Array.prototype.slice.call(arguments);
     for(var id in connections) {
-      connections[id].queue(msg);
+      var conn = connections[id];
+      if (conn.state == JOINED) {
+        connections[id].queue(msg);
+      }
     }
   }
 
@@ -444,8 +427,11 @@ function start_gameserver(map_data, options, shared) {
    */
   function broadcast_each(msg, callback) {
     for(var id in connections) {
-      var prio = callback(msg, connections[id]);
-      if (prio) connections[id].queue(msg);
+      var conn = connections[id];
+      if (conn.state == JOINED) {
+        var prio = callback(msg, conn);
+        if (prio) conn.queue(msg);
+      }
     }
   }
   
@@ -456,6 +442,67 @@ function start_gameserver(map_data, options, shared) {
    */
   function log(msg) {
     sys.puts(options.name + ': ' + msg);
+  }
+  
+  /**
+   *  Load a map
+   *  @param path {String} path to map. 
+   *  @param default_on_fail {Boolean} loads the default map if the specified 
+   *                                   map failed to load.
+   *  @return {undefined} Nothing
+   */
+  function load_map(path, default_on_fail, callback) {
+    var map_path = path;
+
+    function done(err, map_data) {
+      if (!map_data && default_on_fail) {
+        map_data = DEFAULT_MAP;
+      }
+
+      if (map_data) {
+        
+        if (gameloop) {
+          gameloop.kill();
+        }
+        
+        world.build(map_data, get_rules(DEFAULT_OPTIONS, map_data.rules || {}, 
+                                                                options.rules));
+                                                                
+        if (gameloop) {
+          gameloop = new GameLoop();
+          gameloop.ontick = gameloop_tick;
+          gameloop.start();
+        }
+                                                                
+      }
+      callback(err);
+    }
+    
+    if (!map_path) {
+      if (maps.length == 0) {
+        done(null, DEFAULT_MAP);
+        return;
+      } else {
+        if (next_map_index >= maps.length) {
+          next_map_index = 0;
+        }
+        map_path = maps[next_map_index];
+        next_map_index++;
+      }
+    } 
+
+    fs.readFile(map_path, function (err, data) {
+      if (err) {
+        done('Failed to read map: ' + err);
+        return;
+      }
+      try {
+        done(null, JSON.parse(data));
+      } catch(e) {
+        done('Map file is invalid, bad format');
+        return;
+      }
+    });
   }
   
   /**
@@ -569,7 +616,7 @@ function start_gameserver(map_data, options, shared) {
         data_sent += data.length;
       }
             
-      this.write('[2,[' + packet_data.join(',') + ']]');
+      this.write('[' + GAME_PACKET + ',[' + packet_data.join(',') + ']]');
       this.data_sent += data_sent;
       
       var diff = now - this.last_rate_check;
@@ -611,7 +658,7 @@ function start_gameserver(map_data, options, shared) {
           if (world.no_players >= world.max_players) {
             conn.kill('Server is full');
           } else {
-            conn.post([OP_WORLD_DATA].concat(world.get_repr()));
+            conn.post([OP_WORLD_DATA, world.map_data, world.rules]);
 
             if (conn.debug) {
               log('Debug: ' + conn + ' connected to server. Sending handshake...');
@@ -624,7 +671,7 @@ function start_gameserver(map_data, options, shared) {
           // on_player_join broadcast
           player = world.add_player(connection_id, conn.player_name);
 
-          conn.post([OP_SERVER_CONNECT, world.tick, player.id, player.name]);
+          conn.post([OP_WORLD_STATE, player.id].concat(world.get_repr()));
           
           log(conn + ' joined the game.');
           break;
@@ -704,8 +751,10 @@ function start_gameserver(map_data, options, shared) {
     
   });
   
-  sys.puts('Starting Game Server server at ' + shared.get_state().game_server_url);
-  server.listen(options.ws_port, options.host);
+  load_map(null, true, function(err) {
+    sys.puts('Starting Game Server server at ' + shared.get_state().game_server_url);
+    server.listen(options.ws_port, options.host);
+  });
   
   return server;
 }
@@ -858,12 +907,18 @@ function get_rules(default_rules, map_rules, user_rules) {
  */
 function parse_options() {
   var parser  = new optparse.OptionParser(SWITCHES),
-      result = { rules: {}};
+      result = { rules: {}, maps: []};
   parser.banner = 'Usage: wpilots.js [options]';
+
   parser.on('help', function() {
     sys.puts(parser.toString());
     parser.halt();
   });
+  
+  parser.on('map', function(prop, value) {
+    result.maps.push(value);
+  });
+  
   parser.on('*', function(opt, value) {
     var match = opt.match(/^r_([a-z_]+)/);
     if (match) {
@@ -871,6 +926,7 @@ function parse_options() {
     }
     result[opt] = value || true;
   });      
+  
   parser.parse(process.ARGV);
   return parser._halt ? null : process.mixin(DEFAULT_OPTIONS, result);
 }

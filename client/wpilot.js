@@ -268,13 +268,14 @@ WPilotClient.prototype.chat = function(message) {
  *  @return {undefined} Nothing
  */
 WPilotClient.prototype.set_world = function(world) {
-  world.client = this;
-  this.viewport.set_camera_pos(vector_div(world.size, 2));
+  if (world != null) {
+    world.client = this;
+    this.viewport.set_camera_pos(vector_div(world.size, 2));
+  }
   this.world = world;
   this.gui.hud.world = world;
   this.gui.scoreboard.world = world;
   this.gui.warmupnotice.world = world;
-  this.log('World data loaded...');
 }
 
 /**
@@ -458,7 +459,7 @@ WPilotClient.prototype.process_user_input = function(t, dt) {
   }
 
   if (input.toggle('ready')) {
-    this.post_game_packet([CLIENT + SET, 'ready']);
+    this.post_game_packet([OP_CLIENT_SET, 'ready']);
   }
 
   if (!player.dead && player.entity.visible) {
@@ -708,44 +709,26 @@ var process_control_message = match (
    *  Is received after the client has sent a CLIENT CONNECT message. The message
    *  contains all data necessary to set up the game world.
    */
-  [[OP_WORLD_DATA, Object, Array, Array], _], 
-  function(world_data, players_data, powerups_data, client) {
-    var world = new World(world_data);
-    world.build(world_data.map_data);
-    
-    for (var i = 0; i < players_data.length; i++) {
-      var player_data = players_data[i];
-      var player = new Player(player_data);
-      world.players[player.id] = player;
-      if (!player_data.dead) {
-        var entity = new Ship({
-          pos:    player_data.pos,
-          vel:    player_data.vel,
-          angle:  player_data.angle,
-          player: player
-        });
-        world.add_entity(entity);
-        player.entity = entity;
-      }
-    }
-
-    for (var i = 0; i < powerups_data.length; i++) {
-      var powerup_data = powerups_data[i];
-      var powerup = new Powerup(powerup_data);
-      world.powerups[powerup.powerup_id] = powerup;
-      world.add_entity(powerup);
-    }
-    
+  [[OP_WORLD_DATA, Object, Object], _], 
+  function(map_data, rules, client) {
+    var world = new World(false);
+    world.build(map_data, rules);
+    client.log('World data loaded...');
     client.set_world(world);
-    
     client.set_state(CLIENT_CONNECTED);
   },
   
-  [[OP_SERVER_CONNECT, Number, Number, String], _],
-  function(tick, id, name, client) {
-    var player = client.world.add_player(id, name);
-    client.set_player(player);
-    client.start_gameloop(tick);
+  [[OP_WORLD_STATE, Number, Object, Array, Array], _],
+  function(my_id, state, players, powerups, client) {
+    client.world.set_state(state, players, powerups);
+    client.set_player(client.world.players[my_id]);
+    client.start_gameloop(client.world.tick);
+  },
+  
+  [[OP_WORLD_RECONNECT], _],
+  function(client) {
+    client.set_world(null);
+    client.stop_gameloop();
   },
   
   /**
@@ -846,6 +829,10 @@ World.prototype.on_update = function(t, dt) {
   }
 }
 
+World.prototype.on_after_state_set = function() {
+  this.ranked_player_list = calculate_ranks(this);
+}
+
 /**
  * Callback for player join
  */
@@ -942,6 +929,9 @@ World.prototype.on_player_ready = function(player) {
  */
 World.prototype.on_player_name_changed = function(player, new_name, old_name) {
   this.client.log('"' + old_name + '" is now known as "' + new_name + '"');
+  if (player.is_me) {
+    this.options.name = new_name;
+  }
 }
 
 /**
