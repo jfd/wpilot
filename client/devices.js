@@ -80,7 +80,6 @@ function ViewportDevice(target, width, height, options) {
   this.frame_time   = 0;
   this.current_fps  = 0;
   this.average_fps  = 0;
-  this.refresh_count = 0;
 
   // Event callbacks
   this.ondraw       = function(ctx) {};
@@ -153,29 +152,18 @@ ViewportDevice.prototype.translate = function(vector) {
  */
 ViewportDevice.prototype.refresh = function(alpha) {
   var time    = get_time(),
-      diff    = time - this.frame_time,
-      max_fps = this.options.max_fps;
+      diff    = time - this.frame_time;
   
-  if (this.refresh_count % this.frame_skip == 0) {
-    this.draw();
-    this.frame_count++;
-  } 
+  this.draw();
+  this.frame_count++;
   
   if (diff > 100) {
     this.current_fps = this.current_fps * 0.9 + (diff / 10) * this.frame_count * 0.1;
-    
-    if (this.current_fps > (max_fps)) {
-      this.frame_skip += 1;
-    } else if (this.frame_skip > 1 && this.current_fps < (max_fps)) {
-      this.frame_skip -= 1;
-    }
-    
+        
     this.frame_time = time;
     this.frame_count = 0;
     this.average_fps = this.current_fps;
-  }
-  
-  this.refresh_count++;
+  }  
 }
 
 /**

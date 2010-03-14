@@ -131,7 +131,6 @@ var SOUNDS = {
 // Default client options. This options can be changed from the console
 // by typing wpilot.options[OPTION_NAME] = new_value
 var DEFAULT_OPTIONS         = {
-  max_fps:              100,
   show_fps:             true,
   
   show_netstat:         false, 
