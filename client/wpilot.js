@@ -1025,7 +1025,7 @@ World.prototype.update_player_info = function(id, ping, ready, name) {
   var player = this.players[id];
   if (ping) {
     if (player.ping) {
-      player.ping = parseInt(player.ping * 0.9 + ping * 0.1);
+      player.ping = parseInt(player.ping * 0.5 + ping * 0.5);
     } else {
       player.ping = ping;
     }
@@ -1044,10 +1044,10 @@ World.prototype.update_player_state = function(id, pos, angle, action) {
   if (pos) {
     player.entity.pos_sv = pos;
   }
-  if (!player.is_me && angle) {
+  if (!player.is_me) {
     player.entity.angle = angle;
   }
-  if (!player.is_me && action) {
+  if (!player.is_me) {
     player.action = action;
   }
 }

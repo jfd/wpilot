@@ -98,8 +98,8 @@ const DEFAULT_OPTIONS = {
   r_respawn_time:       400,
   r_reload_time:        15,
   r_shoot_cost:         300,
-  r_shield_cost:        70,
-  r_energy_recovery:    40,
+  r_shield_cost:        30,
+  r_energy_recovery:    30,
   r_round_limit:        10,
   r_suicide_penelty:    1,
   r_kill_score:         1,
@@ -255,8 +255,8 @@ function start_gameserver(maps, options, shared) {
     broadcast(OP_PLAYER_INFO, player.id, 0, 0, player.name);
   }
   
-  world.on_player_fire = function(player, angle) {
-   broadcast(OP_PLAYER_FIRE, player.id, angle);
+  world.on_player_fire = function(player, angle, pos, vel) {
+   broadcast(OP_PLAYER_FIRE, player.id, angle, pos, vel);
   }
   
   world.on_player_leave = function(player, reason) {
@@ -391,7 +391,10 @@ function start_gameserver(maps, options, shared) {
       // The round is finished. Wait for restart
       case ROUND_FINISHED:
         if (t >= world.r_timer) {
+          gameloop.ontick = null;
+          gameloop.kill();
           load_map(null, true, function() {
+            var t = 0;
             for(var id in connections) {
               var conn = connections[id];
               conn.write(JSON.stringify([OP_WORLD_RECONNECT]));
@@ -813,6 +816,8 @@ var process_control_message = match (
   },
   
   function(data) {
+    sys.puts(data);
+    sys.puts(data[1].state);
     data[1].kill('Bad control message');
   }
   
