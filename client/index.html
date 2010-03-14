@@ -26,31 +26,6 @@
 			$(document).ready(function() {
 			  var options = $.extend({}, DEFAULT_OPTIONS);
 			  var canvas = $('#viewport canvas');
-			  var viewport  = new ViewportDevice(canvas[0], canvas.width(), canvas.height(), options),
-			      keyboard  = new KeyboardDevice(document, options),
-						sound			= new SoundDevice(options);
-
-			  wpilot = new WPilotClient(options);
-			  wpilot.set_viewport(viewport)
-			  wpilot.set_input(keyboard);
-			  wpilot.set_sound(sound);
-
-			  wpilot.onconnect = function() {
-			    $('#splash .server-info').css('display', 'none');
-			    $('#splash').css('display', 'none');
-			  }
-
-			  wpilot.ondisconnect = function(reason) {
-			    $('#splash').css('display', 'block');
-			    if (reason) {
-			      $('#splash .notice')
-			          .css('display', 'block')
-			          .text('You where disconnected from server "' + reason + '"');
-			      setTimeout(function() {
-			        $('#splash .server-info a').click();
-			      }, 2000)
-			    }
-			  }
 
 			  $('#splash .server-info a').click(function(e) {
 			    e.preventDefault();
@@ -73,8 +48,47 @@
 			    });
 			  });
 
-			  $('#splash .server-info button').mouseup(function(e) {
+			  $('#splash .server-info button').click(function(e) {
+					e.preventDefault();
 			    var url = $(this).data('url');
+				  var viewport  = new ViewportDevice(canvas[0], canvas.width(), canvas.height(), options),
+				      keyboard  = new KeyboardDevice(document, options),
+							sound			= new SoundDevice(options);
+
+				  wpilot = new WPilotClient(options);
+				  wpilot.set_viewport(viewport)
+				  wpilot.set_input(keyboard);
+				  wpilot.set_sound(sound);
+			
+				  wpilot.onconnect = function() {
+				    $('#splash .server-info').css('display', 'none');
+				    $('#splash').css('display', 'none');
+				  }
+
+				  wpilot.ondisconnect = function(reason) {
+						wpilot.onconnect = null;
+						wpilot.disconnect = null;
+					  wpilot.set_viewport(null);
+					  wpilot.set_input(null);
+					  wpilot.set_sound(null);
+						wpilot = null;
+
+						viewport.destroy();
+						keyboard.destroy();
+						sound.destroy();
+						viewport = keyboard = sound = null;
+						
+				    $('#splash').css('display', 'block');
+				    if (reason) {
+				      $('#splash .notice')
+				          .css('display', 'block')
+				          .text('You where disconnected from server "' + reason + '"');
+				      setTimeout(function() {
+				        $('#splash .server-info a').click();
+				      }, 2000)
+				    }
+				  }
+			
 			    wpilot.join(url);
 			  });
 

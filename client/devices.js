@@ -35,6 +35,12 @@ function KeyboardDevice(target, options) {
   };
 }
 
+KeyboardDevice.prototype.destroy = function() {
+  this.target.onkeypress = null;
+  this.target.onkeydown = null;
+  this.target.onkeyup = null;
+}
+
 /**
  *  Returns current state of a defined key
  *  @param {String} name Name of defined key
@@ -90,6 +96,11 @@ function ViewportDevice(target, width, height, options) {
   
   // Start to draw things
   this.set_autorefresh(true);
+}
+
+ViewportDevice.prototype.destroy = function() {
+  this.set_autorefresh = false;
+  this.ctx.clearRect(0, 0, this.w, this.h);
 }
 
 /**
@@ -204,6 +215,18 @@ function SoundDevice(options){
       !(/Chrome/.test(navigator.userAgent))) {
     this.use_m4a = true;
   }
+}
+
+SoundDevice.prototype.destroy = function() {
+ for (var name in this.sounds) {
+   var sound = this.sounds[name];
+   var index = sound.buffers.length;
+   while (index--) {
+     sound.buffers[index].pause();
+     delete sound.buffers[index];
+   }
+   sound.free_count = 0;
+ }
 }
 
 SoundDevice.prototype.init = function(sources) {

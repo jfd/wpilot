@@ -286,58 +286,59 @@ WPilotClient.prototype.set_viewport = function(viewport) {
   var gui = this.gui;
   var self = this;
 
-  // Initialize GUI elements
-  gui.hud = new GUIPlayerHUD([viewport.w / 2, viewport.h / 2]);
-  gui.netstat = new GUINetStat([6, 12], this.netstat);
-  gui.fps = new GUIFpsCounter([viewport.w - 6, 12], viewport);
-  gui.messages = new GUIMessageLog([6, viewport.h - 2], 
-                                   this.message_log,
-                                   this.options);
-  gui.scoreboard = new GUIScoreboard([0, 0]);
-  gui.scoreboard.set_size([viewport.w, viewport.h]);
-  gui.warmupnotice = new GUIWarmupNotice([viewport.w / 2, 
-                                          viewport.h - 50]);
-  gui.prompt = new GUIPrompt([40, viewport.h - 40]);
-  gui.prompt.set_size([viewport.w - 80, 26]);
-  gui.prompt.oncommand = function() { self.exec.apply(self, arguments) };
-  gui.prompt.onchat = function() { self.chat.apply(self, arguments) };
-  
-  // Set the draw callback
-  viewport.ondraw = function(ctx) {
-    var world = self.world,
-        player = self.player,
-        tick = tick;
+  if (viewport) {
+    // Initialize GUI elements
+    gui.hud = new GUIPlayerHUD([viewport.w / 2, viewport.h / 2]);
+    gui.netstat = new GUINetStat([6, 12], this.netstat);
+    gui.fps = new GUIFpsCounter([viewport.w - 6, 12], viewport);
+    gui.messages = new GUIMessageLog([6, viewport.h - 2], 
+                                     this.message_log,
+                                     this.options);
+    gui.scoreboard = new GUIScoreboard([0, 0]);
+    gui.scoreboard.set_size([viewport.w, viewport.h]);
+    gui.warmupnotice = new GUIWarmupNotice([viewport.w / 2, 
+                                            viewport.h - 50]);
+    gui.prompt = new GUIPrompt([40, viewport.h - 40]);
+    gui.prompt.set_size([viewport.w - 80, 26]);
+    gui.prompt.oncommand = function() { self.exec.apply(self, arguments) };
+    gui.prompt.onchat = function() { self.chat.apply(self, arguments) };
 
-    if (player && !player.dead) {
-      viewport.set_camera_pos(player.entity.pos);
-    }
-    
-    if (world) {
-      world.draw(viewport);
-      tick = world.tick;
-    }
+    // Set the draw callback
+    viewport.ondraw = function(ctx) {
+      var world = self.world,
+          player = self.player,
+          tick = tick;
 
-    // Draw GUI elements
-    for (var name in gui) {
-      var element = gui[name],
-          visible = element.is_visible();
-
-      if (element.alpha) {
-        ctx.save();
-        ctx.globalAlpha = element.alpha;
-        ctx.translate(element.pos[0], element.pos[1]);
-        element.draw(ctx, tick);
-        ctx.restore();
+      if (player && !player.dead) {
+        viewport.set_camera_pos(player.entity.pos);
       }
 
-      if (visible && element.alpha < 1.0) {
-        element.alpha = element.alpha + 0.2 > 1.0 ? 1.0 : element.alpha + 0.2;
-      } else if (!visible && element.alpha > 0) {
-        element.alpha = element.alpha - 0.2 < 0 ? 0 : element.alpha - 0.2;
+      if (world) {
+        world.draw(viewport);
+        tick = world.tick;
       }
-      
-    }
 
+      // Draw GUI elements
+      for (var name in gui) {
+        var element = gui[name],
+            visible = element.is_visible();
+
+        if (element.alpha) {
+          ctx.save();
+          ctx.globalAlpha = element.alpha;
+          ctx.translate(element.pos[0], element.pos[1]);
+          element.draw(ctx, tick);
+          ctx.restore();
+        }
+
+        if (visible && element.alpha < 1.0) {
+          element.alpha = element.alpha + 0.2 > 1.0 ? 1.0 : element.alpha + 0.2;
+        } else if (!visible && element.alpha > 0) {
+          element.alpha = element.alpha - 0.2 < 0 ? 0 : element.alpha - 0.2;
+        }
+
+      }
+    }
   }
 
   this.viewport = viewport;
@@ -358,7 +359,9 @@ WPilotClient.prototype.set_input = function(device) {
  *  @return {undefined} Nothing
  */
 WPilotClient.prototype.set_sound = function(device) {
-  device.init(SOUNDS);
+  if (device) {
+    device.init(SOUNDS);
+  }
   this.sound = device;
 }
 
@@ -394,6 +397,7 @@ WPilotClient.prototype.set_server_state = function(state) {
  *  @return {undefined} Nothing
  */
 WPilotClient.prototype.set_state = function(state) {
+  var self = this;
   switch(state) {
 
     case CLIENT_CONNECTING:
@@ -404,7 +408,6 @@ WPilotClient.prototype.set_state = function(state) {
 
     case CLIENT_CONNECTED:
       this.log('Joined server ' + this.conn.URL + '...');
-      console.log('join name: ' + this.options.name);
       this.post_control_packet([OP_CLIENT_JOIN, {
         name: this.options.name || get_random_value(PLAYER_NAMES),
         rate: this.options.rate,
@@ -413,6 +416,9 @@ WPilotClient.prototype.set_state = function(state) {
       break;
       
     case CLIENT_DISCONNECTED:    
+      this.log('You where disconnected from server ' +
+                this.disconnect_reason ? 
+                '(Reason: ' + this.disconnect_reason + ').' : '');
       this.conn = null;
       this.is_connected = false;
       this.handshaked = false;
@@ -420,12 +426,8 @@ WPilotClient.prototype.set_state = function(state) {
       this.player = null;
       this.conn = null;
       this.message_log = [];
-      this.ondisconnect(this.disconnect_reason);
       this.stop_gameloop();
-      
-      this.log('You where disconnected from server ' +
-                this.disconnect_reason ? 
-                '(Reason: ' + this.disconnect_reason + ').' : '');
+      self.ondisconnect(self.disconnect_reason);
       break;
     
   }
@@ -556,7 +558,6 @@ WPilotClient.prototype.stop_gameloop = function() {
     this.gameloop.ontick = null;
     this.gameloop.ondone = null;
     this.gameloop = null;
-    this.viewport.set_autorefresh(true);
   }
 }
 
