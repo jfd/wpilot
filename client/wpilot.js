@@ -139,12 +139,6 @@ var DEFAULT_OPTIONS         = {
   
   name:                 null,
 
-  hud_player_score_v:   true,
-  hud_player_name_v:    true,
-  hud_player_pos_v:     true,
-  hud_coords_v:         true,
-  hud_energy_v:         true,
-  
   rotation_speed:       6,
   rotation_acc:         0.5,
   
