@@ -337,6 +337,7 @@ WPilotClient.prototype.set_viewport = function(viewport) {
       }
       
     }
+
   }
 
   this.viewport = viewport;
@@ -367,12 +368,14 @@ WPilotClient.prototype.set_sound = function(device) {
  *  @return {undefined} Nothing
  */
 WPilotClient.prototype.set_player = function(player) {
-  player.is_me = true;
+  if (player) {
+    player.is_me = true;
+    this.log('You are now known as "' + player.name  + '"...');
+  }
   this.player = player;
   this.gui.hud.me = player;
   this.gui.scoreboard.me = player;
   this.gui.warmupnotice.me = player;
-  this.log('You are now known as "' + player.name  + '"...');
 }
 
 WPilotClient.prototype.set_server_state = function(state) {
@@ -401,6 +404,7 @@ WPilotClient.prototype.set_state = function(state) {
 
     case CLIENT_CONNECTED:
       this.log('Joined server ' + this.conn.URL + '...');
+      console.log('join name: ' + this.options.name);
       this.post_control_packet([OP_CLIENT_JOIN, {
         name: this.options.name || get_random_value(PLAYER_NAMES),
         rate: this.options.rate,
@@ -533,8 +537,10 @@ WPilotClient.prototype.start_gameloop = function(initial_tick) {
   }
 
   this.viewport.set_autorefresh(false);
+
   this.netstat.start_time = this.netstat.last_update = 
                             this.netstat.last_received = get_time();
+                            
   gameloop.start();
   self.gameloop = gameloop;
   return gameloop;
@@ -547,6 +553,8 @@ WPilotClient.prototype.start_gameloop = function(initial_tick) {
 WPilotClient.prototype.stop_gameloop = function() {
   if (this.gameloop) {
     this.gameloop.kill();
+    this.gameloop.ontick = null;
+    this.gameloop.ondone = null;
     this.gameloop = null;
     this.viewport.set_autorefresh(true);
   }
@@ -929,7 +937,7 @@ World.prototype.on_player_ready = function(player) {
 World.prototype.on_player_name_changed = function(player, new_name, old_name) {
   this.client.log('"' + old_name + '" is now known as "' + new_name + '"');
   if (player.is_me) {
-    this.options.name = new_name;
+    this.client.options.name = new_name;
   }
 }
 
@@ -1016,7 +1024,6 @@ World.prototype.process_world_packet = function(msg) {;
   if (handler) {
     handler.apply(this, msg);
   } else {
-    console.log('pl.' + OP_PLAYER_STATE);
     console.log(id);
   }
 }
@@ -1040,6 +1047,7 @@ World.prototype.update_player_info = function(id, ping, ready, name) {
 
 World.prototype.update_player_state = function(id, pos, angle, action) {
   var player = this.players[id];
+
   if (pos) {
     player.entity.pos_sv = pos;
   }
@@ -1047,7 +1055,7 @@ World.prototype.update_player_state = function(id, pos, angle, action) {
     player.entity.angle = angle;
   }
   if (!player.is_me && action) {
-    player.entity.action = action;
+    player.action = action;
   }
 }
 
@@ -2030,6 +2038,8 @@ GUIScoreboard.prototype.draw = function(ctx) {
       me = this.me,
       x = this.margin,
       y = this.margin;
+  
+  if (!world) return;
   
   var title  = '',
       notice = null,

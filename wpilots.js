@@ -302,6 +302,7 @@ function start_gameserver(maps, options, shared) {
     }
     
     if (gameloop) {
+      gameloop.ontick = null;
       gameloop.kill();
       gameloop = null;
     }
@@ -325,8 +326,8 @@ function start_gameserver(maps, options, shared) {
         if (player.entity) {
           message.push(pack_vector(player.entity.pos), player.entity.angle, 
                                                        player.entity.action);
+          connection.queue(message);
         }
-        connection.queue(message);
         if (update_tick % 200 == 0) {
           var player_connection = connections[player.id];
           connection.queue([OP_PLAYER_INFO, player.id, player_connection.ping]);
@@ -413,9 +414,7 @@ function start_gameserver(maps, options, shared) {
     var msg = Array.prototype.slice.call(arguments);
     for(var id in connections) {
       var conn = connections[id];
-      if (conn.state == JOINED) {
-        connections[id].queue(msg);
-      }
+      connections[id].queue(msg);
     }
   }
 
@@ -462,6 +461,7 @@ function start_gameserver(maps, options, shared) {
       if (map_data) {
         
         if (gameloop) {
+          gameloop.ontick = null;
           gameloop.kill();
         }
         
@@ -590,7 +590,9 @@ function start_gameserver(maps, options, shared) {
      *  Queues the specified message and sends it on next flush.
      */
     conn.queue = function(msg) {
-      message_queue.push(msg);
+      if (conn.state == JOINED) {
+        message_queue.push(msg);
+      }
     }
 
     /**

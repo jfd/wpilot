@@ -151,11 +151,12 @@ ViewportDevice.prototype.translate = function(vector) {
  *  @return {undefined} Nothing
  */
 ViewportDevice.prototype.refresh = function(alpha) {
-  var time    = get_time(),
-      diff    = time - this.frame_time;
-  
+
   this.draw();
   this.frame_count++;
+
+  var time = get_time();
+  var diff = time - this.frame_time;
   
   if (diff > 100) {
     this.current_fps = this.current_fps * 0.9 + (diff / 10) * this.frame_count * 0.1;
