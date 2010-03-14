@@ -66,7 +66,7 @@ section#viewport canvas {
   height: 100%;
 }
 
-section#splash {
+section.dialog {
   position: absolute;
   color: white;
   background: rgba(255,255,255, 0.1);
@@ -79,13 +79,13 @@ section#splash {
   margin-top: -160px;
 }
 
-section#splash h1 {
+section.dialog h1 {
   background: url(logo.png) center center no-repeat;
   text-indent: -100000px;
   height: 70px;
 }
 
-section#splash p.version {
+section.dialog p.version {
   position: absolute;
   left: 5px;
   bottom: 0px;
@@ -93,18 +93,29 @@ section#splash p.version {
   color: #666666;
 }
 
-section#splash section {
+section.dialog section {
   margin: 20px 40px 20px 40px;
   height: 180px;
 }
 
-section#splash .notice {
+section.dialog .notice {
   display: block;
   background: rgba(255,0,0, 0.1);
   padding-top: 60px;
   text-align: center;
   color: white;
   height: 120px;
+}
+
+section.dialog p {
+  text-align: center;
+  margin: 0 0 12px 0;
+  color: #ccc;
+  font-size: 0.8em;  
+}
+
+section#splash {
+  display: none;
 }
 
 section#splash .server-info {
@@ -144,7 +155,7 @@ section#splash .server-info p span {
   width: 200px;
 }
 
-section#splash .server-info .actions {
+section#splash .actions {
   position: relative;
   font-size: 0.7em;
   color: #666666;
@@ -156,16 +167,43 @@ section#splash .server-info .actions {
 section#splash .server-info .actions .span {
 }
 
-section#splash .server-info .actions  a {
+section.dialog .actions  a {
   color: #33B6FF;
-  
 }
 
-section#splash .server-info button {
+section.dialog  button {
   border-size: 1px;
   border-color: rgba(255, 255, 255, 0.6);
   border-radius: 2px;
   color: #ffffff;
   background: black;
-  
+}
+
+section#options label {
+  display: inline-block;
+  margin: 0 0 3px 0;
+  color: #666666;
+  font-size: 0.6em;
+  width: 225px;
+  text-align: right;  
+}
+
+section#options input {
+  display: inline-block;
+  text-align: left;
+  left: 235px;
+
+}
+
+section#options input[type="text"] {
+  background: rgba(0, 0, 0, 0.1);
+  border: 1px solid rgba(255, 215, 0, 0.8);
+  color: #fff;
+  padding: 1px;
+  font-size: 0.7em;
+}
+
+section#options .actions {
+  padding-top: 10px;
+  text-align: center;
 }

@@ -3,14 +3,14 @@
 	<head>
 		<title>WPilot</title>
 		<link rel="stylesheet" href="style.css" type="text/css" media="screen" charset="utf-8">
-		<script type="text/javascript" src="swfobject.js"></script>
-	  <script type="text/javascript" src="FABridge.js"></script>
-		<script type="text/javascript" src="web_socket.js"></script>
+		<script type="text/javascript" src="lib/swfobject.js"></script>
+	  <script type="text/javascript" src="lib/FABridge.js"></script>
+		<script type="text/javascript" src="lib/web_socket.js"></script>
 		<script type="text/javascript" src="http://ajax.googleapis.com/ajax/libs/jquery/1.3.2/jquery.min.js"></script>
-		<script type="text/javascript" src="match.js"></script>
+		<script type="text/javascript" src="lib/match.js"></script>
+		<script type="text/javascript" src="lib/particle.js"></script>
 		<script type="text/javascript" src="gameobjects.js"></script>
 		<script type="text/javascript" src="wpilot.js"></script>
-		<script type="text/javascript" src="particle.js"></script>
 		<script type="text/javascript" src="devices.js"></script>
 		<script>
 			// The globallly defined wpilot client. It's global so that the player can
@@ -18,7 +18,7 @@
 			var wpilot = null;
 
 			// Set location for the WebSocket SWF library.
-			WebSocket.__swfLocation = "WebSocketMain.swf";
+			WebSocket.__swfLocation = "lib/WebSocketMain.swf";
 
 			/**
 			 *  Is called when the document is loaded and ready. Creates a new client.
@@ -26,6 +26,22 @@
 			$(document).ready(function() {
 			  var options = $.extend({}, DEFAULT_OPTIONS);
 			  var canvas = $('#viewport canvas');
+			
+				$('#options input[name="name"]').val(options.name);
+				$('#options input[name="fg-sound"]').attr('checked', options.sfx_sound_enabled);
+				$('#options input[name="bg-sound"]').attr('checked', options.bg_sound_enabled);
+			
+			  $('#options button').click(function(e) {
+			    e.preventDefault();
+					options.name = $('#options input[name="name"]').val();
+					options.sfx_sound_enabled = $('#options input[name="fg-sound"]').attr('checked');
+					options.bg_sound_enabled = $('#options input[name="bg-sound"]').attr('checked');
+					$('#options').hide();
+					$('#splash').show();
+					console
+			  });
+			
+				
 
 			  $('#splash .server-info a').click(function(e) {
 			    e.preventDefault();
@@ -92,7 +108,7 @@
 			    wpilot.join(url);
 			  });
 
-			  $('#splash .version').html('WPilot client version ' + CLIENT_VERSION);
+			  $('.dialog .version').html('WPilot client version ' + CLIENT_VERSION);
 
 			  setTimeout(function() { $('#splash .server-info a').click() }, 500);
 			});
@@ -103,7 +119,7 @@
 		<section id="viewport" class="mode540">
 			<canvas></canvas>
 		</section>
-		<section id="splash">
+		<section id="splash" class="dialog">
 			<h1 class='logo'>WPilot</h1>
 			<section class="notice">
 				Contacting server, please wait...
@@ -114,7 +130,26 @@
 				<p class="map">C</p> 
 				<p class="players"></p> 
 				<div class="actions">
-					<button>Join server</button> <span>or <a href="#">Refresh</a></span>
+					<button>Join server</button> <span> or <a href="#">Refresh</a></span>
+				</div>
+			</section>
+			<p class="version"></p>
+		</section>
+		<section id="options" class="dialog">
+			<h1 class='logo'>WPilot</h1>
+			<section>
+				<h2></h2>
+				<form id="options">
+					<p>Welcome to WPilot. Set options below, then click continue.</p>
+					<label for="name">Player name</label> 
+					<input name="name" type="text">
+					<label for="bg-sound">Enable background sound</label> 
+					<input type="checkbox" name="bg-sound" checked>
+					<label for="fg-sound">Enable SFX sounds</label> 
+					<input type="checkbox" name="fg-sound" checked>
+				</form>
+				<div class="actions">
+					<button>Continue</button>
 				</div>
 			</section>
 			<p class="version"></p>

@@ -131,18 +131,16 @@ var SOUNDS = {
 // Default client options. This options can be changed from the console
 // by typing wpilot.options[OPTION_NAME] = new_value
 var DEFAULT_OPTIONS         = {
-  show_fps:             true,
-  
-  show_netstat:         false, 
   
   rate:                 5000,
   
-  name:                 null,
+  name:                 get_random_value(PLAYER_NAMES),
 
   rotation_speed:       6,
   rotation_acc:         0.5,
   
-  sound_enabled:        false,
+  bg_sound_enabled:     true,
+  sfx_sound_enabled:    false,
   sound_bg_volume:      0.8,
   
   log_max_messages:     6,
@@ -403,7 +401,7 @@ WPilotClient.prototype.set_state = function(state) {
     case CLIENT_CONNECTED:
       this.log('Joined server ' + this.conn.URL + '...');
       this.post_control_packet([OP_CLIENT_JOIN, {
-        name: this.options.name || get_random_value(PLAYER_NAMES),
+        name: this.options.name,
         rate: this.options.rate,
         dimensions: [this.viewport.w, this.viewport.h] 
       }]);  

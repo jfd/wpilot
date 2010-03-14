@@ -112,43 +112,42 @@ const DEFAULT_OPTIONS = {
 
 // Paths to all files that should be server to client.
 const CLIENT_DATA = [
-  'client/index.html',
-  'client/style.css',
-  'client/logo.png',
-  'client/space.jpg',
-  'client/wpilot.js',
-  'client/devices.js',
-  'lib/gameobjects.js',
-  'lib/match.js',
-  'client/sound/background.m4a',
-  'client/sound/ship_spawn.m4a',
-  'client/sound/ship_die.m4a',
-  'client/sound/ship_thrust.m4a',
-  'client/sound/ship_fire_1.m4a',
-  'client/sound/ship_fire_2.m4a',
-  'client/sound/ship_fire_3.m4a',
-  'client/sound/powerup_spawn.m4a',
-  'client/sound/powerup_1_die.m4a',
-  'client/sound/powerup_2_die.m4a',
-  'client/sound/powerup_3_die.m4a',
-  'client/sound/background.ogg',
-  'client/sound/ship_spawn.ogg',
-  'client/sound/ship_die.ogg',
-  'client/sound/ship_thrust.ogg',
-  'client/sound/ship_fire_1.ogg',
-  'client/sound/ship_fire_2.ogg',
-  'client/sound/ship_fire_3.ogg',
-  'client/sound/powerup_spawn.ogg',
-  'client/sound/powerup_1_die.ogg',
-  'client/sound/powerup_2_die.ogg',
-  'client/sound/powerup_3_die.ogg',
-  'client/web_socket.js',
-  'client/swfobject.js',
-  'client/FABridge.js',
-  'client/particle.js',
-  'lib/sylvester.js',
-  'client/WebSocketMain.swf',
-  'client/crossdomain.xml' 
+  'client/index.html', '',
+  'client/style.css', '',
+  'client/logo.png', '',
+  'client/space.jpg', '',
+  'client/wpilot.js', '',
+  'client/devices.js', '',
+  'lib/gameobjects.js', '',
+  'lib/match.js', 'lib/',
+  'client/sound/background.m4a', 'sound/',
+  'client/sound/ship_spawn.m4a','sound/',
+  'client/sound/ship_die.m4a', 'sound/',
+  'client/sound/ship_thrust.m4a', 'sound/',
+  'client/sound/ship_fire_1.m4a', 'sound/',
+  'client/sound/ship_fire_2.m4a', 'sound/',
+  'client/sound/ship_fire_3.m4a', 'sound/',
+  'client/sound/powerup_spawn.m4a', 'sound/',
+  'client/sound/powerup_1_die.m4a', 'sound/',
+  'client/sound/powerup_2_die.m4a', 'sound/',
+  'client/sound/powerup_3_die.m4a', 'sound/',
+  'client/sound/background.ogg', 'sound/',
+  'client/sound/ship_spawn.ogg', 'sound/',
+  'client/sound/ship_die.ogg', 'sound/',
+  'client/sound/ship_thrust.ogg', 'sound/',
+  'client/sound/ship_fire_1.ogg', 'sound/',
+  'client/sound/ship_fire_2.ogg', 'sound/',
+  'client/sound/ship_fire_3.ogg', 'sound/',
+  'client/sound/powerup_spawn.ogg', 'sound/',
+  'client/sound/powerup_1_die.ogg', 'sound/',
+  'client/sound/powerup_2_die.ogg', 'sound/',
+  'client/sound/powerup_3_die.ogg', 'sound/',
+  'client/web_socket.js', 'lib/',
+  'client/swfobject.js', 'lib/',
+  'client/FABridge.js', 'lib/',
+  'client/particle.js', 'lib/',
+  'client/WebSocketMain.swf', 'lib/',
+  'client/crossdomain.xml', 'lib/'
 ];
 
 /**
@@ -872,7 +871,9 @@ function start_webserver(options, shared) {
   var server = fu.listen(options.http_port, options.host);
 
   for (var i=0; i < CLIENT_DATA.length; i++) {
-    fu.get('/' + path.basename(CLIENT_DATA[i]), fu.staticHandler(CLIENT_DATA[i]));
+    var virtualpath = CLIENT_DATA[i + 1] + path.basename(CLIENT_DATA[i]);
+    fu.get('/' + virtualpath, fu.staticHandler(CLIENT_DATA[i]));
+    i++;
   }
   
   fu.get('/', fu.staticHandler(CLIENT_DATA[0]));

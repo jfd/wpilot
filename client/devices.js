@@ -200,7 +200,7 @@ ViewportDevice.prototype.draw = function() {
 function SoundDevice(options){
   this.sounds = {};
   
-  this.enabled = options.sound_enabled;
+  this.enabled = options.bg_sound_enabled || options.sfx_sound_enabled;
   
   try{
     this.supported = (new Audio()) !== undefined;
