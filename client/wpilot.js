@@ -2054,9 +2054,6 @@ GUIScoreboard.prototype.draw = function(ctx) {
   switch (world.r_state) {
     case ROUND_WARMUP:
       title = 'Warmup round';
-      if (!me.ready) {
-        notice = 'Press (r) when ready';
-      }
       break;
       
     case ROUND_STARTING:
