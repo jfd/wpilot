@@ -1,3 +1,16 @@
+Version 0.9
+	- (general) New, more realistic, collision system in place (thanks lahjnus)
+	- (general) Improved network protocol
+	- (general) Server commands implemented (via client)
+	- (general) Powerups introduced (currently three kinds, spread fire, rapid fire and ricochet bullets)
+	- (general) Custom maps introduced
+	
+	- (client) Experimental audio support implemented (using HTML5), with custom designed sound (Thanks EmanueI)
+	- (client) New HUD in place
+	- (client) Chat/command dialog implemented. Activate with ENTER
+	- (client) Option dialog at startup
+	- (client) Scoreboard implemented (activate by holding down 's')
+
 Version 0.8
 	- (general) New game engine, is faster and more reliable.
 	- (general) New, more slim, network protocol. Game runs smoother on low-band
