@@ -198,14 +198,18 @@ ViewportDevice.prototype.draw = function() {
  *  @param {Object} options Options with .bindings
  */
 function SoundDevice(options){
+  this.BG_SOUND = '_bgsound';
+
   this.sounds = {};
+  this.destroyed = false;
   
-  this.enabled = options.bg_sound_enabled || options.sfx_sound_enabled;
+  this.bg_sound_enabled = options.bg_sound_enabled;
+  this.sfx_sound_enabled = options.sfx_sound_enabled;
   
   try{
     this.supported = (new Audio()) !== undefined;
   }catch(e){
-    this.enabled = this.supported = false;
+    this.supported = false;
   }
   
   this.m4a = false;
@@ -218,19 +222,20 @@ function SoundDevice(options){
 }
 
 SoundDevice.prototype.destroy = function() {
- for (var name in this.sounds) {
-   var sound = this.sounds[name];
-   var index = sound.buffers.length;
-   while (index--) {
-     sound.buffers[index].pause();
-     delete sound.buffers[index];
-   }
-   sound.free_count = 0;
- }
+  this.destroyed = true;
+  for (var name in this.sounds) {
+    var sound = this.sounds[name];
+    var index = sound.buffers.length;
+    while (index--) {
+      sound.buffers[index].pause();
+      delete sound.buffers[index];
+    }
+    sound.free_count = 0;
+  } 
 }
 
-SoundDevice.prototype.init = function(sources) {
-  if (!this.enabled) {
+SoundDevice.prototype.init_sfx = function(sources) {
+  if (!this.supported || !this.sfx_sound_enabled) {
     return false;
   }
   
@@ -252,9 +257,27 @@ SoundDevice.prototype.init = function(sources) {
   
   return true;
 }
+
+SoundDevice.prototype.init_bg = function(source) {
+  if (!this.supported || !this.bg_sound_enabled) {
+    return false;
+  }
+  
+  var sound = { name: this.BG_SOUND, buffers: [], free_count: 2};
+    
+  for (var i = 0; i < 2; i++) {
+    var audio = new Audio(source + (this.use_m4a ? '.m4a' : '.ogg'));
+    audio.is_free = true;
+    sound.buffers.push(audio);
+  }
+
+  this.sounds[this.BG_SOUND] = sound;
+  
+  return true;
+} 
  
 SoundDevice.prototype.play = function(name, volume) {
-  if (!this.enabled) {
+  if (this.destroyed || !this.supported || !this.sfx_sound_enabled) {
     return;
   }
 
@@ -264,8 +287,8 @@ SoundDevice.prototype.play = function(name, volume) {
     return;
   }
 
-  var self = this,
-      buffer = self.get_buffer(name);
+  var self = this;
+  var buffer = self.get_buffer(name);
   
   if (buffer) {
     
@@ -278,38 +301,32 @@ SoundDevice.prototype.play = function(name, volume) {
     buffer.play();
   }
 }
- 
-SoundDevice.prototype.loop = function(name, volume) {
-  if (!this.enabled) {
+
+SoundDevice.prototype.playbg = function(volume) {
+  if (this.destroyed || !this.supported || !this.bg_sound_enabled) {
     return;
   }
   
-  var sound_volume = volume === undefined ? 1 : volume;
+  var self = this;
+  var buffer = this.get_buffer(this.BG_SOUND);
   
-  if (sound_volume <= 0) {
-    return;
+  function free() {
+    self.playbg(volume);
+    self.free_buffer(self.BG_SOUND, buffer, free);
   }
 
-  var self = this,
-      buffer = self.get_buffer(name);
-  
   if (buffer) {
-    
-    function free() {
-      self.free_buffer(name, buffer, free);
-    }
-    
+    buffer.volume = volume;
     buffer.addEventListener('ended', free, true);
-    buffer.volume = sound_volume;
-    buffer.loop = true;
     buffer.play();
   }
+  
 }
 
 SoundDevice.prototype.get_buffer = function(name) {
   var sound = this.sounds[name],
       buffers = sound.buffers;
-  
+
   if (sound.free_count) {
     var buffer = null,
         index = buffers.length;

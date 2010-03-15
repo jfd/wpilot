@@ -118,15 +118,17 @@ var HUD_FONT = [WEIGHT_HEAVY, SIZE_XLARGE, FONT_NAME].join(' ');
     
 var CHAT_MAX_CHARS  = 200;
     
-var SOUNDS = {
-  background:   [1,  ['background']],
-  ship_spawn:   [3,  ['ship_spawn']],
-  ship_die:     [3,  ['ship_die']],
-  ship_thrust:  [6,  ['ship_thrust']],  
-  bullet_spawn: [8,  ['ship_fire_1', 'ship_fire_2', 'ship_fire_3']], 
-  powerup_spawn:[3,  ['powerup_spawn']],
-  powerup_die:  [2,  ['powerup_1_die', 'powerup_2_die', 'powerup_3_die']] 
+var SFX_SOUNDS = {
+  ship_spawn:   [3,  ['sound/ship_spawn']],
+  ship_die:     [3,  ['sound/ship_die']],
+  ship_thrust:  [6,  ['sound/ship_thrust']],  
+  bullet_spawn: [8,  ['sound/ship_fire_1', 'sound/ship_fire_2', 'sound/ship_fire_3']], 
+  powerup_spawn:[3,  ['sound/powerup_spawn']],
+  powerup_die:  [2,  ['sound/powerup_1_die', 'sound/powerup_2_die', 'sound/powerup_3_die']] 
 }
+
+var BG_SOUND = 'sound/background';
+
 
 // Default client options. This options can be changed from the console
 // by typing wpilot.options[OPTION_NAME] = new_value
@@ -140,8 +142,8 @@ var DEFAULT_OPTIONS         = {
   rotation_acc:         0.5,
   
   bg_sound_enabled:     true,
-  sfx_sound_enabled:    false,
-  sound_bg_volume:      0.8,
+  sfx_sound_enabled:    true,
+  sound_bg_volume:      0.4,
   
   log_max_messages:     6,
   log_msg_lifetime:     5000,
@@ -352,7 +354,8 @@ WPilotClient.prototype.set_input = function(device) {
  */
 WPilotClient.prototype.set_sound = function(device) {
   if (device) {
-    device.init(SOUNDS);
+    device.init_sfx(SFX_SOUNDS);
+    device.init_bg(BG_SOUND);
   }
   this.sound = device;
 }
@@ -393,7 +396,6 @@ WPilotClient.prototype.set_state = function(state) {
   switch(state) {
 
     case CLIENT_CONNECTING:
-      this.sound.loop('background', this.options.sound_bg_volume);
       this.log('Server found, now joining game...');
       this.onconnect();
       break;
@@ -537,6 +539,9 @@ WPilotClient.prototype.start_gameloop = function(initial_tick) {
                             
   gameloop.start();
   self.gameloop = gameloop;
+
+  this.sound.playbg(this.options.sound_bg_volume);
+  
   return gameloop;
 }
 
