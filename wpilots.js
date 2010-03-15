@@ -77,9 +77,9 @@ const SWITCHES = [
   ['--r_kill_score NUMBER',       'Rule: The price of a kill (Default: 1)'],
   ['--r_powerup_max NUMBER',      'Rule: Max no of powerups to spawn (Default: 3)'],
   ['--r_powerup_respawn NUMBER',  'Rule: Time between powerup respawns (Default: 1200)'],
-  ['--r_powerup_speed_t NUMBER',  'Rule: Time before the speed powerup decline (Default: 700)'],
+  ['--r_powerup_spread_t NUMBER', 'Rule: Time before the spread powerup decline (Default: 700)'],
   ['--r_powerup_rapid_t NUMBER',  'Rule: Time before the rapid fire powerup decline (Default: 600)'],
-  ['--r_powerup_energy_t NUMBER', 'Rule: Time before the energy boost powerup decline (Default: 800)']
+  ['--r_powerup_rico_t NUMBER',   'Rule: Time before the ricoshet powerup decline (Default: 800)']
 ];
 
 // Default server options
@@ -105,9 +105,9 @@ const DEFAULT_OPTIONS = {
   r_kill_score:         1,
   r_powerup_max:        2,
   r_powerup_respawn:    600,
-  r_powerup_speed_t:    700,
+  r_powerup_spread_t:   700,
   r_powerup_rapid_t:    600,
-  r_powerup_energy_t:   800
+  r_powerup_rico_t:     600
 };
 
 // Paths to all files that should be server to client.
@@ -255,8 +255,8 @@ function start_gameserver(maps, options, shared) {
     broadcast(OP_PLAYER_INFO, player.id, 0, 0, player.name);
   }
   
-  world.on_player_fire = function(player, angle, pos, vel) {
-   broadcast(OP_PLAYER_FIRE, player.id, angle, pos, vel);
+  world.on_player_fire = function(player, angle, pos, vel, powerup) {
+   broadcast(OP_PLAYER_FIRE, player.id, angle, pos, vel, powerup);
   }
   
   world.on_player_leave = function(player, reason) {

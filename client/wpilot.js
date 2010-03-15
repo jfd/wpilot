@@ -110,9 +110,9 @@ var CLIENT_DISCONNECTED     = 0,
 
 // Powerup constants    
 var POWERUP_FONT            = '7px Arial',
-    POWERUP_SPEED_COLOR     = '230,21,90',
+    POWERUP_SPREAD_COLOR     = '230,21,90',
     POWERUP_RAPID_COLOR     = '166,219,0',
-    POWERUP_ENERGY_COLOR    = '51,182,255';
+    POWERUP_RICO_COLOR    = '51,182,255';
     
 var HUD_FONT = [WEIGHT_HEAVY, SIZE_XLARGE, FONT_NAME].join(' ');    
     
@@ -1802,14 +1802,14 @@ GUIPlayerHUD.prototype.draw = function(ctx, t) {
   ctx.arc(0, 0, 108, 0, Math.PI / 180, true);
   ctx.stroke();
   
-  if (me.has_powerup(POWERUP_SPEED)) {
-    var powerup = me.powerup_timers[POWERUP_SPEED];
+  if (me.has_powerup(POWERUP_SPREAD)) {
+    var powerup = me.powerup_timers[POWERUP_SPREAD];
     var perc = (powerup.end - t) / (powerup.end - powerup.start);
     angle = (Math.PI * 2 * perc)
     
     ctx.beginPath();
     ctx.lineWidth = 6;
-    ctx.strokeStyle = 'rgba(' + POWERUP_SPEED_COLOR + ', 0.08)';
+    ctx.strokeStyle = 'rgba(' + POWERUP_SPREAD_COLOR + ', 0.08)';
     ctx.arc(0, 0, 81, Math.PI * 3 / 2, angle - Math.PI / 2, false);
     ctx.stroke();    
   }
@@ -1826,14 +1826,14 @@ GUIPlayerHUD.prototype.draw = function(ctx, t) {
     ctx.stroke();
   }
 
-  if (me.has_powerup(POWERUP_ENERGY)) {
-    var powerup = me.powerup_timers[POWERUP_ENERGY];
+  if (me.has_powerup(POWERUP_RICO)) {
+    var powerup = me.powerup_timers[POWERUP_RICO];
     var perc = (powerup.end - t) / (powerup.end - powerup.start);
     angle = (Math.PI * 2 * perc)
     
     ctx.beginPath();
     ctx.lineWidth = 6;
-    ctx.strokeStyle = 'rgba(' + POWERUP_ENERGY_COLOR + ', 0.08)';
+    ctx.strokeStyle = 'rgba(' + POWERUP_RICO_COLOR + ', 0.08)';
     ctx.arc(0, 0, 69, Math.PI * 3 / 2, angle - Math.PI / 2, false);
     ctx.stroke();
   }
@@ -2270,14 +2270,14 @@ GUIPrompt.prototype.draw = function(ctx) {
 function get_powerup_color(type) {
   switch (type) {
 
-    case POWERUP_SPEED:
-      return POWERUP_SPEED_COLOR;
+    case POWERUP_SPREAD:
+      return POWERUP_SPREAD_COLOR;
 
     case POWERUP_RAPID:
       return POWERUP_RAPID_COLOR;
       
-    case POWERUP_ENERGY:
-      return POWERUP_ENERGY_COLOR;
+    case POWERUP_RICO:
+      return POWERUP_RICO_COLOR;
 
   }
 }
@@ -2285,14 +2285,14 @@ function get_powerup_color(type) {
 function get_powerup_text(type) {
   switch (type) {
 
-    case POWERUP_SPEED:
-      return 'Speed x1.3';
+    case POWERUP_SPREAD:
+      return 'Spread fire';
 
     case POWERUP_RAPID:
       return 'Rapid fire';
       
-    case POWERUP_ENERGY:
-      return 'Energy boost';
+    case POWERUP_RICO:
+      return 'Ricochet ammo';
 
   }
 }
