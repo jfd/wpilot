@@ -6,7 +6,7 @@
 //  
 //  Copyright (c) 2010 Johan Dahlberg 
 //
-var CLIENT_VERSION = '0.6';
+var CLIENT_VERSION = '0.9';
 
 var GRID_CELL_SIZE      = 250;
     GRID_CELL_COLOR     = 'rgba(255,255,255,0.2)';
