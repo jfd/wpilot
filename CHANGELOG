@@ -11,6 +11,7 @@ Version 0.9
 	- (client) Option dialog at startup
 	- (client) Scoreboard implemented (activate by holding down 's')
 
+
 Version 0.8
 	- (general) New game engine, is faster and more reliable.
 	- (general) New, more slim, network protocol. Game runs smoother on low-band
