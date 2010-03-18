@@ -59,6 +59,7 @@ const SWITCHES = [
   ['-H', '--help',                'Shows this help section'],
   ['--name NAME',                 'The name of the server.'],
   ['--host HOST',                 'The host adress (default: 127.0.0.1).'],
+  ['--region REGION',             'Set region of this server. This info is displayed in the global server list (default: n/a).'],
   ['--admin_password PASSWORD',   'Admin password (default: "none").'],
   ['--map PATH',                  'Path to world map (default: built-in map).'],
   ['--pub_host HOST',             'Set if the public host differs from the local one'],
@@ -87,6 +88,7 @@ const DEFAULT_OPTIONS = {
   debug:                true, 
   name:                 'WPilot Server',
   host:                 '127.0.0.1',
+  region:               'n/a',
   admin_password:       null,
   map:                  null, 
   pub_host:             null,
@@ -192,6 +194,7 @@ function start_gameserver(maps, options, shared) {
   shared.get_state = function() {
     return {
       server_name:      options.name,
+      region:           options.region,
       game_server_url:  'ws://' + (options.pub_host || options.host) + ':' + 
                                 (options.pub_ws_port || options.ws_port) + '/',
       map_name:         world.map_name,
