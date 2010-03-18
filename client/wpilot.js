@@ -578,6 +578,7 @@ WPilotClient.prototype.join = function(url) {
      */
     self.conn.onopen = function(event){
       self.is_connected = true;
+      self.conn.send(JSON.stringify([OP_REQ_SERVER_INFO]));
     };
 
     /**

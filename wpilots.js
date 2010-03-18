@@ -543,6 +543,10 @@ function start_gameserver(maps, options, shared) {
       conn.player_name = info.name;
       conn.dimensions = info.dimensions;
     }
+    
+    conn.send_server_info = function() {
+      conn.post([OP_SERVER_INFO, shared.get_state()]);
+    }
 
     /**
      *  Sends a chat message 
@@ -651,7 +655,6 @@ function start_gameserver(maps, options, shared) {
             log('Debug: Sending server state to ' + conn);
           }
           
-          conn.post([OP_SERVER_INFO, shared.get_state()]);
           break;
 
         case HANDSHAKING:
@@ -767,6 +770,11 @@ function start_gameserver(maps, options, shared) {
  *  Processes a control message from a connection. 
  */
 var process_control_message = match (
+  
+  [[OP_REQ_SERVER_INFO], {'state =': CONNECTED}],
+  function(conn) {
+    conn.send_server_info();
+  },
 
   /**
    *  MUST be sent by the client when connected to server. It's used to validate
