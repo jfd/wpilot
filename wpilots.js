@@ -195,6 +195,7 @@ function start_gameserver(maps, options, shared) {
     return {
       server_name:      options.name,
       region:           options.region,
+      version:          SERVER_VERSION,
       game_server_url:  'ws://' + (options.pub_host || options.host) + ':' + 
                                 (options.pub_ws_port || options.ws_port) + '/',
       map_name:         world.map_name,
