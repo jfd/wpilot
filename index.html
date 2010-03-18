@@ -5,32 +5,120 @@
 <head>
 	<meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
 
-	<title>jfd/wpilot @ GitHub</title>
+	<title>WPilot - a space journey in your browser</title>
 	
-	<style type="text/css">
-		body {
-  		margin-top: 1.0em;
-  		background-color: #000;
-		  font-family: "Helvetica,Arial,FreeSans";
-  		color: #fff;
-    }
-    #container {
-      margin: 0 auto;
-      width: 700px;
-    }
-		h1 { font-size: 3.8em; color: #08e43f; margin-bottom: 3px; }
-		h1 .small { font-size: 0.4em; }
-		h1 a { text-decoration: none }
-		h2 { font-size: 1.5em; color: #08e43f; }
-    h3 { text-align: center; color: #08e43f; }
-    a { color: #08e43f; }
-    .description { font-size: 1.2em; margin-bottom: 30px; margin-top: 30px; font-style: italic;}
-    .download { float: right; }
-		pre { background: #111; color: #fff; padding: 15px;}
-    hr { border: 0; width: 80%; border-bottom: 1px solid #aaa}
-    .footer { text-align:center; padding-top:30px; font-style: italic; }
-	</style>
+	<link rel="stylesheet" href="css/master.css" type="text/css" media="screen" charset="utf-8">
 	
+	<script type="text/javascript" src="http://ajax.googleapis.com/ajax/libs/jquery/1.4.2/jquery.min.js"></script>
+	<script type="text/javascript" src="jquery.tablesorter.js"></script>
+	<script type="text/javascript" src="jquery.lightbox.js"></script>
+	<script type="text/javascript">
+		var pinqueue = [];
+		var pingqeuerun = false;
+		var activepings = 0;
+		var test = [
+			// {"address" : "ws://79.99.0.126:6114/", region: "Sweden/Stockholm"},
+			{"address" : "ws://127.0.0.1:6115/", region: "Sweden/Stockholm"},
+			{"address" : "ws://127.0.0.1:6115/", region: "Sweden/Skelleftea"},
+			{"address" : "ws://127.0.0.1:6115/", region: "Sweden/Örebro"},
+			{"address" : "ws://127.0.0.1:6115/", region: "Sweden/Stockholm"},
+			{"address" : "ws://127.0.0.1:6115/", region: "USA/New York"},
+			{"address" : "ws://127.0.0.1:6115/", region: "Sweden/Stockholm"}
+		];
+		
+		function pingnext() {
+			if (activepings > 4) return;
+			
+			var addr = pinqueue.pop();
+			
+			if (!addr) return;
+			activepings++;
+			(function() {
+				var socket = new WebSocket(addr);
+				var time = null
+
+				socket.onopen = function() {
+					time = new Date();
+				}
+
+				socket.onmessage = function(data) {
+					var tr = $('.server-list tr[id="' + addr + '"]');
+					
+					tr.removeClass('pinging');
+					
+					var message = null;
+					
+					try {
+						message = JSON.parse(event.data);
+					} catch (e) {
+						$('.server-list tr[id="' + addr + '"] td.status').text('Error');
+						socket.close();
+						return;
+					}
+					
+					if (message.shift() == 10) {
+						var info = message.shift();
+						console.log(info);
+						$('td.name', tr).text(info.server_name);
+						$('td.ping', tr).text((new Date()) - time);
+						$('td.map', tr).text(info.map_name);
+						$('td.players', tr).text(info.no_players + ' / ' + info.max_players);
+						$('.server-list tr[id="' + addr + '"] td.name').text(info.ping);
+					}
+					
+					socket.close();					
+				}
+
+				socket.onclose = function() {
+					activepings--;
+					pingnext();
+				}
+				
+			})();
+		}
+		
+		function queueping(addr) {
+			pinqueue.push(addr);
+			if (!pingqeuerun) {
+				pingnext();
+			}
+		}
+		
+		$(document).ready(function() {
+			
+			$('.screenshots .images a').lightBox({fixedNavigation:true});
+			
+			// Browser compability test
+			
+
+			$.get('serverlist.json', function(list) {
+				var list = list || test;
+				
+				$('.server-list table tbody')
+					.empty()
+					.removeClass('waiting');
+				for (var i = 0; i < list.length; i++) {
+					var server = list[i];
+					if (server.address) {
+						var html = '<tr id="' + server.address + '" class="pinging">' + 
+													'<td class="name">' + server.address + '</td>' +
+													'<td class="ping">--</td>' +
+													'<td class="region">' + server.region +'</td>' +
+													'<td class="map">--</td>' +
+													'<td class="players">--</td>' +
+													'<td class="status"><a href="javascript:;"' +
+															'class="join">Join</a> or <a href="javascript:;"' +
+															'class="refresh">refresh</a></td>' +
+												'</tr>';
+						$('.server-list table tbody').append(html);
+						queueping(server.address);
+					}
+				}
+			});
+
+			$("#myTable").tablesorter();
+		});
+	</script>
 </head>
 
 <body>
@@ -38,41 +126,175 @@
 
   <div id="container">
 
-    <div class="download">
-      <a href="http://github.com/jfd/wpilot/zipball/master">
-        <img border="0" width="90" src="http://github.com/images/modules/download/zip.png"></a>
-      <a href="http://github.com/jfd/wpilot/tarball/master">
-        <img border="0" width="90" src="http://github.com/images/modules/download/tar.png"></a>
+    <h1>WPilot 
+      <span class="small">A space journey in your browser</span></h1>
+
+    <div class="header container">
+     	<div class="column-a">
+				<p>
+					Welcome to WPilot (Beta). WPilot is a browser-based, multiplayer, space 
+					 shooter, that is inspiered by old classic such as 
+					<a href="http://www.xpilot.org/">XPilot</a>, 
+					<a href="http://en.wikipedia.org/wiki/Thrust_(video_game)">Thrust</a>
+					and 
+					<a href="http://en.wikipedia.org/wiki/Gravity_Force">Gravity Force</a>.
+				</p>
+				<p>
+					The game is a "proof-of-concept" project, where are trying too see 
+					whats possible in browser without using any kind of third-party 
+					plugins. The game is completely built using new HTML5 technologies.
+					<a href="#background">Read more</a>
+				</p>
+			</div>
+			<div class="options column-b">
+				<h3>Game options</h3>
+				<form>
+					<label for="player-name">Player name</label>
+					<input type="text" name="player-name" value="">
+					<label for="sfx-sound-enabled">Enable effects sounds</label>
+					<input type="checkbox" name="sfx-sound-enabled" checked>
+					<label for="bg-sound-enabled">Enable backround Sounds</label>
+					<input type="checkbox" name="bg-sound-enabled" checked>
+				</form>
+				<p class="footer">Options are automatically stored for your session</p>
+			</div>
     </div>
 
-    <h1><a href="http://github.com/jfd/wpilot">wpilot</a>
-      <span class="small">by <a href="http://github.com/jfd">jfd</a></span></h1>
 
-    <div class="description">
-      A "proof-of-concept" remake of the famous XPilot game, this time in a web browser near you  
+		<div class="server-list">
+			<table>
+				<thead>
+					<tr>
+						<td colspan="6" class="title">Server List</td>
+					</td>
+					<tr>
+						<td>Server name</td>
+						<td>Ping</td>
+						<td>Region</td>
+						<td>Map</td>
+						<td>Players</td>
+						<td>&nbsp;</td>
+					</tr>
+				</thead>
+				<tbody>
+					<tr class="waiting"><td colspan="6">Loading server list...</td></tr>
+				</tbody>
+				<tfoot>
+					<tr>
+						<td colspan="6">
+							Can't find a server join? 
+							<a href="http://wiki.github.com/jfd/wpilot/server-guide">Start 
+							your own server</a> and add it to this list.
+						</td>
+					</tr>
+				</tfoot>
+			</table>
+		</div>
+		
+    <div class="container">
+			<h2 id="background">Background</h2>
+			<div class="column-a">
+				<p>Yesterday's browser wasn't built to handle FPS intense games or 
+				low-latency network packets.</p>
+				<p>This is about to change, dramatically. The browser standard factory
+					is currently cooking up some very interesting new features for our 
+					browsers. New HTML5 technologies such as 
+					<a href="http://en.wikipedia.org/wiki/Canvas_element">Canvas</a>, 
+					<a href="http://dev.w3.org/html5/websockets/">WebSocket</a> and 
+					<a href="http://www.khronos.org/webgl/">WebGL</a>,
+					will definetly change the way we thing of applications in the browser.
+					</p>
+			</div>
+			<div class="column-b">
+				<p>The goal of this projects was to test how far we could push the 
+					browser, this with out using any third-party plugins. This game is made
+					with pure browser technologies, no 
+					<a href="http://www.adobe.com/products/flashplayer/">Flash</a>
+					(Not entirely true though. We are using Flash as fallback, in browser
+					that lacks support for WebSocket.), no 
+					<a href="http://silverlight.net/">Silverlight</a> and no 
+					<a href="http://unity3d.com/">Unity3D</a>.</p>
+			</div>
     </div>
 
-    <h2>Authors</h2>
-<p>Johan Dahlberg (dahlberg.johan@gmail.com)
-<br/>Emanuel Dahlberg (emanuel.dahlberg@gmail.com)
-<br/>Linus Larsson (lahjnus@gmail.com)
-<br/>
-<br/>      </p>
-<h2>Contact</h2>
-<p>Johan Dahlberg (dahlberg.johan@gmail.com)
-<br/>      </p>
+		<div class="media container">
+	    <h2>Media</h2>
+			<div class="column-a">
+				<p>We have recorded a couple of videos of WPilot in action. The videos
+					can be found in our channels over at <a href="">Youtube</a> and 
+					<a href="">Vimeo</a>.</p>
+			</div>
+			<div class="column-b">
+				<p>We appriciate new material, please let me know if 
+					can be found in our channels over at 
+			</div>
+		</div>
+		
+		<div class="screenshots">
+			<ul class="images">
+				<li><a href="images/tmb_screen_01.png" title="Title screen"><img src="images/tmb_screen_01.png" ></a></li>
+				<li><a href="images/tmb_screen_01.png" title="Title screen"><img src="images/tmb_screen_01.png" ></a></li>
+				<li><a href="images/tmb_screen_01.png" title="Title screen"><img src="images/tmb_screen_01.png" ></a></li>
+				<li><a href="images/tmb_screen_01.png" title="Title screen"><img src="images/tmb_screen_01.png" ></a></li>
+				<li><a href="images/tmb_screen_01.png" title="Title screen"><img src="images/tmb_screen_01.png" ></a></li>
+				<li><a href="images/tmb_screen_01.png" title="Title screen"><img src="images/tmb_screen_01.png" ></a></li>
+			</ul>
+			<p>Various screenshots from the game (click for larger view)</p>
+		</div>
+		
+		<div class="container">
+			<h2 id="background">Server setup</h2>
+			<div class="column-a">
+				<p>So, you are interesting in setting up a server of your own. Thats 
+					great! The entire server is built in something called 
+					<a href="http://nodejs.org/">node.js</a>. Node.js is a framework built 
+					on top of Googles lighting fast Javascript engine 
+					<a href="http://code.google.com/p/v8/">V8</a></p>
+				<p>	
+					First, download and install node.js (see instructions on project 
+					homepage). Then, download the latest version of 
+					<a href="http://github.com/jfd/wpilot/zipball/master">WPilot</a>. 
+					Extract the zip to directory of choice. All server configuration is 
+					done via a set of command-line switches. You can get list of all 
+					available switches by typing:
+					<pre>$ ./wpilots.js -H</pre>
+				</p>
+				<p>
+					You probably want to change the server name and port. Use the 
+					<i>--name</i> switch to change name and the <i>--port</i> to change 
+					the TCP port to listen on.
+				</p>
+			</div>
+			<div class="column-b">
+				<p>WPilot comes with a set of maps. All maps is located in the the 
+					"$INSTALLDIR/maps" directory. You can choose to circle between 
+					multiple maps at starup. Use the <i>--map</i> for each map you want
+					to play. It's also possible to change map in-game.</p>
+			</div>
+    </div>
 
+		<div class="container">
+	    <h2>Contributing</h2>
+			<div class="column-a">
+				<p>This is an Open Source project, any body can download and play with
+					the code.</p>
+			</div>
+			<div class="column-b">
+				<p>
+					Reporting bugs
+				</p>
+			</div>
+		</div>
+		
+		<h2>Credits</h2>
+		<p>Lead developer - Johan Dahlberg (dahlberg.johan@gmail.com)
+		<br/>Collision coding -Linus Larsson (lahjnus@gmail.com)
+		<br/>Original sounds - Emanuel Dahlberg (emanuel.dahlberg@gmail.com)
+		</p>
 
-    <h2>Download</h2>
-    <p>
-      You can download this project in either
-      <a href="http://github.com/jfd/wpilot/zipball/master">zip</a> or
-      <a href="http://github.com/jfd/wpilot/tarball/master">tar</a> formats.
-    </p>
-    <p>You can also clone the project with <a href="http://git-scm.com">Git</a>
-      by running:
-      <pre>$ git clone git://github.com/jfd/wpilot</pre>
-    </p>
+    <h2>License</h2>
+    <p>This software is released under a MIT-style license. You can do pretty
+	 		 much what you want with it.</p>
 
     <div class="footer">
       get the source code on GitHub : <a href="http://github.com/jfd/wpilot">jfd/wpilot</a>

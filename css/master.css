@@ -1,0 +1,349 @@
+body {
+	margin-top: 5.0em;
+	background-color: #262626;
+  font-family: Helvetica, Arial, Sans-serif;
+	color: #a0a0a0;
+}
+
+#container {
+  margin: 0 auto;
+  width: 700px;
+}
+
+h1 { font-size: 2.0em; color: #FFD700; margin-bottom: 6px; }
+h1 .small { display: block; font-size: 0.4em; }
+h1 a { text-decoration: none }
+h2 { font-size: 1.0em; color: #FFD700; font-weight: normal; margin-bottom: 6px; }
+h3 { text-align: center; color: #FFD700; font-weight: normal; }
+a { color: #3599DF;  }
+.download { float: right; }
+pre { background: #111; color: #fff; padding: 15px;}
+hr { border: 0; width: 80%; border-bottom: 1px solid #aaa}
+.footer { text-align:center; padding-top:30px; font-style: italic; }
+
+p {
+	font-size: 0.8em;
+	line-height: 1.4em;
+	margin: 0 0 12px;
+}
+
+div.header {
+	margin: 0 0 20px 0;
+}
+
+div.options {
+	background: #151515;
+}
+
+div.options form {
+	padding: 5px;
+}
+
+div.options label {
+	text-align: right;
+	display: inline-block;
+	width: 150px;
+	margin-right: 5px;
+	font-size: 0.7em;
+	color: #bbb;
+}
+
+div.options h3 {
+	font-size: 0.9em;
+	font-weight: normal;
+	margin-bottom: 10px;
+}
+
+div.options input[type="text"]{
+	width: 150px;
+	margin-left: 5px;
+  background: rgba(0, 0, 0, 0.1);
+  border: 1px solid rgba(255, 215, 0, 0.8);
+  color: #fff;
+  padding: 1px;
+  font-size: 0.7em;
+}
+
+div.options input[type="checkbox"] {
+	margin-left: 5px;
+	margin-right: 100px;
+}
+
+
+div.options .footer {
+	padding: 5px;
+	font-size: 0.7em;
+	font-style: italic;
+}
+
+button {
+  border-size: 1px;
+  border-color: rgba(255, 255, 255, 0.6);
+  border-radius: 2px;
+  color: #ffffff;
+  background: black;
+}
+
+section#options label {
+  display: inline-block;
+  margin: 0 0 3px 0;
+  color: #666666;
+  font-size: 0.6em;
+  width: 225px;
+  text-align: right;  
+}
+
+section#options input {
+  display: inline-block;
+  text-align: left;
+  left: 235px;
+}
+
+section#options input[type="text"] {
+}
+
+.screenshots  {
+	background: #33332F;
+	padding: 10px;
+	margin-bottom: 12px;
+}
+
+.screenshots .images {
+	position: relative;
+	list-style: none;
+	overflow: auto;
+	left: -10px;
+	width: 710px;
+	padding: 0;
+	margin: 0;
+}
+
+.screenshots li {
+	margin: 0 0 0 10px;
+	float: left;
+}
+
+.screenshots li img{
+	width: 103px;
+  border: 1px solid rgba(255, 215, 0, 0.3);
+}
+
+.screenshots p {
+	font-size: 0.7em;
+	font-style: italic;
+	text-align: center;
+	margin: 8px 0 0 0;
+}
+
+.container {
+  overflow: auto;
+}
+
+.column-a {
+  float: left;
+	width: 342px;
+	margin-right: 8px;
+}
+
+.column-b {
+  float: left;
+	width: 342px;
+	margin-left: 8px;
+}
+
+.server-list {
+	padding: 8px;
+	background: #151515;
+	margin: 0 0 12px 0;
+}
+
+.server-list table {
+	width: 100%;
+}
+
+.server-list thead {
+	font-size: 0.8em;
+	color: #ccc;
+	margin-bottom: 15px;
+}
+
+.server-list thead td {
+	padding-bottom: 10px;
+}
+
+.server-list td.title {
+	font-size: 1.2em;
+	color: #FFD700;
+	text-align: center;
+	padding-bottom: 10px;
+}
+
+.server-list tbody {
+	font-size: 0.8em;
+	min-height: 300px;
+	vertical-align: top;
+}
+
+.server-list tbody td {
+	vertical-align: center;
+	height: 30px;
+}
+
+.server-list tbody td.name {
+	width: 20%;
+	text-indent: 20px;
+}
+
+.server-list tbody td.ping {
+	width: 5%;
+}
+
+.server-list tbody td.region {
+	width: 20%;
+}
+
+.server-list tbody td.map {
+	width: 10%;
+}
+
+.server-list tbody td.players {
+	width: 5%;
+}
+
+.server-list tbody td.status {
+	width: 10%;
+}
+
+.server-list tbody.waiting {
+	vertical-align: center;
+}
+
+.server-list tbody.waiting tr {
+	font-size: 0.7em;
+	color: #fff;
+	height: 100%;
+	text-align: center;
+}
+
+.server-list tr.pinging td.name {
+	background: url(../images/spinner.gif) no-repeat;
+}
+
+.server-list tr.pinging td.status {
+	opacity: 0;
+	text-align: right;
+}
+
+.server-list tr.waiting td {
+	text-align: center;
+	border: 1px solid #333;
+}
+
+.server-list tfoot td {
+	text-align: center;
+	font-size: 0.7em;
+	font-style: italic;
+}
+
+
+/**
+ * jQuery lightBox plugin
+ * This jQuery plugin was inspired and based on Lightbox 2 by Lokesh Dhakar (http://www.huddletogether.com/projects/lightbox2/)
+ * and adapted to me for use like a plugin from jQuery.
+ * @name jquery-lightbox-0.5.css
+ * @author Leandro Vieira Pinho - http://leandrovieira.com
+ * @version 0.5
+ * @date April 11, 2008
+ * @category jQuery plugin
+ * @copyright (c) 2008 Leandro Vieira Pinho (leandrovieira.com)
+ * @license CC Attribution-No Derivative Works 2.5 Brazil - http://creativecommons.org/licenses/by-nd/2.5/br/deed.en_US
+ * @example Visit http://leandrovieira.com/projects/jquery/lightbox/ for more informations about this jQuery plugin
+ */
+#jquery-overlay {
+	position: absolute;
+	top: 0;
+	left: 0;
+	z-index: 90;
+	width: 100%;
+	height: 500px;
+}
+#jquery-lightbox {
+	position: absolute;
+	top: 0;
+	left: 0;
+	width: 100%;
+	z-index: 100;
+	text-align: center;
+	line-height: 0;
+}
+#jquery-lightbox a img { border: none; }
+#lightbox-container-image-box {
+	position: relative;
+	background-color: #fff;
+	width: 250px;
+	height: 250px;
+	margin: 0 auto;
+}
+#lightbox-container-image { padding: 10px; }
+#lightbox-loading {
+	position: absolute;
+	top: 40%;
+	left: 0%;
+	height: 25%;
+	width: 100%;
+	text-align: center;
+	line-height: 0;
+}
+#lightbox-nav {
+	position: absolute;
+	top: 0;
+	left: 0;
+	height: 100%;
+	width: 100%;
+	z-index: 10;
+}
+#lightbox-container-image-box > #lightbox-nav { left: 0; }
+#lightbox-nav a { outline: none;}
+#lightbox-nav-btnPrev, #lightbox-nav-btnNext {
+	width: 49%;
+	height: 100%;
+	zoom: 1;
+	display: block;
+}
+#lightbox-nav-btnPrev { 
+	left: 0; 
+	float: left;
+}
+#lightbox-nav-btnNext { 
+	right: 0; 
+	float: right;
+}
+#lightbox-container-image-data-box {
+	font: 10px Verdana, Helvetica, sans-serif;
+	background-color: #fff;
+	margin: 0 auto;
+	line-height: 1.4em;
+	overflow: auto;
+	width: 100%;
+	padding: 0 10px 0;
+}
+#lightbox-container-image-data {
+	padding: 0 10px; 
+	color: #666; 
+}
+#lightbox-container-image-data #lightbox-image-details { 
+	width: 70%; 
+	float: left; 
+	text-align: left; 
+}	
+#lightbox-image-details-caption { font-weight: bold; }
+#lightbox-image-details-currentNumber {
+	display: block; 
+	clear: left; 
+	padding-bottom: 1.0em;	
+}			
+#lightbox-secNav-btnClose {
+	width: 66px; 
+	float: right;
+	padding-bottom: 0.7em;	
+}
