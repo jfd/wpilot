@@ -380,7 +380,7 @@ WPilotClient.prototype.set_server_state = function(state) {
   if (state.no_players != state.max_players) {
     this.server_state = state;
     this.log('Recived server state, now joining game...');
-    this.post_control_packet([OP_CLIENT_CONNECT]);
+    this.post_control_packet([OP_CLIENT_CONNECT, CLIENT_VERSION]);
   } else {
     this.log('Server is full');
   }

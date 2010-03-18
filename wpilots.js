@@ -783,9 +783,13 @@ var process_control_message = match (
    *  MUST be sent by the client when connected to server. It's used to validate
    *  the session.
    */
-  [[OP_CLIENT_CONNECT], {'state =': CONNECTED}], 
-  function(conn) {
-    conn.set_state(HANDSHAKING);
+  [[OP_CLIENT_CONNECT, String], {'state =': CONNECTED}], 
+  function(version, conn) {
+    if (version != SERVER_VERSION) {
+      conn.kill('Wrong version');
+    } else {
+      conn.set_state(HANDSHAKING);
+    }
   },
   
   /**
