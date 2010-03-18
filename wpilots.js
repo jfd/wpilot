@@ -370,10 +370,10 @@ function start_gameserver(maps, options, shared) {
         
       // Round is starting. Server aborts if a player leaves the game.
       case ROUND_STARTING:
-        if (world.no_ready_players < (world.no_players * 0.6)) {
-          world.set_round_state(ROUND_WARMUP);
-          return;
-        }
+        // if (world.no_ready_players < (world.no_players * 0.6)) {
+        //   world.set_round_state(ROUND_WARMUP);
+        //   return;
+        // }
         if (t >= world.r_timer) {
           world.set_round_state(ROUND_RUNNING);
         }
@@ -567,12 +567,66 @@ function start_gameserver(maps, options, shared) {
     }
     
     conn.exec = function() {
-      if (!conn.is_admin) {
-        return 'You need admin privileges in order to perform server commands';
-      }
       var args = Array.prototype.slice.call(arguments);
       var command = args.shift();
       switch (command) {
+        case 'map':
+          var path = args.shift();
+          load_map(path, false, function(err) {
+            if (err) {
+              conn.post([OP_SERVER_EXEC_RESP, err]);
+            } else {
+              for(var id in connections) {
+                var conn = connections[id];
+                conn.write(JSON.stringify([OP_WORLD_RECONNECT]));
+                conn.set_state(HANDSHAKING);
+              }              
+            }
+          });
+          return 'Loading map';
+
+        case 'warmup':
+          switch (world.r_state) {
+            case ROUND_WARMUP:
+              return 'Already in warmup mode';
+            case ROUND_RUNNING:
+            case ROUND_STARTING:
+              world.set_round_state(ROUND_WARMUP);
+              break;
+            case ROUND_FINISHED:
+              return 'Game has already finished';
+          }
+          return 'Changed';
+          
+        case 'start':
+          switch (world.r_state) {
+            case ROUND_WARMUP:
+              world.set_round_state(ROUND_STARTING);
+              break;
+            case ROUND_STARTING:
+              world.set_round_state(ROUND_RUNNING);
+              break;
+            case ROUND_RUNNING:
+              return 'Game is already started. Type sv_restart to restart';
+            case ROUND_FINISHED:
+              return 'Game has already finished';
+          }
+          return 'Changed';
+
+        case 'restart':
+          switch (world.r_state) {
+            case ROUND_WARMUP:
+            case ROUND_STARTING:
+              return 'Cannot restart warmup round';
+            case ROUND_RUNNING:
+              world.set_round_state(ROUND_STARTING);
+              break;
+            case ROUND_FINISHED:
+              world.set_round_state(ROUND_STARTING);
+              break;
+          }
+          return 'Changed';
+          
         case 'kick':
           var name = args.shift();
           var reason = args.shift();
@@ -816,19 +870,53 @@ var process_control_message = match (
     conn.rate = Math.min(rate, conn.max_rate);
   },
 
-  [[OP_CLIENT_EXEC, 'auth', String], {'state =': JOINED}], 
-  function(password, conn) {
+  [[OP_CLIENT_EXEC, String, 'kick', String, String], {'state =': JOINED}], 
+  function(password, player_name, reason, conn) {
     if (conn.auth(password)) {
-      conn.post([OP_SERVER_EXEC_RESP, 'Admin granted']);
+      var resp = conn.exec('kick', player_name, reason);
+      conn.post([OP_SERVER_EXEC_RESP, resp]);
     } else {
-      conn.post([OP_SERVER_EXEC_RESP, 'Wrong admin password']);
+      conn.post([OP_SERVER_EXEC_RESP, 'Wrong password']);
     }
   },
 
-  [[OP_CLIENT_EXEC, 'kick', String, String], {'state =': JOINED}], 
-  function(player_name, reason, conn) {
-    var resp = conn.exec('kick', player_name, reason);
-    conn.post([OP_SERVER_EXEC_RESP, resp]);
+  [[OP_CLIENT_EXEC, String, 'map', String], {'state =': JOINED}], 
+  function(password, path, conn) {
+    if (conn.auth(password)) {
+      var resp = conn.exec('map', path);
+      conn.post([OP_SERVER_EXEC_RESP, resp]);
+    } else {
+      conn.post([OP_SERVER_EXEC_RESP, 'Wrong password']);
+    }
+  },
+
+  [[OP_CLIENT_EXEC, String, 'warmup'], {'state =': JOINED}], 
+  function(password, conn) {
+    if (conn.auth(password)) {
+      var resp = conn.exec('warmup');
+      conn.post([OP_SERVER_EXEC_RESP, resp]);
+    } else {
+      conn.post([OP_SERVER_EXEC_RESP, 'Wrong password']);
+    }
+  },
+
+  [[OP_CLIENT_EXEC, String, 'start'], {'state =': JOINED}], 
+  function(password, conn) {
+    if (conn.auth(password)) {
+      var resp = conn.exec('start');
+    } else {
+      conn.post([OP_SERVER_EXEC_RESP, 'Wrong password']);
+    }
+  },
+
+  [[OP_CLIENT_EXEC, String, 'restart'], {'state =': JOINED}], 
+  function(password, conn) {
+    if (conn.auth(password)) {
+      var resp = conn.exec('restart');
+      conn.post([OP_SERVER_EXEC_RESP, resp]);
+    } else {
+      conn.post([OP_SERVER_EXEC_RESP, 'Wrong password']);
+    }
   },
   
   function(data) {

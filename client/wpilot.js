@@ -127,6 +127,21 @@ var SFX_SOUNDS = {
   powerup_die:  [2,  ['sound/powerup_1_die', 'sound/powerup_2_die', 'sound/powerup_3_die']] 
 }
 
+var COMMAND_USAGE = {
+  'name':         'Usage: /name NEW_NAME',
+  'rate':         'Usage: /rate RATE',
+  'fps':          'Usage: /fps',
+  'netstat':      'Usage: /netstat',
+  'ready':        'Usage: /ready',
+  'ready':        'Usage: /ready',
+  'sv_password':  'Usage: /sv_password PASSWORD',
+  'sv_kick':      'Usage: /sv_kick PLAYER_NAME REASON',
+  'sv_map':       'Usage: /sv_map PATH_TO_MAP',
+  'sv_start':     'Usage: /sv_start',
+  'sv_restart':   'Usage: /sv_restart',
+  'sv_warmup':    'Usage: /sv_warmup',
+}
+
 var BG_SOUND = 'sound/background';
 
 
@@ -178,6 +193,8 @@ function WPilotClient(options) {
                               netstat: null, fps: null, messages: null, 
                               prompt: null };
 
+  this.admin_password     = null;
+  
   this.netstat            = { 
     start_time:         null,
     frequence:          0.01,
@@ -785,16 +802,63 @@ var COMMANDS = match (
     }
   },
 
-  [_, 'auth', String], function(client, password) {
-    client.post_control_packet([OP_CLIENT_EXEC, 'auth', password]);
+  [_, 'sv_password', String], function(client, password) {
+    client.admin_password = password;
   },
 
-  [_, 'kick', String, String], function(client, name, reason) {
-    client.post_control_packet([OP_CLIENT_EXEC, 'kick', name, reason]);
+  [_, 'sv_kick', String, String], function(client, name, reason) {
+    var passwd = client.admin_password;
+    if (passwd) {
+      client.post_control_packet([OP_CLIENT_EXEC, passwd, 'kick', name, reason]);
+    } else {
+      client.log('You need to set sv_password in order to send admin commands');
+    }
+  },
+
+  [_, 'sv_map', String], function(client, path) {
+    var passwd = client.admin_password;
+    if (passwd) {
+      client.post_control_packet([OP_CLIENT_EXEC, passwd, 'map', path]);
+    } else {
+      client.log('You need to set sv_password in order to send admin commands');
+    }
+  },
+
+  [_, 'sv_warmup'], function(client) {
+    var passwd = client.admin_password;
+    if (passwd) {
+      client.post_control_packet([OP_CLIENT_EXEC, passwd, 'warmup']);
+    } else {
+      client.log('You need to set sv_password in order to send admin commands');
+    }
+  },
+
+  [_, 'sv_start'], function(client) {
+    var passwd = client.admin_password;
+    if (passwd) {
+      client.post_control_packet([OP_CLIENT_EXEC, passwd, 'start']);
+    } else {
+      client.log('You need to set sv_password in order to send admin commands');
+    }
+  },
+
+  [_, 'sv_restart'], function(client) {
+    var passwd = client.admin_password;
+    if (passwd) {
+      client.post_control_packet([OP_CLIENT_EXEC, passwd, 'restart']);
+    } else {
+      client.log('You need to set sv_password in order to send admin commands');
+    }
   },
   
   function(pattern) {
-    pattern[0].log('Command not found or wrong no of arguments', COLOR_ACCENT_1);
+    var client = pattern[0];
+    var command = pattern[1];
+    if (COMMAND_USAGE[command]) {
+      client.log(COMMAND_USAGE[command], COLOR_ACCENT_1);
+    } else {
+      client.log('Command not found', COLOR_ACCENT_1);
+    }
   }
 )
 
