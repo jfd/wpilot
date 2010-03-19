@@ -93,6 +93,8 @@
 				      keyboard  = new KeyboardDevice(document, options),
 							sound			= new SoundDevice(options);
 
+					$('#splash .server-info').html('Connecting...');
+					
 				  wpilot = new WPilotClient(options);
 				  wpilot.set_viewport(viewport)
 				  wpilot.set_input(keyboard);
