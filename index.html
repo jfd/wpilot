@@ -17,13 +17,13 @@
 		var pingqeuerun = false;
 		var activepings = 0;
 		var test = [
-			// {"address" : "ws://79.99.0.126:6114/", region: "Sweden/Stockholm"},
-			{"address" : "ws://127.0.0.1:6115/", region: "Sweden/Stockholm"},
-			{"address" : "ws://127.0.0.1:6115/", region: "Sweden/Skelleftea"},
-			{"address" : "ws://127.0.0.1:6115/", region: "Sweden/Örebro"},
-			{"address" : "ws://127.0.0.1:6115/", region: "Sweden/Stockholm"},
-			{"address" : "ws://127.0.0.1:6115/", region: "USA/New York"},
-			{"address" : "ws://127.0.0.1:6115/", region: "Sweden/Stockholm"}
+			{"address" : "ws://79.99.0.126:6114/"},
+			{"address" : "ws://127.0.0.1:6115/"},
+			{"address" : "ws://127.0.0.1:6115/"},
+			{"address" : "ws://127.0.0.1:6115/"},
+			{"address" : "ws://127.0.0.1:6115/"},
+			{"address" : "ws://127.0.0.1:6115/"},
+			{"address" : "ws://127.0.0.1:6115/"}
 		];
 		
 		function pingnext() {
@@ -35,15 +35,16 @@
 			activepings++;
 			(function() {
 				var socket = new WebSocket(addr);
-				var time = null
+				var time = null;
+				var tr = $('.server-list tr[id="' + addr + '"]');
 
 				socket.onopen = function() {
+					socket.send(JSON.stringify([10]));
 					time = new Date();
 				}
 
 				socket.onmessage = function(data) {
-					var tr = $('.server-list tr[id="' + addr + '"]');
-					
+
 					tr.removeClass('pinging');
 					
 					var message = null;
@@ -56,14 +57,19 @@
 						return;
 					}
 					
-					if (message.shift() == 10) {
+					if (message.shift() == 11) {
 						var info = message.shift();
 						console.log(info);
-						$('td.name', tr).text(info.server_name);
+						$('td.name', tr).html(info.server_name + '<span>' +
+								info.version + '</span>');
 						$('td.ping', tr).text((new Date()) - time);
+						$('td.region', tr).text(info.region);
 						$('td.map', tr).text(info.map_name);
 						$('td.players', tr).text(info.no_players + ' / ' + info.max_players);
 						$('.server-list tr[id="' + addr + '"] td.name').text(info.ping);
+					} else {
+						tr.addClass('bad');
+						$('td.name', tr).html(info.server_name + '<span>Bad response</span>');
 					}
 					
 					socket.close();					
@@ -71,6 +77,10 @@
 
 				socket.onclose = function() {
 					activepings--;
+					if (!time) {
+						tr.removeClass('pinging').addClass('down');
+						$('td.name', tr).html(addr + '<span>Server down</span>');
+					}
 					pingnext();
 				}
 				
@@ -103,7 +113,7 @@
 						var html = '<tr id="' + server.address + '" class="pinging">' + 
 													'<td class="name">' + server.address + '</td>' +
 													'<td class="ping">--</td>' +
-													'<td class="region">' + server.region +'</td>' +
+													'<td class="region">--</td>' +
 													'<td class="map">--</td>' +
 													'<td class="players">--</td>' +
 													'<td class="status"><a href="javascript:;"' +
@@ -166,7 +176,7 @@
 				<thead>
 					<tr>
 						<td colspan="6" class="title">Server List</td>
-					</td>
+					</tr>
 					<tr>
 						<td>Server name</td>
 						<td>Ping</td>
@@ -190,6 +200,96 @@
 				</tfoot>
 			</table>
 		</div>
+
+    <div class="container">
+			<h2 id="background">Gameplay</h2>
+			<div class="column-a">
+				<p>The gameplay is pretty simple. Avoid to be shoot, while shooting your
+					opponents.</p>
+				<p>Your shield is your only defence, use it wisely. Your energy meter 
+					goes down when using shield and while firing your canon. The energy 
+					meter recovers pretty quickly but sometime that isn't enough.
+					</p>
+				<h4>Powerups</h4>
+				<p>The game contains three kinds of powerups. Each powerup improves your
+					ships canon. The powerups can be combind for even more powerful 
+					boomstick.</p>
+				<p><stronge>Rapid fire</stronge> increases your fireing speed and lower 
+					the energy cost of each bullet.</p>
+				<p><stronge>Ricoschet bullets</stronge> gives each fired bullet ricoschet 
+					abillities. They become more deadly when bouncing on the walls.</p>
+				<p><stronge>Spread fire</stronge> fires three bullets instead of one. This powerup
+					is extremly deadly when combinded with one of the other two powerups.</p>
+			</div>
+			<div class="column-b">
+				<p>The goal of this projects was to test how far we could push the 
+					browser, this with out using any third-party plugins. This game is made
+					with pure browser technologies, no 
+					<a href="http://www.adobe.com/products/flashplayer/">Flash</a>
+					(Not entirely true though. We are using Flash as fallback, in browser
+					that lacks support for WebSocket.), no 
+					<a href="http://silverlight.net/">Silverlight</a> and no 
+					<a href="http://unity3d.com/">Unity3D</a>.</p>
+			</div>
+    </div>
+
+    <div class="container">
+			<h2 id="background">Browser compatibility</h2>
+			<div class="column-a">
+				<p>Because of the fact that WPilot is using new, non-standarized, 
+					technics, the result may differ in different browsers. This list:</p>
+			</div>
+			<div class="column-b">
+				<p>Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do 
+					eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut</p>
+			</div>
+    </div>
+
+    <div class="container">
+			<ul class="column-a">
+				<li><h4>Internet Explorer - Win</h4><span> Internet Explorer is NOT 
+					support by WPilot. WPilot depends up on 
+					<a href="http://en.wikipedia.org/wiki/Canvas_element">Canvas</a> 
+					which Internet Explorer lacks. There is third-party solution that 
+					enables a <i>canvas</i> like object, but they are really slow. 
+					IE9 may be supported in feature, if the team behind the browser 
+					decides to implement canvas support.</span></li>
+				<li><h4>Safari 4 - Mac</h4><span>Safari delivers a good FPS rate. Safari 
+					does however lack support for WebSocket, so it's depends upon the
+					Flash fallback plugin. The experience is for the most good, but 
+					sometimes, the server latency goes up really high.</span></li>
+				<li><h4>Webkit (nightlies) - Mac</h4><span>Webkit delivers outstanding 
+					network performance, low latency and no lost packets. The FPS is not 
+					as good as for Safari (~30% lower FPS) but the game should play well. 
+					A tip is to disable in-game sound effects, which increases frame rate 
+					slightly.</span></li>
+				<li><h4>Firefox 3.6 - Mac</h4><span>Firefox for Mac delivers a really good
+					FPS rate. It even outstand Safari in our tests. Firefox also lack
+					support for WebScoket, so Flash is a requirement. It seems to be
+					some kind of problem with the Flash implemention though. The ping is
+					very high, even when connecting to localhost.</span</li>
+			</ul>
+			<ul class="column-b">
+				<li><h4>Google Chrome - Win/Mac</h4><span>Google Chrome has some issues
+					with WPilot, both on Windows and on Mac: FPS performance is poor, 
+					sounds stops playing after a while, some issues with text rendering in
+					some situations. However, the game is playable, but you will notice 
+					the lag. It's highly recommended to turn of sounds before playing, the
+					game will else crash after a couple of minutes.</span</li>
+				<li><h4>Firefox 3.6 - Win</h4><span>Firefox for Mac delivers a really good
+					FPS rate. It even outstand Safari in our tests. Firefox also lack
+					support for WebScoket, so Flash is a requirement. It seems to be
+					some kind of problem with the Flash implemention though. The ping is
+					very high, even when connecting to localhost.</span</li>
+				<li><h4>Opera 10.50 - Mac</h4><span>Only tested on Mac. Opera have some 
+					trouble communicating with the Flash fallback plugin. The game 
+					connects to the server 1 of 10 times. No error messages is displayed 
+					so the problem is difficult to debug. There also seems to be some kind
+					of problem with the underlying text rendering interface. Some texts are
+					not rendered at all. How ever, the FPS seems to be really good, but the
+					game is not playable.</span</li>
+			</ul>
+    </div>
 		
     <div class="container">
 			<h2 id="background">Background</h2>
@@ -256,9 +356,8 @@
 					<a href="http://github.com/jfd/wpilot/zipball/master">WPilot</a>. 
 					Extract the zip to directory of choice. All server configuration is 
 					done via a set of command-line switches. You can get list of all 
-					available switches by typing:
+					available switches by typing:</p>
 					<pre>$ ./wpilots.js -H</pre>
-				</p>
 				<p>
 					You probably want to change the server name and port. Use the 
 					<i>--name</i> switch to change name and the <i>--port</i> to change 
