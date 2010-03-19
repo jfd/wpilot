@@ -28,12 +28,16 @@ function KeyboardDevice(target, options) {
   
   target.onkeydown = function(e) {
     if(key_states[e.keyCode] == 0) key_states[e.keyCode] = 1;
-    e.preventDefault();
+    if (!self.onkeypress) {
+      e.preventDefault();
+    }
   };
 
   target.onkeyup = function(e) {
     if(key_states[e.keyCode] > 0) key_states[e.keyCode] = 0;
-    e.preventDefault();
+    if (!self.onkeypress) {
+      e.preventDefault();
+    }
   };
 }
 
