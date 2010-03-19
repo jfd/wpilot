@@ -595,7 +595,10 @@ WPilotClient.prototype.join = function(url) {
      */
     self.conn.onopen = function(event){
       self.is_connected = true;
-      self.conn.send(JSON.stringify([OP_REQ_SERVER_INFO]));
+      self.set_state(CLIENT_CONNECTING);
+      setTimeout(function() {
+        self.conn.send(JSON.stringify([OP_REQ_SERVER_INFO]));
+      }, 100);
     };
 
     /**
@@ -651,7 +654,6 @@ WPilotClient.prototype.join = function(url) {
       self.set_state(CLIENT_DISCONNECTED);
     };
     
-    this.set_state(CLIENT_CONNECTING);
   }
 
 }
