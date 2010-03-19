@@ -179,6 +179,10 @@ section.dialog  button {
   background: black;
 }
 
+section#options {
+  display: none;
+}
+
 section#options label {
   display: inline-block;
   margin: 0 0 3px 0;
@@ -201,6 +205,10 @@ section#options input[type="text"] {
   color: #fff;
   padding: 1px;
   font-size: 0.7em;
+}
+
+section#options input[type="checkbox"] {
+  margin-right: 100px;
 }
 
 section#options .actions {

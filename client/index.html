@@ -3,15 +3,15 @@
 	<head>
 		<title>WPilot</title>
 		<link rel="stylesheet" href="style.css" type="text/css" media="screen" charset="utf-8">
+		<script type="text/javascript" src="lib/match.js"></script>
 		<script type="text/javascript" src="lib/swfobject.js"></script>
 	  <script type="text/javascript" src="lib/FABridge.js"></script>
 		<script type="text/javascript" src="lib/web_socket.js"></script>
 		<script type="text/javascript" src="http://ajax.googleapis.com/ajax/libs/jquery/1.3.2/jquery.min.js"></script>
-		<script type="text/javascript" src="lib/match.js"></script>
 		<script type="text/javascript" src="lib/particle.js"></script>
+		<script type="text/javascript" src="devices.js"></script>
 		<script type="text/javascript" src="gameobjects.js"></script>
 		<script type="text/javascript" src="wpilot.js"></script>
-		<script type="text/javascript" src="devices.js"></script>
 		<script>
 			// The globallly defined wpilot client. It's global so that the player can
 			// access options from the webkit console (or FireBug).
@@ -20,10 +20,34 @@
 			// Set location for the WebSocket SWF library.
 			WebSocket.__swfLocation = "lib/WebSocketMain.swf";
 
+			function supports_canvas_text() {
+			  if (!document.createElement('canvas').getContext) { return false; }
+			  var dummy_canvas = document.createElement('canvas');
+			  var context = dummy_canvas.getContext('2d');
+			  return typeof context.fillText == 'function';
+			}
+			
+			function unsupported(text) {
+				$('#splash').show();
+				$('#splash .notice')
+		        .css('display', 'block')
+		        .text(text);
+			}
+			
 			/**
 			 *  Is called when the document is loaded and ready. Creates a new client.
 			 */
 			$(document).ready(function() {
+				if (WebSocket.__initialize && swfobject.getFlashPlayerVersion()['major'] < 1) {
+					return unsupported('Your browser doesnt support WebSocket or Flash');
+				}
+				
+				if (!supports_canvas_text()) {
+					return unsupported('Your browser doesnt support <canvas> or fillText.');
+				}
+
+				$('#options').show();
+								
 			  var options = $.extend({}, DEFAULT_OPTIONS);
 			  var canvas = $('#viewport canvas');
 			
@@ -137,7 +161,7 @@
 			<h1 class='logo'>WPilot</h1>
 			<section>
 				<h2></h2>
-				<form id="options">
+				<form>
 					<p>Welcome to WPilot. Set options below, then click continue.</p>
 					<label for="name">Player name</label> 
 					<input name="name" type="text">
