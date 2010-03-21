@@ -119,12 +119,12 @@ var HUD_FONT = [WEIGHT_HEAVY, SIZE_XLARGE, FONT_NAME].join(' ');
 var CHAT_MAX_CHARS  = 200;
     
 var SFX_SOUNDS = {
-  ship_spawn:   [3,  ['../sound/ship_spawn']],
-  ship_die:     [3,  ['../sound/ship_die']],
-  ship_thrust:  [6,  ['../sound/ship_thrust']],  
-  bullet_spawn: [8,  ['../sound/ship_fire_1', 'sound/ship_fire_2', 'sound/ship_fire_3']], 
-  powerup_spawn:[3,  ['../sound/powerup_spawn']],
-  powerup_die:  [2,  ['../sound/powerup_1_die']] 
+  ship_spawn:   [3,  ['sound/ship_spawn']],
+  ship_die:     [3,  ['sound/ship_die']],
+  ship_thrust:  [6,  ['sound/ship_thrust']],  
+  bullet_spawn: [8,  ['sound/ship_fire_1', 'sound/ship_fire_2', 'sound/ship_fire_3']], 
+  powerup_spawn:[3,  ['sound/powerup_spawn']],
+  powerup_die:  [2,  ['sound/powerup_1_die']] 
 }
 
 var COMMAND_USAGE = {
@@ -1405,35 +1405,41 @@ Block.prototype.draw = function(ctx, world) {
     ctx.stroke();
   }
   
-  if(connectors == (BLOCK_CONNECTOR_EAST | BLOCK_CONNECTOR_NORTH)){
+  if((connectors & (BLOCK_CONNECTOR_EAST | BLOCK_CONNECTOR_NORTH)) == 
+     (BLOCK_CONNECTOR_EAST | BLOCK_CONNECTOR_NORTH)){
     ctx.beginPath();
     ctx.moveTo(size[0]-BLOCK_SPACING, 0);
     ctx.lineTo(size[0], 0);
     ctx.lineTo(size[0], BLOCK_SPACING);
     ctx.stroke();
   }
-  if(connectors == (BLOCK_CONNECTOR_EAST | BLOCK_CONNECTOR_SOUTH)){
+  
+  if((connectors & (BLOCK_CONNECTOR_EAST | BLOCK_CONNECTOR_SOUTH)) == 
+     (BLOCK_CONNECTOR_EAST | BLOCK_CONNECTOR_SOUTH)){
     ctx.beginPath();
     ctx.moveTo(size[0], size[1]-BLOCK_SPACING);
     ctx.lineTo(size[0], size[1]);
     ctx.lineTo(size[0]-BLOCK_SPACING, size[1]);
     ctx.stroke();
   }
-  if(connectors == (BLOCK_CONNECTOR_WEST | BLOCK_CONNECTOR_NORTH)){
+  
+  if((connectors & (BLOCK_CONNECTOR_WEST | BLOCK_CONNECTOR_NORTH)) == 
+     (BLOCK_CONNECTOR_WEST | BLOCK_CONNECTOR_NORTH)){
     ctx.beginPath();
     ctx.moveTo(0+BLOCK_SPACING, 0);
     ctx.lineTo(0, 0);
     ctx.lineTo(0, BLOCK_SPACING);
     ctx.stroke();
   }
-  if(connectors == (BLOCK_CONNECTOR_WEST | BLOCK_CONNECTOR_SOUTH)){
+  
+  if((connectors & (BLOCK_CONNECTOR_WEST | BLOCK_CONNECTOR_SOUTH)) == 
+     (BLOCK_CONNECTOR_WEST | BLOCK_CONNECTOR_SOUTH)){
     ctx.beginPath();
     ctx.moveTo(0+BLOCK_SPACING, size[1]);
     ctx.lineTo(0, size[1]);
     ctx.lineTo(0, size[1]-BLOCK_SPACING);
     ctx.stroke();
-  }
-}
+  }}
 
 Powerup.prototype.on_after_init = function() {
   this.inner_radius = this.size[0]  / 1.8;
