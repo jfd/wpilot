@@ -19,7 +19,7 @@ h4 { position: relative; text-align: left; color: #ddd; font-weight: normal; mar
 h5 { text-align: center; font-weight: normal; color: #FFD700; margin: 0;}
 a { color: #3599DF;  }
 .download { float: right; }
-pre { background: #111; font-size: 0.8em, color: #fff; padding: 10px;}
+pre { background: #111;  color: #fff; padding: 10px; font-size: 0.8em;}
 hr { border: 0; width: 80%; border-bottom: 1px solid #aaa}
 .footer { text-align:center; padding-top:30px; font-style: italic; }
 
@@ -231,7 +231,7 @@ section#options input {
 .gallery ul {  
 	position: relative;
 	list-style: none;
-	overflow: auto;
+	overflow: hidden;
 	width: 332px;
 	padding: 0;
 	margin: 0;
@@ -273,7 +273,7 @@ section#options input {
 }
 
 .container {
-  overflow: auto;
+  overflow: hidden;
 }
 
 .column {
