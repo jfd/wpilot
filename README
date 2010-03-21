@@ -15,16 +15,8 @@ Quick start
 You can start the game- and client server by typing:
 
 	./wpilots.js
-	
-If you want to enable flash support you need to run the server with the -p switch (note: The Flash Policy Server requires you to run as root):
-
-	./wpilots -p
-	
-After that, start your webbrowser of choice and connect to the specified 
-address (default is: http://127.0.0.1:6114).
-	
-For more more switched, start the server with the '-H' (will change to --help when Node.js supports it) switch.
-
+		
+For more more switched, start the server with the '-H' 
 
 Special thanks to
 -----------------
