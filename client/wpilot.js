@@ -319,7 +319,7 @@ WPilotClient.prototype.set_viewport = function(viewport) {
       var world = self.world,
           player = self.player,
           tick = tick;
-
+          
       if (player && !player.dead) {
         viewport.set_camera_pos(player.entity.pos);
       }
@@ -2383,9 +2383,10 @@ function draw_label(ctx, x, y, text, align, width) {
 }
 
 function calculate_sfx_volume(client, pos) {
-  var midpoint = client.viewport.camera.midpoint,
-      distance = distance_between(midpoint, pos);
-  return Math.abs(1 - ((distance / 4) / 100));
+  var viewport = client.viewport;
+  var midpoint = viewport.camera.midpoint;
+  var distance = distance_between(midpoint, pos);
+  return (1-((distance) / viewport.w));
 }
 
 function calculate_ranks(world) {
