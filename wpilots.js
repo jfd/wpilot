@@ -67,6 +67,7 @@ const SWITCHES = [
   ['--ws_port PORT',              'Port number for the WebSocket server (default: 6114)'],
   ['--pub_ws_port PORT',          'Set if the public WebSocket port differs from the local one'],
   ['--max_rate NUMBER',           'The maximum rate per client and second (default: 1000)'],
+  ['--max_connections NUMBER',    'Max connections, including players (default: 60)'],
   ['--max_players NUMBER',        'Max connected players allowed in server simultaneously (default: 8)'],
   ['--r_respawn_time NUMBER',     'Rule: Player respawn time after death. (Default: 500)'],
   ['--r_reload_time NUMBER',      'Rule: The reload time after fire. (Default: 15)'],
@@ -95,6 +96,7 @@ const DEFAULT_OPTIONS = {
   http_port:            80,
   ws_port:              6114,
   pub_ws_port:          null,
+  max_connections:      60,
   max_players:          8,
   max_rate:             5000,
   r_respawn_time:       400,
@@ -183,10 +185,10 @@ function main() {
  */
 function start_gameserver(maps, options, shared) {
   var connections     = {},
+      no_connections  = 0,
       gameloop        = null,
       world           = null,
       server          = null,
-      conn_id         = 1,
       update_tick     = 1,
       next_map_index  = 0;
   
@@ -219,6 +221,16 @@ function start_gameserver(maps, options, shared) {
     flush_queues();
   }
   
+  function connection_for_player(player) {
+    for (var connid in connections) {
+      var conn = connections[connid];
+      if (conn.player && conn.player.id == player.id) {
+        return conn;
+      }
+    }
+    return null;
+  }
+  
   // Create the world instance
   world = new World(true);
   world.max_players = options.max_players,
@@ -234,7 +246,7 @@ function start_gameserver(maps, options, shared) {
     broadcast_each(
       [OP_PLAYER_CONNECT, player.id, player.name],
       function(msg, conn) {
-        if (player.id == conn.id) {
+        if (conn.player && conn.player.id == player.id) {
           return PRIO_PASS;
         } 
         return PRIO_HIGH;
@@ -316,6 +328,11 @@ function start_gameserver(maps, options, shared) {
     for (var id in connections) {
       var time = get_time();
       var connection = connections[id];
+      
+      if (connection.state != JOINED) {
+        continue;
+      }
+      
       if (connection.last_ping + 2000 < time) {
         connection.last_ping = time;
         connection.write(JSON.stringify([PING_PACKET]));
@@ -332,7 +349,7 @@ function start_gameserver(maps, options, shared) {
           connection.queue(message);
         }
         if (update_tick % 200 == 0) {
-          var player_connection = connections[player.id];
+          var player_connection = connection_for_player(player);
           connection.queue([OP_PLAYER_INFO, player.id, player_connection.ping]);
         }
         
@@ -347,6 +364,11 @@ function start_gameserver(maps, options, shared) {
   function flush_queues() {
     for (var id in connections) {
       var connection = connections[id];
+      
+      if (connection.state != JOINED) {
+        continue;
+      }
+      
       connection.flush_queue();      
     }
   }
@@ -520,24 +542,7 @@ function start_gameserver(maps, options, shared) {
   server = ws.createServer(function(conn) {
     var connection_id     = 0,
         disconnect_reason = 'Closed by client',
-        message_queue     = [],
-        player            = null;
-        
-    while (connections[++connection_id]);
-    
-    conn.id = connection_id;
-    conn.player_name = null;
-    conn.is_admin = false;
-    conn.rate = options.max_rate;
-    conn.update_rate = 2;
-    conn.max_rate = options.max_rate;
-    conn.last_rate_check = get_time();
-    conn.last_ping = 0;
-    conn.ping = 0;
-    conn.data_sent = 0;
-    conn.dimensions = [640, 480];
-    conn.state = IDLE;
-    conn.debug = options.debug;
+        message_queue     = [];
     
     /**
      *  Set's information about client.
@@ -549,6 +554,9 @@ function start_gameserver(maps, options, shared) {
     }
     
     conn.send_server_info = function() {
+      if (conn.debug) {
+        log('Debug: Sending server state to ' + conn);
+      }
       conn.post([OP_SERVER_INFO, shared.get_state()]);
     }
 
@@ -556,8 +564,8 @@ function start_gameserver(maps, options, shared) {
      *  Sends a chat message 
      */
     conn.chat = function(message) {
-      if (player) {
-        broadcast(OP_PLAYER_SAY, player.id, message);
+      if (conn.player) {
+        broadcast(OP_PLAYER_SAY, conn.player.id, message);
       }
     }
     
@@ -632,7 +640,8 @@ function start_gameserver(maps, options, shared) {
           var reason = args.shift();
           world.forEachPlayer(function(player) {
             if (player.name == name) {
-              connections[player.id].kill(reason);
+              var conn = connection_for_player(player);
+              conn.kill(reason);
               return "Player kicked";
             }
           })
@@ -707,11 +716,29 @@ function start_gameserver(maps, options, shared) {
       switch (new_state) {
         
         case CONNECTED:
-          connections[connection_id] = conn;
-        
-          if (conn.debug) {
-            log('Debug: Sending server state to ' + conn);
+          if (no_connections++ > options.max_connections) {
+            conn.kill('server busy');
+            return;
           }
+          
+          while (connections[++connection_id]);
+
+          conn.id = connection_id;
+          conn.player = null;
+          conn.player_name = null;
+          conn.is_admin = false;
+          conn.rate = options.max_rate;
+          conn.update_rate = 2;
+          conn.max_rate = options.max_rate;
+          conn.last_rate_check = get_time();
+          conn.last_ping = 0;
+          conn.ping = 0;
+          conn.data_sent = 0;
+          conn.dimensions = [640, 480];
+          conn.state = IDLE;
+          conn.debug = options.debug;
+
+          connections[conn.id] = conn;
           
           break;
 
@@ -732,29 +759,35 @@ function start_gameserver(maps, options, shared) {
           break;
         
         case JOINED:
-          // BE CAREFUL WITH THIS. Position of conn.post has changed with 
-          // on_player_join broadcast
-          player = world.add_player(connection_id, conn.player_name);
+          var playeridincr = 0;
+          
+          while (world.players[++playeridincr]);
+          
+          conn.player = world.add_player(playeridincr, conn.player_name);
 
-          conn.post([OP_WORLD_STATE, player.id].concat(world.get_repr()));
+          conn.post([OP_WORLD_STATE, conn.player.id].concat(world.get_repr()));
           
           log(conn + ' joined the game.');
           break;
         
         case DISCONNECTED:
-          delete connections[connection_id];
-        
-          if (player) {
-            world.remove_player(player.id, disconnect_reason);
-            log(conn + ' leaved the game (Reason: ' + disconnect_reason + ')');
-          }
+          if (conn.id && connections[conn.id]) {
+            delete connections[conn.id];
 
-          if (world.no_players == 0) {
-            stop_gameloop();
-          } 
-          
-          if (conn.debug) {
-            log('Debug: ' + conn + ' disconnected (Reason: ' + disconnect_reason + ')');
+            no_connections--;
+
+            if (conn.player) {
+              world.remove_player(conn.player.id, disconnect_reason);
+              log(conn + ' leaved the game (Reason: ' + disconnect_reason + ')');
+            }
+
+            if (world.no_players == 0) {
+              stop_gameloop();
+            } 
+
+            if (conn.debug) {
+              log('Debug: ' + conn + ' disconnected (Reason: ' + disconnect_reason + ')');
+            }
           }
           break;
       }
@@ -793,7 +826,7 @@ function start_gameserver(maps, options, shared) {
 
         case GAME_PACKET:
           if (world) {
-            process_game_message([packet[1], player, world]);
+            process_game_message([packet[1], conn.player, world]);
           }
           break;
 
