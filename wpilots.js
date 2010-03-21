@@ -63,7 +63,7 @@ const SWITCHES = [
   ['--admin_password PASSWORD',   'Admin password (default: "none").'],
   ['--map PATH',                  'Path to world map (default: built-in map).'],
   ['--pub_host HOST',             'Set if the public host differs from the local one'],
-  ['--http_port PORT',            'Port number for the HTTP server (default: 8000)'],
+  ['--http_port PORT',            'Port number for the HTTP server. Disable with 0 (default: 8000)'],
   ['--ws_port PORT',              'Port number for the WebSocket server (default: 6114)'],
   ['--pub_ws_port PORT',          'Set if the public WebSocket port differs from the local one'],
   ['--max_rate NUMBER',           'The maximum rate per client and second (default: 1000)'],
@@ -172,7 +172,10 @@ function main() {
   
   maps = options.maps;
   
-  webserver = start_webserver(options, shared);
+  if (options.http_port != 0) {
+    webserver = start_webserver(options, shared);
+  }
+  
   gameserver = start_gameserver(maps, options, shared);
   
 }
