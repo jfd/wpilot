@@ -124,7 +124,7 @@ var SFX_SOUNDS = {
   ship_thrust:  [6,  ['sound/ship_thrust']],  
   bullet_spawn: [8,  ['sound/ship_fire_1', 'sound/ship_fire_2', 'sound/ship_fire_3']], 
   powerup_spawn:[3,  ['sound/powerup_spawn']],
-  powerup_die:  [2,  ['sound/powerup_1_die', 'sound/powerup_2_die', 'sound/powerup_3_die']] 
+  powerup_die:  [2,  ['sound/powerup_1_die']] 
 }
 
 var COMMAND_USAGE = {
