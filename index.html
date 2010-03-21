@@ -246,8 +246,8 @@
 																										 
 			$('.server-list').removeClass('disabled');
 																						
-			$.get('serverlist.json', function(list) {
-				var list = list;
+			$.get('serverlist.txt', function(list) {
+				var list = JSON.parse(list);
 				
 				$('.server-list table tbody')
 					.empty()
