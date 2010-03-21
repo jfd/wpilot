@@ -10,11 +10,13 @@ body {
   width: 700px;
 }
 
-h1 { font-size: 2.0em; color: #FFD700; margin-bottom: 6px; }
+h1 { font-size: 2.0em; color: #FFD700; margin-bottom: 24px; }
 h1 .small { display: block; font-size: 0.4em; }
 h1 a { text-decoration: none }
 h2 { font-size: 1.0em; color: #FFD700; font-weight: normal; margin-bottom: 6px; }
 h3 { text-align: center; color: #FFD700; font-weight: normal; }
+h4 { position: relative; text-align: left; color: #ddd; font-weight: normal; margin: 0 0 4px 0;}
+h5 { text-align: center; font-weight: normal; color: #FFD700; margin: 0;}
 a { color: #3599DF;  }
 .download { float: right; }
 pre { background: #111; color: #fff; padding: 15px;}
@@ -27,8 +29,124 @@ p {
 	margin: 0 0 12px;
 }
 
+.container div h4 {
+  font-size: 0.8em;
+}
+
+button {
+  border-size: 1px;
+  border-color: rgba(255, 255, 255, 0.6);
+  border-radius: 2px;
+  color: #ffffff;
+  background: black;
+}
+
+stronge {
+  font-weight: bold;
+  color: #bbb;
+}
+
+ul {
+  list-style-type: square;
+  font-size: 0.8em;
+  margin-top: 0;
+  padding-left: 16px;
+}
+
+ul li {
+  color: #ddd;
+  line-height: 1.4em;	
+  margin-bottom: 16px;
+}
+
+ul li span {
+  color: #a0a0a0;
+}
+
+ul.powerups {
+  list-style: none;
+  padding: 0;
+}
+
+ul.powerups li.rapid {
+  background: url("../images/powerup-rapid.png") no-repeat;
+  padding-left: 35px;
+}
+
+ul.powerups li.rico {
+  background: url("../images/powerup-rico.png") no-repeat;
+  padding-left: 35px;
+}
+
+ul.powerups li.spread {
+  background: url("../images/powerup-spread.png") no-repeat;
+  padding-left: 35px;
+}
+
+h4 span.rank {
+  position: absolute;
+  right: 2px;
+}
+
+span.rank.low {
+  font-size: 0.8em;
+  color: #F43400;
+}
+
+span.rank.mid {
+  font-size: 0.8em;
+  color: #FFB000;
+}
+
+span.rank.high {
+  font-size: 0.8em;
+  color: #A6DB00;
+}
+
 div.header {
 	margin: 0 0 20px 0;
+}
+
+div.header > div:nth-child(odd) {
+  margin-right: 8px;
+  margin-left: 0px;
+}
+
+div.header > div:nth-child(even) {
+  margin-right: 0px;
+  margin-left: 8px;
+}
+
+div.notice {
+  position: relative;
+  top: -10px;
+  padding: 10px;
+  font-size: 0.8em;
+}
+
+div.notice a {
+  font-weight: bold;
+  color: #000;
+  text-decoration: none;
+}
+
+div.notice a.close {
+  position:absolute;
+  right: 10px;
+  font-size: 1.1em;
+  font-style: normal;
+  text-decoration: none;
+  color: #000;
+}
+
+div.notice.warning {
+  color: #000;
+  background: #FFD700;
+}
+
+div.notice.error {
+  color: #000;
+  background: #F43400;
 }
 
 div.options {
@@ -69,19 +187,10 @@ div.options input[type="checkbox"] {
 	margin-right: 100px;
 }
 
-
 div.options .footer {
 	padding: 5px;
 	font-size: 0.7em;
 	font-style: italic;
-}
-
-button {
-  border-size: 1px;
-  border-color: rgba(255, 255, 255, 0.6);
-  border-radius: 2px;
-  color: #ffffff;
-  background: black;
 }
 
 section#options label {
@@ -99,57 +208,98 @@ section#options input {
   left: 235px;
 }
 
-section#options input[type="text"] {
+.keyboard-bindings {
+  background: #151515 url(../images/keyboard-bindings.png) no-repeat center 40px;
+  height: 140px;
+  padding: 10px;
+  margin-bottom: 16px;
+  
 }
 
-.screenshots  {
-	background: #33332F;
-	padding: 10px;
+.keyboard-bindings h5 {
+  font-weight: normal;
+  color: #FFD700;
+  text-align: center;
+  margin: 0;
+}
+
+.gallery  {
+	background: #151515;
 	margin-bottom: 12px;
 }
 
-.screenshots .images {
+.gallery ul {  
 	position: relative;
 	list-style: none;
 	overflow: auto;
-	left: -10px;
-	width: 710px;
+	width: 332px;
 	padding: 0;
 	margin: 0;
 }
 
-.screenshots li {
-	margin: 0 0 0 10px;
+.gallery .column {
+  float: left;
+}
+
+.gallery li {
+	margin: 0 0 4px 8px;
 	float: left;
 }
 
-.screenshots li img{
-	width: 103px;
+.gallery li img{
+	width: 98px;
   border: 1px solid rgba(255, 215, 0, 0.3);
 }
 
-.screenshots p {
+.gallery h5 {
+	margin: 8px 0 8px 0;
+}
+
+.gallery p {
 	font-size: 0.7em;
 	font-style: italic;
 	text-align: center;
-	margin: 8px 0 0 0;
+	padding: 0 0 8px 0;
+}
+
+.gallery .column:nth-child(odd) {
+  margin-right: 8px;
+  margin-left: 0px;
+}
+
+.gallery .column:nth-child(even) {
+  margin-right: 0px;
+  margin-left: 8px;
 }
 
 .container {
   overflow: auto;
 }
 
-.column-a {
+.column {
   float: left;
 	width: 342px;
 	margin-right: 8px;
+	overflow: hidden;
 }
 
-.column-b {
-  float: left;
-	width: 342px;
-	margin-left: 8px;
+.column:nth-child(odd) {
+  margin-right: 0px;
+  margin-left: 8px;
 }
+
+ul.column:nth-child(odd) {
+  width: 326px;
+  margin-right: 8px;
+  margin-left: 0px;
+}
+
+ul.column:nth-child(even) {
+  width: 326px;
+  margin-right: 0px;
+  margin-left: 8px;
+}
+
 
 .server-list {
 	padding: 8px;
@@ -157,7 +307,24 @@ section#options input[type="text"] {
 	margin: 0 0 12px 0;
 }
 
+.server-list .disabled-notice  {
+  display: none;
+  font-size: 0.8em;
+  color: #FFD700;
+  text-align: center;
+}
+
+.server-list.disabled .disabled-notice  {
+  display: block;
+  color: #FFD700;
+}
+
+.server-list.disabled table {
+  display: none;
+}
+
 .server-list table {
+  display: table;  
 	width: 100%;
 }
 
@@ -179,7 +346,7 @@ section#options input[type="text"] {
 }
 
 .server-list tbody {
-	font-size: 0.8em;
+	font-size: 0.7em;
 	min-height: 300px;
 	vertical-align: top;
 }
@@ -190,8 +357,15 @@ section#options input[type="text"] {
 }
 
 .server-list tbody td.name {
+  background: url(../images/tick.png) no-repeat 0 0;
 	width: 20%;
 	text-indent: 20px;
+}
+
+.server-list tbody td.name span {
+  margin-left: 10px;
+	font-size: 0.8em;
+	color: #777;
 }
 
 .server-list tbody td.ping {
@@ -229,6 +403,11 @@ section#options input[type="text"] {
 	background: url(../images/spinner.gif) no-repeat;
 }
 
+.server-list tr.down td.name {
+	background: url(../images/cross.png) no-repeat  0 0;
+}
+
+.server-list tr.down td.status,
 .server-list tr.pinging td.status {
 	opacity: 0;
 	text-align: right;
@@ -236,7 +415,6 @@ section#options input[type="text"] {
 
 .server-list tr.waiting td {
 	text-align: center;
-	border: 1px solid #333;
 }
 
 .server-list tfoot td {
@@ -245,105 +423,6 @@ section#options input[type="text"] {
 	font-style: italic;
 }
 
-
-/**
- * jQuery lightBox plugin
- * This jQuery plugin was inspired and based on Lightbox 2 by Lokesh Dhakar (http://www.huddletogether.com/projects/lightbox2/)
- * and adapted to me for use like a plugin from jQuery.
- * @name jquery-lightbox-0.5.css
- * @author Leandro Vieira Pinho - http://leandrovieira.com
- * @version 0.5
- * @date April 11, 2008
- * @category jQuery plugin
- * @copyright (c) 2008 Leandro Vieira Pinho (leandrovieira.com)
- * @license CC Attribution-No Derivative Works 2.5 Brazil - http://creativecommons.org/licenses/by-nd/2.5/br/deed.en_US
- * @example Visit http://leandrovieira.com/projects/jquery/lightbox/ for more informations about this jQuery plugin
- */
-#jquery-overlay {
-	position: absolute;
-	top: 0;
-	left: 0;
-	z-index: 90;
-	width: 100%;
-	height: 500px;
-}
-#jquery-lightbox {
-	position: absolute;
-	top: 0;
-	left: 0;
-	width: 100%;
-	z-index: 100;
-	text-align: center;
-	line-height: 0;
-}
-#jquery-lightbox a img { border: none; }
-#lightbox-container-image-box {
-	position: relative;
-	background-color: #fff;
-	width: 250px;
-	height: 250px;
-	margin: 0 auto;
-}
-#lightbox-container-image { padding: 10px; }
-#lightbox-loading {
-	position: absolute;
-	top: 40%;
-	left: 0%;
-	height: 25%;
-	width: 100%;
-	text-align: center;
-	line-height: 0;
-}
-#lightbox-nav {
-	position: absolute;
-	top: 0;
-	left: 0;
-	height: 100%;
-	width: 100%;
-	z-index: 10;
-}
-#lightbox-container-image-box > #lightbox-nav { left: 0; }
-#lightbox-nav a { outline: none;}
-#lightbox-nav-btnPrev, #lightbox-nav-btnNext {
-	width: 49%;
-	height: 100%;
-	zoom: 1;
-	display: block;
-}
-#lightbox-nav-btnPrev { 
-	left: 0; 
-	float: left;
-}
-#lightbox-nav-btnNext { 
-	right: 0; 
-	float: right;
-}
-#lightbox-container-image-data-box {
-	font: 10px Verdana, Helvetica, sans-serif;
-	background-color: #fff;
-	margin: 0 auto;
-	line-height: 1.4em;
-	overflow: auto;
-	width: 100%;
-	padding: 0 10px 0;
-}
-#lightbox-container-image-data {
-	padding: 0 10px; 
-	color: #666; 
-}
-#lightbox-container-image-data #lightbox-image-details { 
-	width: 70%; 
-	float: left; 
-	text-align: left; 
-}	
-#lightbox-image-details-caption { font-weight: bold; }
-#lightbox-image-details-currentNumber {
-	display: block; 
-	clear: left; 
-	padding-bottom: 1.0em;	
-}			
-#lightbox-secNav-btnClose {
-	width: 66px; 
-	float: right;
-	padding-bottom: 0.7em;	
+body div.ppt {
+  color: #FFD700;
 }
