@@ -210,7 +210,7 @@ GameLoop.prototype.start = function() {
     ondone(self.tick, dt, accumulator / dt);
 
     if(!self._kill) {
-      self._pid = setTimeout(gameloop, 0);
+      self._pid = setTimeout(gameloop, 10);
     } 
   };
 
@@ -2184,68 +2184,68 @@ function internal_log(msg) {
 // Export for CommonJS (in this case node.js)
 try {
 
-  exports.World = World;
-  exports.GameLoop = GameLoop;
-  exports.Player = Player;
-  exports.Ship = Ship;
-  exports.Wall = Wall;
-  exports.Bullet = Bullet;
+  global.World = World;
+  global.GameLoop = GameLoop;
+  global.Player = Player;
+  global.Ship = Ship;
+  global.Wall = Wall;
+  global.Bullet = Bullet;
   
-  exports.DT = DT;
+  global.DT = DT;
 
-  exports.GAME_PACKET = GAME_PACKET;
-  exports.PING_PACKET = PING_PACKET;
+  global.GAME_PACKET = GAME_PACKET;
+  global.PING_PACKET = PING_PACKET;
   
-  exports.OP_PLAYER_SPAWN       = OP_PLAYER_SPAWN;
-  exports.OP_PLAYER_DIE         = OP_PLAYER_DIE;
-  exports.OP_PLAYER_STATE       = OP_PLAYER_STATE;
-  exports.OP_PLAYER_INFO        = OP_PLAYER_INFO;
-  exports.OP_PLAYER_FIRE        = OP_PLAYER_FIRE;
-  exports.OP_PLAYER_CONNECT     = OP_PLAYER_CONNECT;
-  exports.OP_PLAYER_DISCONNECT  = OP_PLAYER_DISCONNECT;
-  exports.OP_POWERUP_SPAWN      = OP_POWERUP_SPAWN;
-  exports.OP_POWERUP_DIE        = OP_POWERUP_DIE;
-  exports.OP_ROUND_STATE        = OP_ROUND_STATE;
-  exports.OP_PLAYER_SAY         = OP_PLAYER_SAY;
+  global.OP_PLAYER_SPAWN       = OP_PLAYER_SPAWN;
+  global.OP_PLAYER_DIE         = OP_PLAYER_DIE;
+  global.OP_PLAYER_STATE       = OP_PLAYER_STATE;
+  global.OP_PLAYER_INFO        = OP_PLAYER_INFO;
+  global.OP_PLAYER_FIRE        = OP_PLAYER_FIRE;
+  global.OP_PLAYER_CONNECT     = OP_PLAYER_CONNECT;
+  global.OP_PLAYER_DISCONNECT  = OP_PLAYER_DISCONNECT;
+  global.OP_POWERUP_SPAWN      = OP_POWERUP_SPAWN;
+  global.OP_POWERUP_DIE        = OP_POWERUP_DIE;
+  global.OP_ROUND_STATE        = OP_ROUND_STATE;
+  global.OP_PLAYER_SAY         = OP_PLAYER_SAY;
 
-  exports.OP_REQ_SERVER_INFO    = OP_REQ_SERVER_INFO;
-  exports.OP_SERVER_INFO        = OP_SERVER_INFO;
-  exports.OP_SERVER_EXEC_RESP   = OP_SERVER_EXEC_RESP;
-  exports.OP_DISCONNECT_REASON  = OP_DISCONNECT_REASON;
-  exports.OP_WORLD_DATA         = OP_WORLD_DATA;
-  exports.OP_WORLD_STATE        = OP_WORLD_STATE;
-  exports.OP_WORLD_RECONNECT    = OP_WORLD_RECONNECT;
-  exports.OP_CLIENT_CONNECT     = OP_CLIENT_CONNECT;
-  exports.OP_CLIENT_JOIN        = OP_CLIENT_JOIN;
-  exports.OP_CLIENT_SET         = OP_CLIENT_SET;
-  exports.OP_CLIENT_STATE       = OP_CLIENT_STATE;
-  exports.OP_CLIENT_EXEC        = OP_CLIENT_EXEC;
-  exports.OP_CLIENT_SAY         = OP_CLIENT_SAY;
+  global.OP_REQ_SERVER_INFO    = OP_REQ_SERVER_INFO;
+  global.OP_SERVER_INFO        = OP_SERVER_INFO;
+  global.OP_SERVER_EXEC_RESP   = OP_SERVER_EXEC_RESP;
+  global.OP_DISCONNECT_REASON  = OP_DISCONNECT_REASON;
+  global.OP_WORLD_DATA         = OP_WORLD_DATA;
+  global.OP_WORLD_STATE        = OP_WORLD_STATE;
+  global.OP_WORLD_RECONNECT    = OP_WORLD_RECONNECT;
+  global.OP_CLIENT_CONNECT     = OP_CLIENT_CONNECT;
+  global.OP_CLIENT_JOIN        = OP_CLIENT_JOIN;
+  global.OP_CLIENT_SET         = OP_CLIENT_SET;
+  global.OP_CLIENT_STATE       = OP_CLIENT_STATE;
+  global.OP_CLIENT_EXEC        = OP_CLIENT_EXEC;
+  global.OP_CLIENT_SAY         = OP_CLIENT_SAY;
   
-  exports.ROUND_WARMUP  = ROUND_WARMUP,
-  exports.ROUND_STARTING = ROUND_STARTING,
-  exports.ROUND_RUNNING  = ROUND_RUNNING,
-  exports.ROUND_FINISHED = ROUND_FINISHED;
+  global.ROUND_WARMUP  = ROUND_WARMUP,
+  global.ROUND_STARTING = ROUND_STARTING,
+  global.ROUND_RUNNING  = ROUND_RUNNING,
+  global.ROUND_FINISHED = ROUND_FINISHED;
   
-  exports.POWERUP_RAPID = POWERUP_RAPID;
-  exports.POWERUP_RICO = POWERUP_RICO;
-  exports.POWERUP_SPREAD = POWERUP_SPREAD;
+  global.POWERUP_RAPID = POWERUP_RAPID;
+  global.POWERUP_RICO = POWERUP_RICO;
+  global.POWERUP_SPREAD = POWERUP_SPREAD;
 
-  exports.THRUST = THRUST;
-  exports.SHOOT = SHOOT;
-  exports.SHIELD = SHIELD;
+  global.THRUST = THRUST;
+  global.SHOOT = SHOOT;
+  global.SHIELD = SHIELD;
 
-  exports.DEATH_CAUSE_KILLED = DEATH_CAUSE_KILLED;
-  exports.DEATH_CAUSE_SUICDE = DEATH_CAUSE_SUICDE;
+  global.DEATH_CAUSE_KILLED = DEATH_CAUSE_KILLED;
+  global.DEATH_CAUSE_SUICDE = DEATH_CAUSE_SUICDE;
   
-  exports.vector_add = vector_add;
-  exports.vector_sub = vector_sub;
-  exports.vector_mul = vector_mul;
-  exports.vector_div = vector_div;
-  exports.vector_pow = vector_pow;
-  exports.vector_abs = vector_abs;
+  global.vector_add = vector_add;
+  global.vector_sub = vector_sub;
+  global.vector_mul = vector_mul;
+  global.vector_div = vector_div;
+  global.vector_pow = vector_pow;
+  global.vector_abs = vector_abs;
   
-  exports.intersects = intersects;
-  exports.round_number = round_number;
+  global.intersects = intersects;
+  global.round_number = round_number;
   
 } catch (e) {  }
