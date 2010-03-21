@@ -456,111 +456,9 @@
         <p>The map contains two small rooms containing powerful powerups. Risk 
            getting ambushed for the ultimate power.</p>
       </div>
-    </div>    
-
-    <div class="container">
-			<h2 id="compability">Browser compatibility</h2>
-			<div class="column">
-				<p>WPilot is unfortunately not playable in all browsers. This 
-				  compatibility list helps you find a browser that is supported by 
-				  WPilot. The browser rank gives you an indication of how well the game perform.</p> 
-				
-				<p>The <span class="rank high">Recommended</span> indicates that the 
-				  browser is fully supported. There can be some quirks but nothing major.</p> 
-			</div>
-			<div class="column">
-				<p>The <span class="rank mid">Not recommended</span> indicates that the game should run, but that there's one or more major quirks that causes the game to run badly. Read the description for more information.</p> 
-				
-				<p>The <span class="rank low">Not 
-   				  supported</span> indicates that the 
-				   game won't run at all. There may be support for the browser in a 
-				   future release, but no guarantee.</p>
-			</div>
     </div>
-
-    <div class="container">
-			<ul class="column">
-				<li><h4>Internet Explorer - Win <span class="rank low">Not 
-				  supported</span></h4><span> Internet Explorer is NOT support by WPilot. 
-				  WPilot depends up on 
-          <a href="http://en.wikipedia.org/wiki/Canvas_element">Canvas</a> 
-					which Internet Explorer lacks. There are third-party solutions that 
-					emulates the <i>canvas</i> object, but they are really slow.
-					IE9 may support canvas in the future, if the team behind the browser decides to implement canvas support (<a href="http://ajaxian.com/archives/ie9-canvas-support-leaked-by-amd">rumors</a> indicate it).</span></li>
-				<li><h4>Safari 4 - Mac <span class="rank high">Recommended</span></h4>
-				  <span>Safari delivers a good frame rate. However Safari lack support for WebSocket, so it depends upon Flash plugin as fallback. The 
-				  experience is decent, but the Flash fallback can cause high latency.
-				  </span></li>
-				<li><h4>Webkit (nightlies) - Mac<span class="rank high">Recommended</span>
-				  </h4><span>Webkit delivers outstanding network performance, low latency 
-				  and no packet loss. The frame rates is lower than in Safari 
-				  (~30% lower FPS) but the game should still run well. Disabling 
-				  in-game sound effects can increases frame rate slightly.
-				  </span></li>
-				<li><h4>Firefox 3.6 - Mac<span class="rank mid">Not recommended</span></h4>
-				  <span>Firefox for Mac delivers a great frame rate. Firefox lack support for WebScoket, so Flash 
-				  is a requirement. It seems to be some kind of problem with the Flash 
-				  implementation though. The ping tend to be very high, even when connecting to localhost.</span</li>
-			</ul>
-			<ul class="column">
-				<li><h4>Google Chrome - Win/Mac<span class="rank mid">Not recommended
-				  </span></h4><span>Google Chrome has some issues with WPilot, both on 
-				  Windows and on Mac. Frame rate is low, sounds stops playing 
-				  after a while and there's some issues with text rendering. 
-				  The game is playable, but you'll have lag. It's 
-				  highly recommended to disable sounds before playing, the game will 
-				  otherwise crash after a couple of minutes.</span</li>
-				<li><h4>Firefox 3.6 - Win<span class="rank high">Recommended</span></h4>
-				  <span>Firefox for Win delivers a great
-					frame rate. Firefox lacks
-					support for WebSocket, so Flash is a requirement. Even though Flash is used as fall back it delivers low latency as opposed to the Mac version.
-					</span</li>
-				<li><h4>Opera 10.50 - Mac/Win<span class="rank low">Not supported</span>
-				  </h4><span>Only tested on Mac. Opera have some trouble communicating 
-				  with the Flash fallback plugin. The game 
-					connects to the server 1 of 10 times. No error messages is displayed 
-					so the problem is difficult to debug. There also seems to be some kind
-					of problem with the underlying text rendering interface. Some texts are
-					not rendered at all. The frame rate seems to be great, but the
-					game is unplayable.</span</li>
-			</ul>
-    </div>
-		
-    <div class="container">
-			<h2 id="background">Project goal</h2>
-			<div class="column">
-				<p>Yesterday's browser wasn't built to handle fast graphics applications and 
-				low-latency game network protocols.</p>
-				<p>This is about to change dramatically, the browser standard factory
-					is currently cooking up some very interesting new features for our 
-					browsers. New HTML5 technologies such as 
-					<a href="http://en.wikipedia.org/wiki/Canvas_element">Canvas</a>, 
-					<a href="http://dev.w3.org/html5/websockets/">WebSocket</a> and 
-					<a href="http://www.khronos.org/webgl/">WebGL</a> 
-					will change the way we think of games and applications in the browser.
-					</p>
-				<p>The goal of this projects was/is to test how far we can get using only the browser. No third-party plugins such as
-					<a href="http://www.adobe.com/products/flashplayer/">Flash</a>, 
-					<a href="http://silverlight.net/">Silverlight</a> and  
-					<a href="http://unity3d.com/">Unity3D</a>. (Not entirely true though, Flash is used to emulate the WebSocket 
-					interface in browsers that lacks the feature)</p>
-			</div>
-			<div class="column">
-				<p>As you can see, the results so far, is pretty impressing. The game 
-				   engine runs at 60 ticks per second. Each game tick handles collision data, 
-				   movement and game rules. The server is constantly sending position 
-				   updates to each client which requires a low-latency connection between 
-				   the two parties.</p>
-				<p>The native implementation of WebSocket (In Safari and Google Chrome) 
-				   handle this very well. The fallback plugin is kind of unstable on 
-				   the mac but seems to do a good job on Windows machines.</p>
-				<p>WPilot and similar applications will be more stable and faster as             browser vendors continues to implement new and exciting features 
-				   listed in the HTML5 draft.</p>
-				   
-			</div>
-    </div>
-
-		<div class="media container">
+    
+    <div class="media container">
 	    <h2 id="media">Media</h2>
 			<div class="column">
 				<p>We have recorded a couple of videos of WPilot in action. The videos
@@ -635,6 +533,121 @@
 			</div>
 			<p>Screenshots and videos from the game, click to view</p>
 		</div>
+
+    <div class="container">
+			<h2 id="compability">Browser compatibility</h2>
+			<div class="column">
+				<p>WPilot is unfortunately not playable in all browsers. This 
+				  compatibility list helps you find a browser that is supported by 
+				  WPilot. The browser rank gives you an indication of how well the game 
+				  perform.</p> 
+				
+				<p>The <span class="rank high">Recommended</span> indicates that the 
+				  browser is fully supported. There can be some quirks but nothing major.</p> 
+			</div>
+			<div class="column">
+				<p>The <span class="rank mid">Not recommended</span> indicates that the 
+				   game should run, but that there's one or more major quirks that 
+				   causes the game to run badly. Read the description for more 
+				   information.</p> 
+				
+				<p>The <span class="rank low">Not 
+   				  supported</span> indicates that the 
+				   game won't run at all. There may be support for the browser in a 
+				   future release, but no guarantee.</p>
+			</div>
+    </div>
+
+    <div class="container">
+			<ul class="column">
+				<li><h4>Internet Explorer - Win <span class="rank low">Not 
+				  supported</span></h4><span> Internet Explorer is NOT support by WPilot. 
+				  WPilot depends up on 
+          <a href="http://en.wikipedia.org/wiki/Canvas_element">Canvas</a> 
+					which Internet Explorer lacks. There are third-party solutions that 
+					emulates the <i>canvas</i> object, but they are really slow.
+					IE9 may support canvas in the future, if the team behind the browser 
+					decides to implement canvas support (
+					<a href="http://ajaxian.com/archives/ie9-canvas-support-leaked-by-amd">rumors</a> 
+					indicate it).</span></li>
+				<li><h4>Safari 4 - Mac <span class="rank high">Recommended</span></h4>
+				  <span>Safari delivers a good frame rate. However Safari lack support 
+				  for WebSocket, so it depends upon Flash plugin as fallback. The 
+				  experience is decent, but the Flash fallback can cause high latency.
+				  </span></li>
+				<li><h4>Webkit (nightlies) - Mac<span class="rank high">Recommended</span>
+				  </h4><span>Webkit delivers outstanding network performance, low latency 
+				  and no packet loss. The frame rates is lower than in Safari 
+				  (~30% lower FPS) but the game should still run well. Disabling 
+				  in-game sound effects can increases frame rate slightly.
+				  </span></li>
+				<li><h4>Firefox 3.6 - Mac<span class="rank mid">Not recommended</span></h4>
+				  <span>Firefox for Mac delivers a great frame rate. Firefox lack support 
+				  for WebScoket, so Flash is a requirement. It seems to be some kind of 
+				  problem with the Flash implementation though. The ping tend to be very 
+				  high, even when connecting to localhost.</span</li>
+			</ul>
+			<ul class="column">
+				<li><h4>Google Chrome - Win/Mac<span class="rank mid">Not recommended
+				  </span></h4><span>Google Chrome has some issues with WPilot, both on 
+				  Windows and on Mac. Frame rate is low, sounds stops playing 
+				  after a while and there's some issues with text rendering. 
+				  The game is playable, but you'll have lag. It's 
+				  highly recommended to disable sounds before playing, the game will 
+				  otherwise crash after a couple of minutes.</span</li>
+				<li><h4>Firefox 3.6 - Win<span class="rank high">Recommended</span></h4>
+				  <span>Firefox for Win delivers a great
+					frame rate. Firefox lacks
+					support for WebSocket, so Flash is a requirement. Even though Flash is 
+					used as fall back it delivers low latency as opposed to the Mac version.
+					</span</li>
+				<li><h4>Opera 10.50 - Mac/Win<span class="rank low">Not supported</span>
+				  </h4><span>Only tested on Mac. Opera have some trouble communicating 
+				  with the Flash fallback plugin. The game 
+					connects to the server 1 of 10 times. No error messages is displayed 
+					so the problem is difficult to debug. There also seems to be some kind
+					of problem with the underlying text rendering interface. Some texts are
+					not rendered at all. The frame rate seems to be great, but the
+					game is unplayable.</span</li>
+			</ul>
+    </div>
+		
+    <div class="container">
+			<h2 id="background">Project goal</h2>
+			<div class="column">
+				<p>Yesterday's browser wasn't built to handle fast graphics applications and 
+				low-latency game network protocols.</p>
+				<p>This is about to change dramatically, the browser standard factory
+					is currently cooking up some very interesting new features for our 
+					browsers. New HTML5 technologies such as 
+					<a href="http://en.wikipedia.org/wiki/Canvas_element">Canvas</a>, 
+					<a href="http://dev.w3.org/html5/websockets/">WebSocket</a> and 
+					<a href="http://www.khronos.org/webgl/">WebGL</a> 
+					will change the way we think of games and applications in the browser.
+					</p>
+				<p>The goal of this projects was/is to test how far we can get using 
+				  only the browser. No third-party plugins such as
+					<a href="http://www.adobe.com/products/flashplayer/">Flash</a>, 
+					<a href="http://silverlight.net/">Silverlight</a> and  
+					<a href="http://unity3d.com/">Unity3D</a>. (Not entirely true though, 
+					Flash is used to emulate the WebSocket interface in browsers that 
+					lacks the feature)</p>
+			</div>
+			<div class="column">
+				<p>As you can see, the results so far, is pretty impressing. The game 
+				   engine runs at 60 ticks per second. Each game tick handles collision data, 
+				   movement and game rules. The server is constantly sending position 
+				   updates to each client which requires a low-latency connection between 
+				   the two parties.</p>
+				<p>The native implementation of WebSocket (In Safari and Google Chrome) 
+				   handle this very well. The fallback plugin is kind of unstable on 
+				   the mac but seems to do a good job on Windows machines.</p>
+				<p>WPilot and similar applications will be more stable and faster as
+				   browser vendors continues to implement new and exciting features 
+				   listed in the HTML5 draft.</p>
+				   
+			</div>
+    </div>
 		
 		<div class="container">
 			<h2 id="server-setup">Running your own server</h2>
@@ -666,9 +679,16 @@
 				   can break. You can put server in "debug-mode" by adding the 
 				   <i>--debug</i> switch, which will print additional debug information
 				   in the console. This may help you to track down bugs.</p>
-				   
+				
+				<h4>Public server list</h4>
+				<p>We have limited server capacity, so please concider to list your 
+				   server in The Public server list (the list at the top of this page).
+				   </p>
 			</div>
 			<div class="column">
+				<p>Send your "ws://" host address to email to dahlberg.johan AT gmail 
+				   com. We will list it as soon as possible.</p>
+				<p>You can also fork the git repo and add the address directly</p>
 			  <h4>Map cycling</h4>
 				<p>WPilot comes with a set of maps. All maps is located in the the 
 					"$INSTALLDIR/maps" directory. You can choose to circle between 
@@ -708,7 +728,8 @@
 				  mail me at dahlberg.johan AT gmail com.</p>				  
 			  <h4>Contributing with code</h4>
 			  <p>Bug fixes and optimizations is appreciated. If you are an expert on
-			     Opera or maybe find a way of getting this to work on IE, we'd really appreciate your contribution to the main project.</p>
+			     Opera or maybe find a way of getting this to work on IE, we'd really 
+			     appreciate your contribution to the main project.</p>
 			</div>
 			<div class="column">
 				<p>First fork the WPilot GIT-repository with the following command:</p>
