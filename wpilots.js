@@ -426,8 +426,10 @@ function start_gameserver(maps, options, shared) {
             var t = 0;
             for(var id in connections) {
               var conn = connections[id];
-              conn.write(JSON.stringify([OP_WORLD_RECONNECT]));
-              conn.set_state(HANDSHAKING);
+              if (conn.state == JOINED) {
+                conn.write(JSON.stringify([OP_WORLD_RECONNECT]));
+                conn.set_state(HANDSHAKING);
+              }
             }
           });
         }
