@@ -1113,15 +1113,19 @@ World.prototype.update_player_info = function(id, ping, ready, name) {
 World.prototype.update_player_state = function(id, pos, angle, action) {
   var player = this.players[id];
 
-  if (pos) {
-    player.entity.pos_sv = pos;
+  // The Flash fallback sometimes bugs. Do an extra check here 
+  if (player.entity) {
+    if (pos) {
+      player.entity.pos_sv = pos;
+    }
+    if (!player.is_me) {
+      player.entity.angle = angle;
+    }
+    if (!player.is_me) {
+      player.action = action;
+    }
   }
-  if (!player.is_me) {
-    player.entity.angle = angle;
-  }
-  if (!player.is_me) {
-    player.action = action;
-  }
+
 }
 
 World.prototype.player_say = function(player_id, message) {
