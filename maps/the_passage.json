@@ -1,27 +1,17 @@
 {
 	"name": "The Passage",
 	"author": "Johan Dahlberg",
-	"recommended_players": 4,
+	"recommended_players": 8,
 	
 	"rules": {
-	  "respawn_time":       400,
-	  "reload_time":        15,
-	  "shoot_cost":         300,
-	  "shield_cost":        70,
-	  "energy_recovery":    40,
-	  "round_limit":        10,
-	  "suicide_penelty":    1,
-	  "kill_score":         1,
-	  "powerup_max":        3,
-	  "powerup_respawn":    1200,
-	  "powerup_speed_t":    700,
-	  "powerup_rapid_t":    600,
-	  "powerup_energy_t":   800  
+	  "powerup_max": 4
 	},
-	
+		
 	"data": [
-		[51, 0,  11,  0,  51],
-		[0,  52, 12, 52,   0],
-		[51, 0,  11,  0,  51]
+		[51, 0,  0, 51, 11, 51,  0,  0, 51],
+		[0,  0,  0,  0, 11,  0,  0,  0,  0],
+		[0, 52, 52,  0, 12,  0, 52, 52,  0],
+		[0,  0,  0,  0, 11,  0,  0,  0,  0],
+		[51, 0,  0, 51, 11, 51,  0,  0, 51]
 	]
 }
