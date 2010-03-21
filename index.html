@@ -183,6 +183,17 @@
         return;
 			}
 			
+			try {
+			  var jsontest = JSON.stringify({test: 'test'});
+			} catch(error) {
+			  var msg = 'Your browser doesnt not support JSON. Read the ' +
+									'<a href="#compability">Browser Compatibility</a> section for ' + 
+								 	'more details.';
+								 	
+			  displaynotice(msg, 'error');
+        return;
+			}
+			
 			if (/Chrome/.test(navigator.userAgent)) {
 			  var msg = 'Google Chrome has some compatibility issues, please read ' +
 									'the <a href="#compability">Browser Compatibility</a> section ' + 
