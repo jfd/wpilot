@@ -14,7 +14,7 @@
 	<script type="text/javascript" src="js/FABridge.js"></script>
 	<script type="text/javascript" src="js/web_socket.js"></script>	
 	<script type="text/javascript" src="http://ajax.googleapis.com/ajax/libs/jquery/1.4.2/jquery.min.js"></script>
-	<script type="text/javascript" src="js/jquery.tablesorter.js"></script>
+	<script type="text/javascript" src="js/jquery.query.js"></script>
 	<script type="text/javascript" src="js/jquery.prettyPhoto.js"></script>
 	<script type="text/javascript" src="js/jquery.cookie.js"></script>
 	<script type="text/javascript">
@@ -127,7 +127,9 @@
 					return;
 				}
 				
-				if (message.shift() == 11) {
+				var msgid = message.shift();
+				
+				if (msgid == 11) {
 					var info = message.shift();
 					$('td.name', tr).html(info.server_name + '<span>' +
 							info.version + '</span>');
@@ -138,7 +140,8 @@
 					$('.server-list tr[id="' + addr + '"] td.name').text(info.ping);
 				  close();
 				} else {
-				  close('Bad response');
+				  console.log(message);
+				  close('Bad response: ' + msgid);
 				}
 			}
 
@@ -235,8 +238,14 @@
 												'</tr>');
 
 						$('a.join', html).click(function() {
-							var addr = $(this).parents('tr').attr('id');
-							alert('Joining game at ' + addr);
+							var url = $(this).parents('tr').attr('id');
+							
+							document.location = 'client.html' + 
+                      $.query.set('url', url).
+                              set('name', $('.options input[name="player-name"]').val()).
+                              set('fg-sound', $('.options input[name="fg-sound"]').attr('checked').toString()).
+                              set('bg-sound', $('.options input[name="bg-sound"]').attr('checked').toString()).
+                              toString();
 						});
 
 						$('a.refresh', html).click(function() {
@@ -334,9 +343,10 @@
 				<tfoot>
 					<tr>
 						<td colspan="6">
-							Can't find a server join? 
-							<a href="http://wiki.github.com/jfd/wpilot/server-guide">Start 
-							your own server</a> and add it to this list.
+							No servers available? 
+							<a href="#server-setup">Start 
+							a server</a> by your own or watch a video in the 
+							<a href="#media">Media</a> section.
 						</td>
 					</tr>
 				</tfoot>
@@ -559,7 +569,7 @@
     </div>
 
 		<div class="media container">
-	    <h2>Media</h2>
+	    <h2 id="media">Media</h2>
 			<div class="column">
 				<p>We have recorded a couple of videos of WPilot in action. The videos
 					can be found in our channels over at <a href="">Youtube</a> and 
@@ -624,7 +634,7 @@
 		</div>
 		
 		<div class="container">
-			<h2 id="background">Running your own server</h2>
+			<h2 id="server-setup">Running your own server</h2>
 			<div class="column">
 				<p>So, you are interesting in setting up a server of your own. Thats 
 					great! The entire server is built in something called 
@@ -646,10 +656,31 @@
 				</p>
 			</div>
 			<div class="column">
+			  <h4>Map cycling</h4>
 				<p>WPilot comes with a set of maps. All maps is located in the the 
 					"$INSTALLDIR/maps" directory. You can choose to circle between 
 					multiple maps at starup. Use the <i>--map</i> for each map you want
 					to play. It's also possible to change map in-game.</p>
+			  <h4>In-game administration</h4>
+				<p>As an administrator, you can change maps, kick players in-game. You 
+				   first have to start the server with the switch "--admin_password 
+				   <i>secret password</i>" (where <i>secret password</i> is your 
+				   password), this enabled the in-game admin mode. To authorize you 
+				   in-game, type:</p>
+				   
+				   <pre>/sv_password <i>secret password</i></pre> 
+				   
+				   <p>After authorization, you can issue admin commands. For example, the 
+				   command:</p>
+				   
+				   <pre>/sv_map <i>maps/battle_royale.json</i></pre>
+				   <p>will change map to Battle Royale. You can also kick unwanted 
+				    players with:</p> 
+				    
+				   <pre>/sv_kick <i> player_name</i> <i>reason</i></pre> 
+				   
+				   <p>Note: The reason argument MUST be present in order to kick someone.
+				   </p>
 			</div>
     </div>
 
@@ -658,11 +689,20 @@
 			<div class="column">
 				<p>This is an Open Source project, any body can download and play with
 					the code.</p>
+				<h4>Reporting bugs</h4>
+				<p>The easiest way is to post an issue ticket over at 
+				  <a href="http://github.com/jfd/wpilot/issues">GitHub</a>. You can also
+				  mail me at dahlberg.johan AT gmail com.</p>				  
 			</div>
 			<div class="column">
-				<p>
-					Reporting bugs
-				</p>
+			  <h4>Contributing with code</h4>
+			  <p>Bug fixes and optimizations is appriciated. If you are an expert on
+			     Opera, or maybe find a way of getting this to work on IE, we really 
+			     would appriciate if you contribute that code with the main project.</p>
+				<p> First, fork the WPilot GIT-repository with the following command:</p>
+				<pre>$ git clone git://github.com/jfd/wpilot.git</pre>
+				<p>When you are done with your bug-fix or perfomance increaser, press 
+				   the "pull request" -button in your forked repository.</p>
 			</div>
 		</div>
 		

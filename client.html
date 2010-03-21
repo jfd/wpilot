@@ -1,0 +1,135 @@
+<!doctype html>
+<html>
+	<head>
+		<title>WPilot</title>
+		<link rel="stylesheet" href="css/client.css" type="text/css" media="screen" charset="utf-8">
+		<script type="text/javascript" src="js/match.js"></script>
+		<script type="text/javascript" src="js/swfobject.js"></script>
+	  <script type="text/javascript" src="js/FABridge.js"></script>
+		<script type="text/javascript" src="js/web_socket.js"></script>
+		<script type="text/javascript" src="http://ajax.googleapis.com/ajax/libs/jquery/1.3.2/jquery.min.js"></script>
+		<script type="text/javascript" src="js/jquery.query.js"></script>
+		<script type="text/javascript" src="js/particle.js"></script>
+		<script type="text/javascript" src="js/devices.js"></script>
+		<script type="text/javascript" src="js/gameobjects.js"></script>
+		<script type="text/javascript" src="js/wpilot.js"></script>
+		<script>
+			// The globallly defined wpilot client. It's global so that the player can
+			// access options from the webkit console (or FireBug).
+			var wpilot = null;
+
+			// Set location for the WebSocket SWF library.
+			WebSocket.__swfLocation = "js/WebSocketMain.swf";
+
+			function supports_canvas_text() {
+			  if (!document.createElement('canvas').getContext) { return false; }
+			  var dummy_canvas = document.createElement('canvas');
+			  var context = dummy_canvas.getContext('2d');
+			  return typeof context.fillText == 'function';
+			}
+			
+			function unsupported(text) {
+				$('#splash .notice').text(text);
+			}
+			
+			/**
+			 *  Is called when the document is loaded and ready. Creates a new client.
+			 */
+			$(document).ready(function() {
+				if (WebSocket.__initialize && swfobject.getFlashPlayerVersion()['major'] < 1) {
+					return unsupported('Your browser doesnt support WebSocket or Flash');
+				}
+				
+				if (!supports_canvas_text()) {
+					return unsupported('Your browser doesnt support <canvas> or fillText.');
+				}
+				
+				if (!$.query.get('url')) {
+					return unsupported('Missing setting "url".');
+				}
+
+				if (!$.query.get('name')) {
+					return unsupported('Missing setting "name".');
+				}
+
+				if (!$.query.get('fg-sound')) {
+					return unsupported('Missing setting "fg-sound".');
+				}
+
+				if (!$.query.get('bg-sound')) {
+					return unsupported('Missing setting "bg-sound".');
+				}
+				
+				var url = $.query.get('url');
+				
+				var options = $.extend({}, DEFAULT_OPTIONS);
+			  
+				options.name = $.query.get('name');
+				options.sfx_sound_enabled = eval($.query.get('fg-sound'));
+				options.bg_sound_enabled = eval($.query.get('bg-sound'));
+
+			  var canvas = $('#viewport canvas');
+
+			  var viewport  = new ViewportDevice(canvas[0], canvas.width(), canvas.height(), options),
+			      keyboard  = new KeyboardDevice(document, options),
+						sound			= new SoundDevice(options);
+
+			  wpilot = new WPilotClient(options);
+			  wpilot.set_viewport(viewport)
+			  wpilot.set_input(keyboard);
+			  wpilot.set_sound(sound);
+			  
+			  wpilot.onconnect = function() {
+			    $('#splash').hide();
+			  }
+
+			  wpilot.ondisconnect = function(reason) {
+					wpilot.onconnect = null;
+					wpilot.disconnect = null;
+				  wpilot.set_viewport(null);
+				  wpilot.set_input(null);
+				  wpilot.set_sound(null);
+					wpilot = null;
+
+					viewport.destroy();
+					keyboard.destroy();
+					sound.destroy();
+					viewport = keyboard = sound = null;
+
+			    $('#splash').show();
+			    
+			    if (reason) {
+			      $('#splash .notice')
+			          .text('Disconnected: ' + reason)
+			          .parent()
+			            .append('<p><a href="./">Go back to server list</a></p>');
+			    }
+			  }
+				
+				function dojoin() {
+
+  				$('#splash .notice').text('Connecting to game server, please wait...');
+
+  		    wpilot.join(url);				  
+				}
+
+			  $('.dialog .version').html('WPilot client version ' + CLIENT_VERSION);
+			  
+        setTimeout(dojoin, 500);
+			});
+		</script>
+		
+	</head>
+	<body>
+		<div id="viewport" class="mode540">
+			<canvas></canvas>
+		</div>
+		<div id="splash" class="dialog">
+			<h1 class='logo'>WPilot</h1>
+			<div class="notice">
+				Initializing game...
+			</div>
+			<p class="version"></p>
+		</div>
+	</body>
+</html>
