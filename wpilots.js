@@ -13,13 +13,12 @@ var sys       = require('sys'),
     fu        = require('./lib/fu');
     ws        = require('./lib/ws'),
     optparse  = require('./lib/optparse'),
-    match     = require('./lib/match').Match;
+    match     = require('./lib/match').Match,
+    go        = require('./lib/gameobjects');
 
 
 // Define aliases
 var _  = match.incl;
-
-process.mixin(require('./lib/gameobjects'));
 
 const SERVER_VERSION       = '(develop version)';
 
