@@ -274,7 +274,7 @@ SoundDevice.prototype.init_bg = function(source) {
     
   for (var i = 0; i < 2; i++) {
     var audio = new Audio(this.use_m4a ? source + '.m4a' :
-                  'http://github.com/downloads/jfd/wpilot/' + source + '.ogg'));
+                  'http://github.com/downloads/jfd/wpilot/background.ogg');
     audio.autobuffer = true;
     audio.is_free = true;
     sound.buffers.push(audio);
