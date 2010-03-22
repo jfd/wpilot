@@ -254,6 +254,7 @@ SoundDevice.prototype.init_sfx = function(sources) {
     while (size--) {
       var url = urls[Math.floor(Math.random() * urls.length)],
           audio = new Audio(url + (this.use_m4a ? '.m4a' : '.ogg'));
+      audio.autobuffer = true;
       audio.is_free = true;
       sound.buffers.push(audio);
     }
@@ -273,6 +274,7 @@ SoundDevice.prototype.init_bg = function(source) {
     
   for (var i = 0; i < 2; i++) {
     var audio = new Audio(source + (this.use_m4a ? '.m4a' : '.ogg'));
+    audio.autobuffer = true;
     audio.is_free = true;
     sound.buffers.push(audio);
   }
