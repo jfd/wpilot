@@ -5,6 +5,9 @@
   {"address" : "ws://79.99.0.126:6114/"},
   {"address" : "ws://79.99.0.126:6115/"},
   {"address" : "ws://79.99.0.126:6116/"},
+  {"address" : "ws://rahe.no-ip.org:6114/"},
+  {"address" : "ws://rahe.no-ip.org:6115/"},
+  {"address" : "ws://rahe.no-ip.org:6116/"},
   {"address" : "ws://80.216.40.142:6212/"},
   {"address" : "ws://80.216.40.142:6213/"},
   {"address" : "ws://80.216.40.142:6214/"}
