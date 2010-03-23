@@ -194,35 +194,6 @@
         return;
 			}
 			
-			if (/Chrome/.test(navigator.userAgent)) {
-			  var msg = 'Google Chrome has some compatibility issues, please read ' +
-									'the <a href="#compability">Browser Compatibility</a> section ' + 
-								 	'for more details.';
-
-        compatibility_issues = true;
-        
-			  displaynotice(msg, 'warning');
-			}
-
-			if (/Mac.+Firefox/.test(navigator.userAgent)) {
-			  var msg = 'Firefox (mac) has some compatibility issues, please read ' +
-									'the <a href="#compability">Browser Compatibility</a> section ' + 
-								 	'for more details.';
-
-        compatibility_issues = true;
-        
-			  displaynotice(msg, 'warning');
-			}
-
-			// Read game settings from cookie
-			if ($.cookie('hash') != HASH && !compatibility_issues) {
-				var msg = 'Your first WPilot session? We recommended you to read ' +
-									'the <a href="#gameplay">gameplay section</a>  ' + 
-								 	'before joining a game.';
-
-				displaynotice(msg, 'warning');
-			}
-			
 			$('.options input[name="player-name"]')
 				.change(function() {
 					$.cookie('player-name', $(this).val());
@@ -243,6 +214,43 @@
 				})
 				.attr('checked', $.cookie('bg-sound') == undefined ? true : 
 																										 eval($.cookie('bg-sound')));
+
+			if (/Chrome/.test(navigator.userAgent)) {
+			  var msg = 'Google Chrome has some compatibility issues, please read ' +
+									'the <a href="#compability">Browser Compatibility</a> section ' + 
+								 	'for more details.';
+
+        compatibility_issues = true;
+
+				$('.options input[name="bg-sound"]')
+					.attr('checked', false)
+					.attr('disabled', true);
+
+				$('.options input[name="fg-sound"]')
+					.attr('checked', false)
+					.attr('disabled', true);
+
+			  displaynotice(msg, 'warning');
+			}
+
+			if (/Mac.+Firefox/.test(navigator.userAgent)) {
+			  var msg = 'Firefox (mac) has some compatibility issues, please read ' +
+									'the <a href="#compability">Browser Compatibility</a> section ' + 
+								 	'for more details.';
+
+        compatibility_issues = true;
+
+			  displaynotice(msg, 'warning');
+			}
+
+			// Read game settings from cookie
+			if ($.cookie('hash') != HASH && !compatibility_issues) {
+				var msg = 'Your first WPilot session? We recommended you to read ' +
+									'the <a href="#gameplay">gameplay section</a>  ' + 
+								 	'before joining a game.';
+
+				displaynotice(msg, 'warning');
+			}			
 																										 
 			$('.server-list').removeClass('disabled');
 																						
@@ -336,6 +344,8 @@
 					<label for="bg-sound-enabled">Enable background sounds</label>
 					<input type="checkbox" name="bg-sound">
 				</form>
+				<div class="sound-disabled">Sound is currently disabled in 
+															Google Chrome.</div>
 				<p class="footer">Options are automatically stored for your session</p>
 			</div>
     </div>
@@ -611,13 +621,12 @@
 				  high, even when connecting to localhost.</span</li>
 			</ul>
 			<ul class="column">
-				<li><h4>Google Chrome - Win/Mac<span class="rank mid">Not recommended
+				<li><h4>Google Chrome - Win/Mac<span class="rank high">Recommended
 				  </span></h4><span>Google Chrome has some issues with WPilot, both on 
-				  Windows and on Mac. Frame rate is low, sounds stops playing 
-				  after a while and there's some issues with text rendering. 
-				  The game is playable, but you'll have lag. It's 
-				  highly recommended to disable sounds before playing, the game will 
-				  otherwise crash after a couple of minutes.</span</li>
+				  Windows and on Mac. Frame rate is a little bit lower then other 
+				  browser but latency is good. It seems to be some kind of issue with
+				 	the Audio though. Chrome will crash randomly. Sounds is there for 
+				  disabled in Chrome.</span</li>
 				<li><h4>Firefox 3.6 - Win<span class="rank high">Recommended</span></h4>
 				  <span>Firefox for Win delivers a great
 					frame rate. Firefox lacks
