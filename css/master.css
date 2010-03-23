@@ -193,6 +193,16 @@ div.options .footer {
 	font-style: italic;
 }
 
+div.sound-disabled {
+  display: none;
+  position: absolute;
+  color: #F43400;
+  margin-top: -35px;
+  margin-left: 190px;
+  width: 140px;
+  font-size: 0.7em;
+}
+
 section#options label {
   display: inline-block;
   margin: 0 0 3px 0;
