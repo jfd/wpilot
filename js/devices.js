@@ -252,7 +252,7 @@ SoundDevice.prototype.init_sfx = function(sources) {
         sound = { name: name, buffers: [], free_count: size};
         
     while (size--) {
-      var url = urls[Math.floor(Math.random() * urls.length)],
+      var url = urls[Math.floor(Math.random() * urls.length)];
       var src = this.use_m4a ? url + '.m4a' :
       'http://github.com/downloads/jfd/wpilot/' + /sound\/(.+)/(url)[1] + '.ogg';
       var audio = new Audio(url);
