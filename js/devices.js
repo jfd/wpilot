@@ -253,7 +253,9 @@ SoundDevice.prototype.init_sfx = function(sources) {
         
     while (size--) {
       var url = urls[Math.floor(Math.random() * urls.length)],
-          audio = new Audio(url + (this.use_m4a ? '.m4a' : '.ogg'));
+      var src = this.use_m4a ? url + '.m4a' :
+      'http://github.com/downloads/jfd/wpilot/' + /sound\/(.+)/(url)[1] + '.ogg';
+      var audio = new Audio(url);
       audio.autobuffer = true;
       audio.is_free = true;
       sound.buffers.push(audio);
@@ -273,8 +275,9 @@ SoundDevice.prototype.init_bg = function(source) {
   var sound = { name: this.BG_SOUND, buffers: [], free_count: 2};
     
   for (var i = 0; i < 2; i++) {
-    var audio = new Audio(this.use_m4a ? source + '.m4a' :
-                  'http://github.com/downloads/jfd/wpilot/background.ogg');
+    var src = this.use_m4a ? source + '.m4a' :
+    'http://github.com/downloads/jfd/wpilot/' + /sound\/(.+)/(source)[1] + '.ogg';
+    var audio = new Audio(src);
     audio.autobuffer = true;
     audio.is_free = true;
     sound.buffers.push(audio);
