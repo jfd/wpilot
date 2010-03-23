@@ -368,7 +368,7 @@ ul.column:nth-child(even) {
 
 .server-list tbody td.name {
   background: url(../images/tick.png) no-repeat 0 0;
-	width: 20%;
+	width: 25%;
 	text-indent: 20px;
 }
 
@@ -383,7 +383,7 @@ ul.column:nth-child(even) {
 }
 
 .server-list tbody td.region {
-	width: 20%;
+	width: 15%;
 }
 
 .server-list tbody td.map {
@@ -417,10 +417,13 @@ ul.column:nth-child(even) {
 	background: url(../images/cross.png) no-repeat  0 0;
 }
 
-.server-list tr.down td.status,
 .server-list tr.pinging td.status {
 	opacity: 0;
 	text-align: right;
+}
+
+.server-list tr.down td.status .join {
+  display: none;
 }
 
 .server-list tr.waiting td {

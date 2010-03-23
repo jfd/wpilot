@@ -137,10 +137,8 @@
 					$('td.region', tr).text(info.region);
 					$('td.map', tr).text(info.map_name);
 					$('td.players', tr).text(info.no_players + ' / ' + info.max_players);
-					$('.server-list tr[id="' + addr + '"] td.name').text(info.ping);
 				  close();
 				} else {
-				  console.log(message);
 				  close('Bad response: ' + msgid);
 				}
 			}
@@ -272,12 +270,13 @@
 													'<td class="region">--</td>' +
 													'<td class="map">--</td>' +
 													'<td class="players">--</td>' +
-													'<td class="status"><a href="javascript:;"' +
-															'class="join">Join</a> or <a href="javascript:;"' +
-															'class="refresh">refresh</a></td>' +
+													'<td class="status"><span class="join">' + 
+															'<a href="javascript:;">Join</a> or </span><a ' +
+															'class="refresh" href="javascript:;">refresh' +
+															'</a></td>' +
 												'</tr>');
 
-						$('a.join', html).click(function() {
+						$('.join a', html).click(function() {
 							var url = $(this).parents('tr').attr('id');
 							
 							$.cookie('hash', HASH);
@@ -293,7 +292,8 @@
 						$('a.refresh', html).click(function() {
 							var tr = $(this).parents('tr');
 							var addr = tr.attr('id');
-							tr.addClass('pinging');
+							tr.removeClass('down').addClass('pinging');
+							$('.name', tr).text(addr);
 							$('.ping', tr).text('--');
 							$('.region', tr).text('--');
 							$('.map', tr).text('--');
