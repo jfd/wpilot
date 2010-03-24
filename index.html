@@ -22,6 +22,7 @@
 		WebSocket.__swfLocation = "js/WebSocketMain.swf";
 	
 		var HASH = "10000";
+		var TIME = new Date().getTime();
 
 		// Used for random generation of player name
 		var PLAYER_NAMES = [
@@ -254,7 +255,7 @@
 																										 
 			$('.server-list').removeClass('disabled');
 																						
-			$.get('serverlist.txt', function(list) {
+			$.get('serverlist.txt?' + TIME, function(list) {
 				var list = JSON.parse(list);
 				
 				$('.server-list table tbody')
