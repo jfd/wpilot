@@ -244,6 +244,16 @@
 			  displaynotice(msg, 'warning');
 			}
 
+			if (/Opera/.test(navigator.userAgent)) {
+			  var msg = 'Opera has some compatibility issues, please read ' +
+									'the <a href="#compability">Browser Compatibility</a> section ' + 
+								 	'for more details.';
+
+        compatibility_issues = true;
+
+			  displaynotice(msg, 'warning');
+			}
+
 			// Read game settings from cookie
 			if ($.cookie('hash') != HASH && !compatibility_issues) {
 				var msg = 'Your first WPilot session? We recommend you to read ' +
