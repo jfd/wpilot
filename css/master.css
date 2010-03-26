@@ -362,7 +362,11 @@ ul.column:nth-child(even) {
 }
 
 .server-list tbody tr {
-	vertical-align: center;
+	vertical-align: middle;
+}
+
+.server-list tbody td {
+	vertical-align: middle;
 	height: 30px;
 }
 
