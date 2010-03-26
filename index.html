@@ -77,80 +77,82 @@
 			
 			activepings++;
 			
-			var socket = new WebSocket(addr);
-			var closing = false;
-			var pingtime = null;
-			var tr = $('.server-list tr[id="' + addr + '"]');
-			
-			var timeout = setTimeout(function() {
-        close('Timeout');
-			}, 4000);
-			
-			function close(reason) {
-			  if (closing) return;
+			setTimeout(function() {
+				var socket = new WebSocket(addr);
+				var closing = false;
+				var pingtime = null;
+				var tr = $('.server-list tr[id="' + addr + '"]');
 
-			  closing = true;
+				var timeout = setTimeout(function() {
+	        close('Timeout');
+				}, 4000);
 
-			  if (timeout) {
-					clearTimeout(timeout);
+				function close(reason) {
+				  if (closing) return;
+
+				  closing = true;
+
+				  if (timeout) {
+						clearTimeout(timeout);
+					}
+
+				  socket.close();
+				  socket = null;
+
+					activepings--;
+
+					if (reason) {
+						tr.removeClass('pinging').addClass('down');
+						$('td.name', tr).html(addr + '<span>' + reason + '</span>');
+					}
+
+					pingnext();
 				}
-				
-			  socket.close();
-			  socket = null;
 
-				activepings--;
-
-				if (reason) {
-					tr.removeClass('pinging').addClass('down');
-					$('td.name', tr).html(addr + '<span>' + reason + '</span>');
+				socket.onopen = function() {
+					socket.send(JSON.stringify([10]));
+					pingtime = new Date();
 				}
 
-				pingnext();
-			}
-			
-			socket.onopen = function() {
-				socket.send(JSON.stringify([10]));
-				pingtime = new Date();
-			}
+				socket.onmessage = function(event) {
+				  var ping = (new Date()) - pingtime;
 
-			socket.onmessage = function(event) {
-			  var ping = (new Date()) - pingtime;
-			  
-				tr.removeClass('pinging');
-				
-				var message = null;
-				
-				try {
-					message = JSON.parse(event.data);
-				} catch (e) {
-					$('.server-list tr[id="' + addr + '"] td.status').text('Error');
-					socket.close();
-					return;
+					tr.removeClass('pinging');
+
+					var message = null;
+
+					try {
+						message = JSON.parse(event.data);
+					} catch (e) {
+						$('.server-list tr[id="' + addr + '"] td.status').text('Error');
+						socket.close();
+						return;
+					}
+
+					var msgid = message.shift();
+
+					if (msgid == 11) {
+						var info = message.shift();
+						$('td.name', tr).html(info.server_name + '<span>' +
+								info.version + '</span>');
+						$('td.ping', tr).text(ping);
+						$('td.region', tr).text(info.region);
+						$('td.map', tr).text(info.map_name);
+						$('td.players', tr).text(info.no_players + ' / ' + info.max_players);
+					  close();
+					} else {
+					  close('Bad response: ' + msgid);
+					}
 				}
-				
-				var msgid = message.shift();
-				
-				if (msgid == 11) {
-					var info = message.shift();
-					$('td.name', tr).html(info.server_name + '<span>' +
-							info.version + '</span>');
-					$('td.ping', tr).text(ping);
-					$('td.region', tr).text(info.region);
-					$('td.map', tr).text(info.map_name);
-					$('td.players', tr).text(info.no_players + ' / ' + info.max_players);
-				  close();
-				} else {
-				  close('Bad response: ' + msgid);
-				}
-			}
 
-			socket.onerror = function(e) {
-			  close('Error');
-			};
+				socket.onerror = function(e) {
+				  close('Error');
+				};
 
-			socket.onclose = function() {
-        close('Host Down' );
-			};
+				socket.onclose = function() {
+	        close('Host Down' );
+				};
+			}, 50);
 		}
 		
 		function queueping(addr) {
