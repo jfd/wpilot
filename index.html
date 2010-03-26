@@ -264,60 +264,67 @@
 			}			
 																										 
 			$('.server-list').removeClass('disabled');
-																						
-			$.get('serverlist.txt?' + TIME, function(list) {
-				var list = JSON.parse(list);
+
+			$('.server-list tbody tr.refresh a').click(function() {
+
+				$('.server-list tbody tr.refresh').hide();
+				$('.server-list tbody tr.waiting').show();
 				
-				$('.server-list table tbody')
-					.empty()
-					.removeClass('waiting');
-					
-				for (var i = 0; i < list.length; i++) {
-					var server = list[i];
-					if (server.address) {
-						var html = $('<tr id="' + server.address + '" class="pinging">' + 
-													'<td class="name">' + server.address + '</td>' +
-													'<td class="ping">--</td>' +
-													'<td class="region">--</td>' +
-													'<td class="map">--</td>' +
-													'<td class="players">--</td>' +
-													'<td class="status"><span class="join">' + 
-															'<a href="javascript:;">Join</a> or </span><a ' +
-															'class="refresh" href="javascript:;">refresh' +
-															'</a></td>' +
-												'</tr>');
+				$.get('serverlist.txt?' + TIME, function(list) {
+					var list = JSON.parse(list);
 
-						$('.join a', html).click(function() {
-							var url = $(this).parents('tr').attr('id');
-							
-							$.cookie('hash', HASH);
-							
-							document.location = 'client.html' + 
-                      $.query.set('url', url).
-                              set('name', $('.options input[name="player-name"]').val()).
-                              set('fg-sound', $('.options input[name="fg-sound"]').attr('checked').toString()).
-                              set('bg-sound', $('.options input[name="bg-sound"]').attr('checked').toString()).
-                              toString();
-						});
+					$('.server-list table tbody')
+						.empty()
+						.removeClass('waiting');
 
-						$('a.refresh', html).click(function() {
-							var tr = $(this).parents('tr');
-							var addr = tr.attr('id');
-							tr.removeClass('down').addClass('pinging');
-							$('.name', tr).text(addr);
-							$('.ping', tr).text('--');
-							$('.region', tr).text('--');
-							$('.map', tr).text('--');
-							$('.players', tr).text('--');
-							queueping(addr);
-						});
+					for (var i = 0; i < list.length; i++) {
+						var server = list[i];
+						if (server.address) {
+							var html = $('<tr id="' + server.address + '" class="pinging">' + 
+														'<td class="name">' + server.address + '</td>' +
+														'<td class="ping">--</td>' +
+														'<td class="region">--</td>' +
+														'<td class="map">--</td>' +
+														'<td class="players">--</td>' +
+														'<td class="status"><span class="join">' + 
+																'<a href="javascript:;">Join</a> or </span><a ' +
+																'class="refresh" href="javascript:;">refresh' +
+																'</a></td>' +
+													'</tr>');
 
-						$('.server-list table tbody').append(html);
-						
-						queueping(server.address);
+							$('.join a', html).click(function() {
+								var url = $(this).parents('tr').attr('id');
+
+								$.cookie('hash', HASH);
+
+								document.location = 'client.html' + 
+	                      $.query.set('url', url).
+	                              set('name', $('.options input[name="player-name"]').val()).
+	                              set('fg-sound', $('.options input[name="fg-sound"]').attr('checked').toString()).
+	                              set('bg-sound', $('.options input[name="bg-sound"]').attr('checked').toString()).
+	                              toString();
+							});
+
+							$('a.refresh', html).click(function() {
+								var tr = $(this).parents('tr');
+								var addr = tr.attr('id');
+								tr.removeClass('down').addClass('pinging');
+								$('.name', tr).text(addr);
+								$('.ping', tr).text('--');
+								$('.region', tr).text('--');
+								$('.map', tr).text('--');
+								$('.players', tr).text('--');
+								queueping(addr);
+							});
+
+							$('.server-list table tbody').append(html);
+
+							queueping(server.address);
+						}
 					}
-				}
-			});
+				});				
+			})
+
 		});
 	</script>
 </head>
@@ -393,6 +400,8 @@
 					</tr>
 				</thead>
 				<tbody>
+					<tr class="refresh"><td colspan="6">Hi, <a href="javascript:;">refresh</a> 
+						server list to play</td></tr>
 					<tr class="waiting"><td colspan="6">Loading server list...</td></tr>
 				</tbody>
 				<tfoot>
