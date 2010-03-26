@@ -361,7 +361,7 @@ ul.column:nth-child(even) {
 	vertical-align: top;
 }
 
-.server-list tbody td {
+.server-list tbody tr {
 	vertical-align: center;
 	height: 30px;
 }
@@ -398,14 +398,23 @@ ul.column:nth-child(even) {
 	width: 10%;
 }
 
-.server-list tbody.waiting {
-	vertical-align: center;
+.server-list tbody tr.waiting {
+  display: none;
+	color: #fff;
+	height: 200px;
+	vertical-align: middle;
+	text-align: center;
 }
 
-.server-list tbody.waiting tr {
-	font-size: 0.7em;
-	color: #fff;
-	height: 100%;
+.server-list tbody tr.refresh {
+	height: 200px;
+	vertical-align: middle;
+	text-align: center;
+}
+
+.server-list tbody tr.waiting td,
+.server-list tbody tr.refresh td {
+	font-size: 1.3em;
 	text-align: center;
 }
 
