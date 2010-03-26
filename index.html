@@ -19,7 +19,7 @@
 	<script type="text/javascript" src="js/jquery.cookie.js"></script>
 	<script type="text/javascript">
 	
-		WebSocket.__swfLocation = "http://github.com/downloads/jfd/wpilot/WebSocketMain.swf";
+		WebSocket.__swfLocation = "js/WebSocketMain.swf";
 	
 		var HASH = "10000";
 		var TIME = new Date().getTime();
@@ -77,82 +77,81 @@
 			
 			activepings++;
 			
-			setTimeout(function() {
-				var socket = new WebSocket(addr);
-				var closing = false;
-				var pingtime = null;
-				var tr = $('.server-list tr[id="' + addr + '"]');
+			var socket = new WebSocket(addr);
+			var closing = false;
+			var pingtime = null;
+			var tr = $('.server-list tr[id="' + addr + '"]');
 
-				var timeout = setTimeout(function() {
-	        close('Timeout');
-				}, 4000);
+			var timeout = setTimeout(function() {
+        close('Timeout');
+			}, 4000);
 
-				function close(reason) {
-				  if (closing) return;
+			function close(reason) {
+			  if (closing) return;
 
-				  closing = true;
+			  closing = true;
 
-				  if (timeout) {
-						clearTimeout(timeout);
-					}
-
-				  socket.close();
-				  socket = null;
-
-					activepings--;
-
-					if (reason) {
-						tr.removeClass('pinging').addClass('down');
-						$('td.name', tr).html(addr + '<span>' + reason + '</span>');
-					}
-
-					pingnext();
+			  if (timeout) {
+					clearTimeout(timeout);
 				}
 
-				socket.onopen = function() {
-					socket.send(JSON.stringify([10]));
-					pingtime = new Date();
+			  socket.close();
+			  socket = null;
+
+				activepings--;
+
+				if (reason) {
+					tr.removeClass('pinging').addClass('down');
+					$('td.name', tr).html(addr + '<span>' + reason + '</span>');
 				}
 
-				socket.onmessage = function(event) {
-				  var ping = (new Date()) - pingtime;
+				pingnext();
+			}
 
-					tr.removeClass('pinging');
+			socket.onopen = function() {
+				socket.send(JSON.stringify([10]));
+				pingtime = new Date();
+			}
 
-					var message = null;
+			socket.onmessage = function(event) {
+			  var ping = (new Date()) - pingtime;
 
-					try {
-						message = JSON.parse(event.data);
-					} catch (e) {
-						$('.server-list tr[id="' + addr + '"] td.status').text('Error');
-						socket.close();
-						return;
-					}
+				tr.removeClass('pinging');
 
-					var msgid = message.shift();
+				var message = null;
 
-					if (msgid == 11) {
-						var info = message.shift();
-						$('td.name', tr).html(info.server_name + '<span>' +
-								info.version + '</span>');
-						$('td.ping', tr).text(ping);
-						$('td.region', tr).text(info.region);
-						$('td.map', tr).text(info.map_name);
-						$('td.players', tr).text(info.no_players + ' / ' + info.max_players);
-					  close();
-					} else {
-					  close('Bad response: ' + msgid);
-					}
+				try {
+					message = JSON.parse(event.data);
+				} catch (e) {
+					$('.server-list tr[id="' + addr + '"] td.status').text('Error');
+					socket.close();
+					return;
 				}
 
-				socket.onerror = function(e) {
-				  close('Error');
-				};
+				var msgid = message.shift();
 
-				socket.onclose = function() {
-	        close('Host Down' );
-				};
-			}, 50);
+				if (msgid == 11) {
+					var info = message.shift();
+					$('td.name', tr).html(info.server_name + '<span>' +
+							info.version + '</span>');
+					$('td.ping', tr).text(ping);
+					$('td.region', tr).text(info.region);
+					$('td.map', tr).text(info.map_name);
+					$('td.players', tr).text(info.no_players + ' / ' + info.max_players);
+				  close();
+				} else {
+				  close('Bad response: ' + msgid);
+				}
+			}
+
+			socket.onerror = function(e) {
+			  close('Error');
+			};
+
+			socket.onclose = function() {
+        close('Host Down' );
+			};
+
 		}
 		
 		function queueping(addr) {
@@ -270,7 +269,7 @@
 			$('.server-list tbody tr.refresh a').click(function() {
 
 				$('.server-list tbody tr.refresh').hide();
-				$('.server-list tbody tr.waiting').show();
+				$('.server-list tbody tr.waiting').attr('display', '');
 				
 				$.get('serverlist.txt?' + TIME, function(list) {
 					var list = JSON.parse(list);
