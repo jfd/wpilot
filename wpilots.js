@@ -1046,7 +1046,7 @@ function get_rules(default_rules, map_rules, user_rules) {
       rules[match[1]] = default_rules[option];
     }
   }
-  return process.mixin(rules, process.mixin(map_rules, user_rules)); 
+  return mixin(rules, mixin(map_rules, user_rules)); 
 }
 
 
@@ -1077,7 +1077,7 @@ function parse_options() {
   });      
   
   parser.parse(process.ARGV);
-  return parser._halt ? null : process.mixin(DEFAULT_OPTIONS, result);
+  return parser._halt ? null : mixin(DEFAULT_OPTIONS, result);
 }
 
 function get_unique_name(players, player_id, name) {
@@ -1114,6 +1114,22 @@ function get_time() {
   return new Date().getTime();
 }
 
+/**
+ *  Quick'n'dirty mixin replacement
+ */
+function mixin(a, b) {
+  var result = {}
+
+  for (var prop in a) {
+    result[prop] = a[prop];
+  }
+  
+  for (var prop in b) {
+    result[prop] = b[prop];
+  }
+  
+  return result;
+}
 
 // Call programs entry point
 main();
