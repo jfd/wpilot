@@ -782,6 +782,7 @@ function start_gameserver(maps, options, shared) {
 
             if (conn.player) {
               world.remove_player(conn.player.id, disconnect_reason);
+              conn.player = null;
               log(conn + ' leaved the game (Reason: ' + disconnect_reason + ')');
             }
 
