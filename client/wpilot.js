@@ -608,7 +608,6 @@ WPilotClient.prototype.join = function(url) {
      */
     self.conn.onmessage = function(event) {
       var packet        = JSON.parse(event.data);
-      
       switch (packet[0]) {
 
         case PING_PACKET:
