@@ -171,6 +171,8 @@ function main() {
   
   maps = options.maps;
   
+  sys.puts(sys.inspect(options));
+  
   if (options.http_port != 0) {
     webserver = start_webserver(options, shared);
   }
@@ -856,7 +858,7 @@ function start_gameserver(maps, options, shared) {
   
   load_map(null, true, function(err) {
     sys.puts('Starting Game Server server at ' + shared.get_state().game_server_url);
-    server.listen(options.ws_port, options.host);
+    server.listen(parseInt(options.ws_port), options.host);
   });
   
   return server;
@@ -1015,7 +1017,7 @@ var process_game_message = match (
  */
 function start_webserver(options, shared) {
   sys.puts('Starting HTTP server at http://' + options.host + ':' + options.http_port);
-  var server = fu.listen(options.http_port, options.host);
+  var server = fu.listen(parseInt(options.http_port), options.host);
 
   for (var i=0; i < CLIENT_DATA.length; i++) {
     var virtualpath = CLIENT_DATA[i + 1] + path.basename(CLIENT_DATA[i]);
