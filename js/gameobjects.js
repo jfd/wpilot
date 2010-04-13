@@ -210,7 +210,7 @@ GameLoop.prototype.start = function() {
     ondone(self.tick, dt, accumulator / dt);
   };
   
-  self._pid = setInterval(gameloop, 16);
+  self._pid = setInterval(gameloop, 10);
   // gameloop();
 }
 
