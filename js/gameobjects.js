@@ -208,13 +208,10 @@ GameLoop.prototype.start = function() {
     }
     
     ondone(self.tick, dt, accumulator / dt);
-
-    if(!self._kill) {
-      self._pid = setTimeout(gameloop, 10);
-    } 
   };
-
-  gameloop();
+  
+  self._pid = setInterval(gameloop, 16);
+  // gameloop();
 }
 
 //
@@ -224,7 +221,7 @@ GameLoop.prototype.start = function() {
 GameLoop.prototype.kill = function() {
   this._kill = true;
   if (this._pid) {
-    clearTimeout(this._pid);
+    clearInterval(this._pid);
   }
 }
 
@@ -527,12 +524,22 @@ World.prototype.add_player = function(player_id, player_name) {
  */
 World.prototype.remove_player = function(player_id, reason) {
   var player = this.players[player_id];
+  if (!player) return;
   if (this.r_state == ROUND_WARMUP && player.ready) {
     this.no_ready_players--;
   }
   if (player.entity) {
     this.remove_entity(player.entity.id);
   }
+  // remove all bullets produced by player
+  var entities = this._entities, l = entities.length;
+  while (l--) {
+    var bullet = entities[l];
+    if (bullet.type == "bullet" && bullet.player.id == player_id) {
+      this.remove_entity(bullet.id);
+    }
+  }
+  
   delete this.players[player.id];
   this.no_players--;
   this.on_player_leave(player, reason);
