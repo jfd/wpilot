@@ -171,8 +171,6 @@ function main() {
   
   maps = options.maps;
   
-  sys.puts(sys.inspect(options));
-  
   if (options.http_port != 0) {
     webserver = start_webserver(options, shared);
   }
