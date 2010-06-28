@@ -1868,13 +1868,13 @@ GUIPlayerHUD.prototype.draw = function(ctx, t) {
 
   ctx.beginPath();
   ctx.lineWidth = 22;
-  ctx.strokeStyle = 'rgba(' + COLOR_BRIGHT + ', 0.03)';
+  ctx.strokeStyle = 'rgba(' + COLOR_BRIGHT + ', 0.06)';
   ctx.arc(0, 0, 95, -Math.PI/2, -angle - Math.PI / 2, true);
   ctx.stroke();
 
   ctx.beginPath();
   ctx.lineWidth = 1;
-  ctx.strokeStyle = 'rgba(' + COLOR_BRIGHT + ', 0.05)';
+  ctx.strokeStyle = 'rgba(' + COLOR_BRIGHT + ', 0.08)';
   ctx.arc(0, 0, 108, 0, Math.PI / 180, true);
   ctx.stroke();
   
@@ -1885,7 +1885,7 @@ GUIPlayerHUD.prototype.draw = function(ctx, t) {
     
     ctx.beginPath();
     ctx.lineWidth = 6;
-    ctx.strokeStyle = 'rgba(' + POWERUP_SPREAD_COLOR + ', 0.08)';
+    ctx.strokeStyle = 'rgba(' + POWERUP_SPREAD_COLOR + ', 0.1)';
     ctx.arc(0, 0, 81, Math.PI * 3 / 2, angle - Math.PI / 2, false);
     ctx.stroke();    
   }
@@ -1897,7 +1897,7 @@ GUIPlayerHUD.prototype.draw = function(ctx, t) {
     
     ctx.beginPath();
     ctx.lineWidth = 6;
-    ctx.strokeStyle = 'rgba(' + POWERUP_RAPID_COLOR + ', 0.08)';
+    ctx.strokeStyle = 'rgba(' + POWERUP_RAPID_COLOR + ', 0.1)';
     ctx.arc(0, 0, 75, Math.PI * 3 / 2, angle - Math.PI / 2, false);
     ctx.stroke();
   }
@@ -1909,7 +1909,7 @@ GUIPlayerHUD.prototype.draw = function(ctx, t) {
     
     ctx.beginPath();
     ctx.lineWidth = 6;
-    ctx.strokeStyle = 'rgba(' + POWERUP_RICO_COLOR + ', 0.08)';
+    ctx.strokeStyle = 'rgba(' + POWERUP_RICO_COLOR + ', 0.1)';
     ctx.arc(0, 0, 69, Math.PI * 3 / 2, angle - Math.PI / 2, false);
     ctx.stroke();
   }
