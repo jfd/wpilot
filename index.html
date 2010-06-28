@@ -215,26 +215,6 @@
 				.attr('checked', $.cookie('bg-sound') == undefined ? true : 
 																										 eval($.cookie('bg-sound')));
 
-			if (/Chrome/.test(navigator.userAgent)) {
-			  var msg = 'Google Chrome has some compatibility issues, please read ' +
-									'the <a href="#compability">Browser Compatibility</a> section ' + 
-								 	'for more details.';
-
-        compatibility_issues = true;
-
-				$('.options input[name="bg-sound"]')
-					.attr('checked', false)
-					.attr('disabled', true);
-
-				$('.options input[name="fg-sound"]')
-					.attr('checked', false)
-					.attr('disabled', true);
-					
-				$('div.sound-disabled').show();
-
-			  displaynotice(msg, 'warning');
-			}
-
 			if (/Mac.+Firefox/.test(navigator.userAgent)) {
 			  var msg = 'Firefox (mac) has some compatibility issues, please read ' +
 									'the <a href="#compability">Browser Compatibility</a> section ' + 
@@ -639,17 +619,14 @@
 				  </span></li>
 				<li><h4>Firefox 3.6 - Mac<span class="rank mid">Not recommended</span></h4>
 				  <span>Firefox for Mac delivers a great frame rate. Firefox lack support 
-				  for WebScoket, so Flash is a requirement. It seems to be some kind of 
+				  for WebSocket, so Flash is a requirement. It seems to be some kind of 
 				  problem with the Flash implementation though. The ping tend to be very 
-				  high, even when connecting to localhost.</span</li>
+				  high, even when connecting to localhost. Latest version of 
+				  Mindfield do have support for Websockets though. </span</li>
 			</ul>
 			<ul class="column">
 				<li><h4>Google Chrome - Win/Mac<span class="rank high">Recommended
-				  </span></h4><span>Google Chrome has some issues with WPilot, both on 
-				  Windows and on Mac. Frame rate is a little bit lower then other 
-				  browser but latency is good. It seems to be some kind of issue with
-				 	the Audio though. Chrome will crash randomly. Sounds is there for 
-				  disabled in Chrome.</span</li>
+				  </span></h4><span>Google Chrome works great with WPilot!</span</li>
 				<li><h4>Firefox 3.6 - Win<span class="rank high">Recommended</span></h4>
 				  <span>Firefox for Win delivers a great
 					frame rate. Firefox lacks
