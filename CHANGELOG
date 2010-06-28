@@ -1,3 +1,9 @@
+Version 1.0
+  - (general) Now supports new Websocket protocol (v76)
+
+  - (client) Fixed audio problem that prevented Chrome from playing sounds.
+  - (client) Fixed performance issue in Chrome (removed background image)
+
 Version 0.9
 	- (general) New, more realistic, collision system in place (thanks lahjnus)
 	- (general) Improved network protocol
