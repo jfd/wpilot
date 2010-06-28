@@ -1026,9 +1026,9 @@ function start_webserver(options, shared) {
   fu.get('/', fu.staticHandler(CLIENT_DATA[0]));
   
   fu.get('/state', function (req, res) {
-    res.sendHeader(200, {'Content-Type': 'application/json'});
+    res.writeHead(200, {'Content-Type': 'application/json'});
     res.write(JSON.stringify(shared.get_state()), 'utf8');
-    res.close();
+    res.end();
   });
   
   return server;
