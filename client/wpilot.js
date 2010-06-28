@@ -8,7 +8,7 @@
 //
 var CLIENT_VERSION = '1.0b1';
 
-var GRID_CELL_SIZE      = 250;
+var GRID_CELL_SIZE      = 250,
     GRID_CELL_COLOR     = 'rgba(255,255,255,0.2)';
     
 // Colors
@@ -22,8 +22,8 @@ var COLOR_BRIGHT    = '255, 255, 255',
 // Predefined canvas compatible colors
 var CANVAS_COLOR_BRIGHT   = 'rgb(' + COLOR_BRIGHT + ')',
     CANVAS_COLOR_DAWN     = 'rgb(' + COLOR_DAWN + ')',
-    CANVAS_COLOR_DARK     = 'rgb(' + COLOR_DARK + ')';
-    CANVAS_COLOR_ACCENT_1 = 'rgb(' + COLOR_ACCENT_1 + ')';
+    CANVAS_COLOR_DARK     = 'rgb(' + COLOR_DARK + ')',
+    CANVAS_COLOR_ACCENT_1 = 'rgb(' + COLOR_ACCENT_1 + ')',
     CANVAS_COLOR_ACCENT_2 = 'rgb(' + COLOR_ACCENT_2 + ')';
 
 var PLAYER_COLORS = {
@@ -93,7 +93,7 @@ var SCOREBOARD_READY_CHAR     = '\u2714',
 var STATS_FONT = [WEIGHT_NORMAL, SIZE_XSMALL, FONT_NAME].join(' ');
 
 // Message log related constants.
-var MESSAGE_LOG_LENGTH    = 20;
+var MESSAGE_LOG_LENGTH    = 20,
     MESSAGE_LOG_FONT      = [WEIGHT_NORMAL, SIZE_SMALL, FONT_NAME].join(' '),
     MESSAGE_LOG_LIFETIME  = 150;
 
@@ -139,7 +139,7 @@ var COMMAND_USAGE = {
   'sv_map':       'Usage: /sv_map PATH_TO_MAP',
   'sv_start':     'Usage: /sv_start',
   'sv_restart':   'Usage: /sv_restart',
-  'sv_warmup':    'Usage: /sv_warmup',
+  'sv_warmup':    'Usage: /sv_warmup'
 }
 
 var BG_SOUND = 'sound/background';
