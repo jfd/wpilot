@@ -218,12 +218,11 @@ function SoundDevice(options){
     this.supported = false;
   }
   
-  this.m4a = false;
+  this.prefix = ".ogg";
   
-  if (this.supported && 
-      /AppleWebKit/.test(navigator.userAgent) &&
-      !(/Chrome/.test(navigator.userAgent))) {
-    this.use_m4a = true;
+  if (this.supported && /AppleWebKit/.test(navigator.userAgent) && 
+      !(this.supported && /Chrome/.test(navigator.userAgent))) {
+    this.prefix = ".m4a";
   }
 }
 
@@ -253,8 +252,9 @@ SoundDevice.prototype.init_sfx = function(sources) {
         
     while (size--) {
       var url = urls[Math.floor(Math.random() * urls.length)],
-          audio = new Audio(url + (this.use_m4a ? '.m4a' : '.ogg'));
+          audio = new Audio(url + this.prefix);
       audio.is_free = true;
+      audio.load();
       sound.buffers.push(audio);
     }
     
@@ -272,7 +272,7 @@ SoundDevice.prototype.init_bg = function(source) {
   var sound = { name: this.BG_SOUND, buffers: [], free_count: 2};
     
   for (var i = 0; i < 2; i++) {
-    var audio = new Audio(source + (this.use_m4a ? '.m4a' : '.ogg'));
+    var audio = new Audio(source + this.prefix);
     audio.is_free = true;
     sound.buffers.push(audio);
   }
@@ -299,12 +299,13 @@ SoundDevice.prototype.play = function(name, volume) {
   if (buffer) {
     
     function free() {
+      console.log("free buffer " + name);
       self.free_buffer(name, buffer, free);
     }
     
-    buffer.addEventListener('ended', free, true);
+    buffer.addEventListener('ended', free, false);
     buffer.volume = sound_volume;
-    buffer.play();
+    buffer.play();    
   }
 }
 
@@ -323,7 +324,7 @@ SoundDevice.prototype.playbg = function(volume) {
 
   if (buffer) {
     buffer.volume = volume;
-    buffer.addEventListener('ended', free, true);
+    buffer.addEventListener('ended', free, false);
     buffer.play();
   }
   
@@ -353,6 +354,7 @@ SoundDevice.prototype.free_buffer = function(name, buffer, handle) {
   var sound = this.sounds[name];
   sound.free_count++;
 
-  buffer.removeEventListener('ended', handle, true);
+  buffer.removeEventListener('ended', handle, false);
   buffer.is_free = true;
+  buffer.load();
 }
