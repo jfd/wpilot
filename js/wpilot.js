@@ -6,9 +6,9 @@
 //  
 //  Copyright (c) 2010 Johan Dahlberg 
 //
-var CLIENT_VERSION = '1.0b1';
+var CLIENT_VERSION = '1.0';
 
-var GRID_CELL_SIZE      = 250;
+var GRID_CELL_SIZE      = 250,
     GRID_CELL_COLOR     = 'rgba(255,255,255,0.2)';
     
 // Colors
@@ -22,8 +22,8 @@ var COLOR_BRIGHT    = '255, 255, 255',
 // Predefined canvas compatible colors
 var CANVAS_COLOR_BRIGHT   = 'rgb(' + COLOR_BRIGHT + ')',
     CANVAS_COLOR_DAWN     = 'rgb(' + COLOR_DAWN + ')',
-    CANVAS_COLOR_DARK     = 'rgb(' + COLOR_DARK + ')';
-    CANVAS_COLOR_ACCENT_1 = 'rgb(' + COLOR_ACCENT_1 + ')';
+    CANVAS_COLOR_DARK     = 'rgb(' + COLOR_DARK + ')',
+    CANVAS_COLOR_ACCENT_1 = 'rgb(' + COLOR_ACCENT_1 + ')',
     CANVAS_COLOR_ACCENT_2 = 'rgb(' + COLOR_ACCENT_2 + ')';
 
 var PLAYER_COLORS = {
@@ -93,7 +93,7 @@ var SCOREBOARD_READY_CHAR     = '\u2714',
 var STATS_FONT = [WEIGHT_NORMAL, SIZE_XSMALL, FONT_NAME].join(' ');
 
 // Message log related constants.
-var MESSAGE_LOG_LENGTH    = 20;
+var MESSAGE_LOG_LENGTH    = 20,
     MESSAGE_LOG_FONT      = [WEIGHT_NORMAL, SIZE_SMALL, FONT_NAME].join(' '),
     MESSAGE_LOG_LIFETIME  = 150;
 
@@ -139,7 +139,7 @@ var COMMAND_USAGE = {
   'sv_map':       'Usage: /sv_map PATH_TO_MAP',
   'sv_start':     'Usage: /sv_start',
   'sv_restart':   'Usage: /sv_restart',
-  'sv_warmup':    'Usage: /sv_warmup',
+  'sv_warmup':    'Usage: /sv_warmup'
 }
 
 var BG_SOUND = 'sound/background';
@@ -608,7 +608,6 @@ WPilotClient.prototype.join = function(url) {
      */
     self.conn.onmessage = function(event) {
       var packet        = JSON.parse(event.data);
-      
       switch (packet[0]) {
 
         case PING_PACKET:
@@ -1869,13 +1868,13 @@ GUIPlayerHUD.prototype.draw = function(ctx, t) {
 
   ctx.beginPath();
   ctx.lineWidth = 22;
-  ctx.strokeStyle = 'rgba(' + COLOR_BRIGHT + ', 0.03)';
+  ctx.strokeStyle = 'rgba(' + COLOR_BRIGHT + ', 0.06)';
   ctx.arc(0, 0, 95, -Math.PI/2, -angle - Math.PI / 2, true);
   ctx.stroke();
 
   ctx.beginPath();
   ctx.lineWidth = 1;
-  ctx.strokeStyle = 'rgba(' + COLOR_BRIGHT + ', 0.05)';
+  ctx.strokeStyle = 'rgba(' + COLOR_BRIGHT + ', 0.08)';
   ctx.arc(0, 0, 108, 0, Math.PI / 180, true);
   ctx.stroke();
   
@@ -1886,7 +1885,7 @@ GUIPlayerHUD.prototype.draw = function(ctx, t) {
     
     ctx.beginPath();
     ctx.lineWidth = 6;
-    ctx.strokeStyle = 'rgba(' + POWERUP_SPREAD_COLOR + ', 0.08)';
+    ctx.strokeStyle = 'rgba(' + POWERUP_SPREAD_COLOR + ', 0.1)';
     ctx.arc(0, 0, 81, Math.PI * 3 / 2, angle - Math.PI / 2, false);
     ctx.stroke();    
   }
@@ -1898,7 +1897,7 @@ GUIPlayerHUD.prototype.draw = function(ctx, t) {
     
     ctx.beginPath();
     ctx.lineWidth = 6;
-    ctx.strokeStyle = 'rgba(' + POWERUP_RAPID_COLOR + ', 0.08)';
+    ctx.strokeStyle = 'rgba(' + POWERUP_RAPID_COLOR + ', 0.1)';
     ctx.arc(0, 0, 75, Math.PI * 3 / 2, angle - Math.PI / 2, false);
     ctx.stroke();
   }
@@ -1910,7 +1909,7 @@ GUIPlayerHUD.prototype.draw = function(ctx, t) {
     
     ctx.beginPath();
     ctx.lineWidth = 6;
-    ctx.strokeStyle = 'rgba(' + POWERUP_RICO_COLOR + ', 0.08)';
+    ctx.strokeStyle = 'rgba(' + POWERUP_RICO_COLOR + ', 0.1)';
     ctx.arc(0, 0, 69, Math.PI * 3 / 2, angle - Math.PI / 2, false);
     ctx.stroke();
   }
