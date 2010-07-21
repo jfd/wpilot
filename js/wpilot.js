@@ -142,7 +142,7 @@ var COMMAND_USAGE = {
   'sv_warmup':    'Usage: /sv_warmup'
 }
 
-var BG_SOUND = 'sound/background';
+var BG_SOUND = 'background';
 
 
 // Default client options. This options can be changed from the console
