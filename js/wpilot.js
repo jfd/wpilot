@@ -119,12 +119,12 @@ var HUD_FONT = [WEIGHT_HEAVY, SIZE_XLARGE, FONT_NAME].join(' ');
 var CHAT_MAX_CHARS  = 200;
     
 var SFX_SOUNDS = {
-  ship_spawn:   [3,  ['sound/ship_spawn']],
-  ship_die:     [3,  ['sound/ship_die']],
-  ship_thrust:  [6,  ['sound/ship_thrust']],  
-  bullet_spawn: [8,  ['sound/ship_fire_1', 'sound/ship_fire_2', 'sound/ship_fire_3']], 
-  powerup_spawn:[3,  ['sound/powerup_spawn']],
-  powerup_die:  [2,  ['sound/powerup_1_die']] 
+  ship_spawn:   [3,  ['ship_spawn']],
+  ship_die:     [3,  ['ship_die']],
+  ship_thrust:  [6,  ['ship_thrust']],  
+  bullet_spawn: [8,  ['ship_fire_1', 'ship_fire_2', 'ship_fire_3']], 
+  powerup_spawn:[3,  ['powerup_spawn']],
+  powerup_die:  [2,  ['powerup_1_die']] 
 }
 
 var COMMAND_USAGE = {
