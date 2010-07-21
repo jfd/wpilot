@@ -218,11 +218,13 @@ function SoundDevice(options){
     this.supported = false;
   }
   
-  this.prefix = ".ogg";
+  this.prefix = "http://cloud.github.com/downloads/jfd/wpilot/";
+  this.suffix = ".ogg";
   
   if (this.supported && /AppleWebKit/.test(navigator.userAgent) && 
       !(this.supported && /Chrome/.test(navigator.userAgent))) {
-    this.prefix = ".m4a";
+    this.prefix = "sound/";
+    this.suffix = ".m4a";
   }
 }
 
@@ -252,7 +254,7 @@ SoundDevice.prototype.init_sfx = function(sources) {
         
     while (size--) {
       var url = urls[Math.floor(Math.random() * urls.length)],
-          audio = new Audio(url + this.prefix);
+          audio = new Audio(this.prefix + url + this.suffix);
       audio.is_free = true;
       audio.load();
       sound.buffers.push(audio);
@@ -272,7 +274,7 @@ SoundDevice.prototype.init_bg = function(source) {
   var sound = { name: this.BG_SOUND, buffers: [], free_count: 2};
     
   for (var i = 0; i < 2; i++) {
-    var audio = new Audio(source + this.prefix);
+    var audio = new Audio(this.prefix + source + this.suffix);
     audio.is_free = true;
     sound.buffers.push(audio);
   }
