@@ -1,0 +1,799 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+	"http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
+
+	<title>WPilot - a space journey in your browser</title>
+	
+	<link rel="stylesheet" href="css/master.css" type="text/css" media="screen" charset="utf-8">
+	<link rel="stylesheet" href="css/prettyPhoto.css" type="text/css" media="screen" charset="utf-8" />
+	
+	<script type="text/javascript" src="js/swfobject.js"></script>
+	<script type="text/javascript" src="js/FABridge.js"></script>
+	<script type="text/javascript" src="js/web_socket.js"></script>	
+	<script type="text/javascript" src="http://ajax.googleapis.com/ajax/libs/jquery/1.4.2/jquery.min.js"></script>
+	<script type="text/javascript" src="js/jquery.query.js"></script>
+	<script type="text/javascript" src="js/jquery.prettyPhoto.js"></script>
+	<script type="text/javascript" src="js/jquery.cookie.js"></script>
+	<script type="text/javascript">
+	
+		WebSocket.__swfLocation = "js/WebSocketMain.swf";
+	
+		var HASH = "10000";
+		var TIME = new Date().getTime();
+
+		// Used for random generation of player name
+		var PLAYER_NAMES = [
+		  'Boba Fett', 
+		  'Han Solo', 
+		  'Luke Skywalker', 
+		  'Princess Leia',
+		  'R2-D2',
+		  'C-3PO',
+		  'Chewbacca',
+		  'Darth Vader',
+		  'Lando',
+		  'Yoda',
+		  'Teboo',
+		  'Admiral Ackbar'
+		];
+	
+		var pinqueue = [];
+		var activepings = 0;
+		
+		function displaynotice(message, cls) {
+			setTimeout(function() {
+				$('div.notice')
+					.addClass(cls)
+					.prepend(message)
+					.show('slow');
+			}, 1000);
+		}
+		
+		function supports_canvas_text() {
+			if (!document.createElement('canvas').getContext) { return false; }
+			var dummy_canvas = document.createElement('canvas');
+			var context = dummy_canvas.getContext('2d');
+			return typeof context.fillText == 'function';
+		}
+		
+		$('div.notice a.close').live('click', function() {
+			var parent = $(this).parent('div').hide('slow');
+		});
+		
+		function rndvalue(src) {
+		  return src[Math.floor(Math.random() * src.length)];
+		}
+		
+		function pingnext() {
+			
+			if (activepings > 3) return;
+			
+			var addr = pinqueue.pop();
+			
+			if (!addr) return;
+			
+			activepings++;
+			
+			var socket = new WebSocket(addr);
+			var closing = false;
+			var pingtime = null;
+			var tr = $('.server-list tr[id="' + addr + '"]');
+
+			var timeout = setTimeout(function() {
+        close('Timeout');
+			}, 4000);
+
+			function close(reason) {
+			  if (closing) return;
+
+			  closing = true;
+
+			  if (timeout) {
+					clearTimeout(timeout);
+				}
+
+			  socket.close();
+			  socket = null;
+
+				activepings--;
+
+				if (reason) {
+					tr.removeClass('pinging').addClass('down');
+					$('td.name', tr).html(addr + '<span>' + reason + '</span>');
+				}
+
+				pingnext();
+			}
+
+			socket.onopen = function() {
+				socket.send(JSON.stringify([10]));
+				pingtime = new Date();
+			}
+
+			socket.onmessage = function(event) {
+			  var ping = (new Date()) - pingtime;
+
+				tr.removeClass('pinging');
+
+				var message = null;
+
+				try {
+					message = JSON.parse(event.data);
+				} catch (e) {
+					$('.server-list tr[id="' + addr + '"] td.status').text('Error');
+					socket.close();
+					return;
+				}
+
+				var msgid = message.shift();
+
+				if (msgid == 11) {
+					var info = message.shift();
+					$('td.name', tr).html(info.server_name + '<span>' +
+							info.version + '</span>');
+					$('td.ping', tr).text(ping);
+					$('td.region', tr).text(info.region);
+					$('td.map', tr).text(info.map_name);
+					$('td.players', tr).text(info.no_players + ' / ' + info.max_players);
+				  close();
+				} else {
+				  close('Bad response: ' + msgid);
+				}
+			}
+
+			socket.onerror = function(e) {
+			  close('Error');
+			};
+
+			socket.onclose = function() {
+        close('Host Down' );
+			};
+
+		}
+		
+		function queueping(addr) {
+			pinqueue.push(addr);
+			pingnext();
+		}
+		
+		$(document).ready(function() {
+		  var compatibility_issues = false;
+			
+			$(".gallery a").prettyPhoto({ theme: 'dark_square' });
+			
+			// Browser compability test
+			if (WebSocket.__initialize && swfobject.getFlashPlayerVersion()['major'] < 1) {
+				var msg = 'Your browser doesnt support WebSocket or Flash. Read the ' +
+									'<a href="#compability">Browser Compatibility</a> section for ' + 
+								 	'more details.';
+								 	
+			  displaynotice(msg, 'error');
+        return;
+      }
+
+			if (!supports_canvas_text()) {
+			  var msg = 'Your browser doesnt support canvas or canvas.fillText. Read the ' +
+									'<a href="#compability">Browser Compatibility</a> section for ' + 
+								 	'more details.';
+								 	
+			  displaynotice(msg, 'error');
+        return;
+			}
+			
+			try {
+			  var jsontest = JSON.stringify({test: 'test'});
+			} catch(error) {
+			  var msg = 'Your browser doesnt not support JSON. Read the ' +
+									'<a href="#compability">Browser Compatibility</a> section for ' + 
+								 	'more details.';
+								 	
+			  displaynotice(msg, 'error');
+        return;
+			}
+			
+			$('.options input[name="player-name"]')
+				.change(function() {
+					$.cookie('player-name', $(this).val());
+					
+				})
+				.val($.cookie('player-name') || rndvalue(PLAYER_NAMES));
+
+			$('.options input[name="fg-sound"]')
+				.click(function() {
+					$.cookie('fg-sound', $(this).attr('checked'));
+				})
+				.attr('checked', $.cookie('fg-sound') == undefined ? true : 
+																										 eval($.cookie('fg-sound')));
+
+			$('.options input[name="bg-sound"]')
+				.click(function() {
+					$.cookie('bg-sound', $(this).attr('checked'));
+				})
+				.attr('checked', $.cookie('bg-sound') == undefined ? true : 
+																										 eval($.cookie('bg-sound')));
+
+			if (/Mac.+Firefox/.test(navigator.userAgent)) {
+			  var msg = 'Firefox (mac) has some compatibility issues, please read ' +
+									'the <a href="#compability">Browser Compatibility</a> section ' + 
+								 	'for more details.';
+
+        compatibility_issues = true;
+
+			  displaynotice(msg, 'warning');
+			}
+
+			if (/Opera/.test(navigator.userAgent)) {
+			  var msg = 'Opera has some compatibility issues, please read ' +
+									'the <a href="#compability">Browser Compatibility</a> section ' + 
+								 	'for more details.';
+
+        compatibility_issues = true;
+
+			  displaynotice(msg, 'warning');
+			}
+
+			// Read game settings from cookie
+			if ($.cookie('hash') != HASH && !compatibility_issues) {
+				var msg = 'Your first WPilot session? We recommend you to read ' +
+									'the <a href="#gameplay">gameplay section</a>  ' + 
+								 	'before joining a game.';
+
+				displaynotice(msg, 'warning');
+			}			
+																										 
+			$('.server-list').removeClass('disabled');
+
+			$('.server-list tbody tr.refresh a').click(function() {
+
+				$('.server-list tbody tr.refresh').hide();
+				$('.server-list tbody tr.waiting').attr('display', '');
+				
+				$.get('serverlist.txt?' + TIME, function(list) {
+					var list = JSON.parse(list);
+
+					$('.server-list table tbody')
+						.empty()
+						.removeClass('waiting');
+
+					for (var i = 0; i < list.length; i++) {
+						var server = list[i];
+						if (server.address) {
+							var html = $('<tr id="' + server.address + '" class="pinging">' + 
+														'<td class="name">' + server.address + '</td>' +
+														'<td class="ping">--</td>' +
+														'<td class="region">--</td>' +
+														'<td class="map">--</td>' +
+														'<td class="players">--</td>' +
+														'<td class="status"><span class="join">' + 
+																'<a href="javascript:;">Join</a> or </span><a ' +
+																'class="refresh" href="javascript:;">refresh' +
+																'</a></td>' +
+													'</tr>');
+
+							$('.join a', html).click(function() {
+								var url = $(this).parents('tr').attr('id');
+
+								$.cookie('hash', HASH);
+
+								document.location = 'client.html' + 
+	                      $.query.set('url', url).
+	                              set('name', $('.options input[name="player-name"]').val()).
+	                              set('fg-sound', $('.options input[name="fg-sound"]').attr('checked').toString()).
+	                              set('bg-sound', $('.options input[name="bg-sound"]').attr('checked').toString()).
+	                              toString();
+							});
+
+							$('a.refresh', html).click(function() {
+								var tr = $(this).parents('tr');
+								var addr = tr.attr('id');
+								tr.removeClass('down').addClass('pinging');
+								$('.name', tr).text(addr);
+								$('.ping', tr).text('--');
+								$('.region', tr).text('--');
+								$('.map', tr).text('--');
+								$('.players', tr).text('--');
+								queueping(addr);
+							});
+
+							$('.server-list table tbody').append(html);
+
+							queueping(server.address);
+						}
+					}
+				});				
+			})
+
+		});
+	</script>
+</head>
+
+<body>
+  <a href="http://github.com/jfd/wpilot"><img style="position: absolute; top: 0; right: 0; border: 0;" src="http://s3.amazonaws.com/github/ribbons/forkme_right_darkblue_121621.png" alt="Fork me on GitHub" /></a>
+
+  <div id="container">
+
+    <h1>WPilot 
+      <span class="small">A space journey in your browser</span></h1>
+
+    <div class="header container">
+     	<div class="column">
+				<p>
+					Welcome to WPilot. WPilot is a browser-based, multiplayer, space 
+					 shooter inspired by old classic such as 
+					<a href="http://www.xpilot.org/">XPilot</a>, 
+					<a href="http://en.wikipedia.org/wiki/Thrust_(video_game)">Thrust</a>
+					and 
+					<a href="http://en.wikipedia.org/wiki/Gravity_Force">Gravity Force</a>.
+				</p>
+				<p>
+					The game is a "proof-of-concept" project, where we are trying too push 
+					what's possible in browser without using any third-party 
+					plugins. The game is built using HTML5 technologies.
+					<a href="#background">Read more</a>
+				</p>
+			</div>
+			<div class="options column">
+				<h3>Game options</h3>
+				<form>
+					<label for="player-name">Player name</label>
+					<input type="text" name="player-name" value="">
+					<label for="sfx-sound-enabled">Enable effects sounds</label>
+					<input type="checkbox" name="fg-sound">
+					<label for="bg-sound-enabled">Enable background sounds</label>
+					<input type="checkbox" name="bg-sound">
+				</form>
+				<div class="sound-disabled">Sound is currently disabled in 
+															Google Chrome.</div>
+				<p class="footer">Options are automatically stored for your session</p>
+			</div>
+    </div>
+
+		<div class="notice error">
+		  Your browser does not support Javascript, or you have manually disabled 
+		  it. 
+		  <a href="https://www.google.com/adsense/support/bin/answer.py?answer=12654">
+		    Guide to enable Javascript</a>
+		</div>
+		
+		<script>
+  		$('div.notice')
+  	    .hide()
+  	    .removeClass('error')
+  	    .html('<a class="close" href="javascript:;">X</a>');
+	  </script>
+
+		<div class="server-list disabled">
+			<table>
+				<thead>
+					<tr>
+						<td colspan="6" class="title">Server List</td>
+					</tr>
+					<tr>
+						<td>Server name</td>
+						<td>Ping</td>
+						<td>Region</td>
+						<td>Map</td>
+						<td>Players</td>
+						<td>&nbsp;</td>
+					</tr>
+				</thead>
+				<tbody>
+					<tr class="refresh"><td colspan="6">Hi, <a href="javascript:;">refresh</a> 
+						server list to play</td></tr>
+					<tr class="waiting"><td colspan="6">Loading server list...</td></tr>
+				</tbody>
+				<tfoot>
+					<tr>
+						<td colspan="6">
+							No servers available? 
+							<a href="#server-setup">Start 
+							a server</a> of your own or watch a video in the 
+							<a href="#media">Media</a> section.
+						</td>
+					</tr>
+				</tfoot>
+			</table>
+			<div class="disabled-notice">
+			  The Server list is disabled. Your browser is currently not supported.
+			</div>
+		</div>
+
+    <div class="container">
+			<h2 id="gameplay">Gameplay</h2>
+			<div class="column">
+				<p>The gameplay is pretty simple, avoid getting shoot while 
+					shooting your opponents. The first player that reaches the score limit
+					wins the round.</p>
+
+				<h4>Controlling your Vessel</h4>
+				<p>Your ship is easy to maneuver, but hard to master. The up-arrow 
+					 will thrust your ship in current direction. Use your left- and right-arrow to
+					 rotate your ship left and right. Your only defense against walls, 
+					 and opponent bullets is your shield, access it by down-arrow. 
+					 While activated, you are indestructible. The shield isn't free of 
+					 charge though, it will quickly drain our energy.
+					</p>
+					
+				<div class="keyboard-bindings">
+					<h5>Keyboard bindings</h5>
+				</div>
+				
+				<p>
+					There are two ways to defeat your opponent and get points. You can either bump into them with your shield activated or you can shoot them with your canon. Each bullet cost a bit of energy, so try to save some incase you'll need the shield.</p>
+					
+				<h4>The Warmup round</h4>
+				<p>Each game starts in warm-up mode. It let's you try things out and battle a bit until enough players are ready.
+				</p>
+					
+			</div>
+			<div class="column">
+				<p>When you are ready for some real
+				action, press the r-key. When enough players is ready, the game
+				starts.</p>
+				<h4>Powerups</h4>
+				<p>What would a space-shooter be without compelling enhancements? WPilot contains three kinds of destructive powerups, each one improving your vessel's arsenal. Powerups are possible to combine and can help even the worst pilots to get a few kills.</p>
+
+				<ul class="powerups">
+					
+					<li class="rapid"><span>Rapid fire significantly increases your reload rate and lowers the energy cost of each bullet.
+																	</span></li>
+
+					<li class="rico"><span>Ricochet gives the bullets wall bouncing abilities, opponents will quickly lose track of some projectiles and succumb to your superiority.
+																</span></li>
+
+					<li class="spread"><span>Spread fire, the most feared enhancement known to WPilots, compliments your cannon with two additional side cannons to satisfy the spray and prey concept.
+																	 </span></li>
+				</ul>
+				
+				<h4>Winning a round</h4>
+				<p>You score a point when blowing up an opponent and you will loose a point when crashing into a wall due to bad maneuvering skills. The first player that reach the round limit wins. </p>
+					
+				<h4>Talking to other players</h4>
+				<p>You can taunt, chat or salute your opponents by pressing the 
+					 enter-key. The prompt can also be used to issue commands. For 
+					 example, you can change your name in-game by typing 
+					"/name your_name" (without the quotes).
+			</div>
+    </div>
+    
+    <div class="container">
+      <h2 id="maps">Maps</h2>
+      <div class="column">
+        <p>WPilot contains a total of four official maps. You can create your 
+           own map with the built-in map-format.</p>
+        <h4>Battle Royale (6-8 players)</h4>
+        <p>This is the built-in standard map. Search and destroy your opponent 
+           in the outer rim or try to get some powerups in the center area.</p>
+        <h4>Four corners (6-8 players)</h4>
+        <p>Four areas with several small passages between them, camp a single 
+           area or outmaneuver your foes in the passages?</p>
+      </div>
+      <div class="column">
+        <h4>The Passage (6-8 players)</h4>
+        <p>The map contains two main areas. Each area is separated by the wall
+           of death. The only way to go between the areas it to thrust through
+           the small passages which is hard, so be careful.</p>
+        <h4>Gems (6-8 players)</h4>
+        <p>The map contains two small rooms containing powerful powerups. Risk 
+           getting ambushed for the ultimate power.</p>
+      </div>
+    </div>
+    
+    <div class="media container">
+	    <h2 id="media">Media</h2>
+			<div class="column">
+				<p>We have recorded a couple of videos of WPilot in action. The videos
+					can be found in our channels over at <a href="">Youtube</a> and 
+					<a href="">Vimeo</a>.</p>
+			</div>
+			<div class="column">
+				<p>We appreciate new material, please let us know if have something you wish to contribute.
+			</div>
+		</div>
+		
+		<div class="gallery">
+			<div class="container">
+				<div class="column">
+					<h5>Screenshots</h5>
+					<ul>
+						<li><a href="images/full_screen_01.jpg" 
+									 title="Moment of glory"
+									 rel="prettyPhoto[screen_gallery]">
+										<img src="images/tmb_screen_01.jpg" alt="Round result listing">
+								</a>
+						</li>
+						<li><a href="images/full_screen_02.jpg" 
+									 title="Smashing an opponent is always satisfying"
+									 rel="prettyPhoto[screen_gallery]">
+										<img src="images/tmb_screen_02.jpg" alt="Bulls-eye">
+								</a>
+						</li>
+						<li><a href="images/full_screen_03.jpg" 
+									 title="Dual powerup meters"
+									 rel="prettyPhoto[screen_gallery]">
+										<img src="images/tmb_screen_03.jpg" alt="Powerups x 2">
+								</a>
+						</li>
+						<li><a href="images/full_screen_04.jpg" 
+									 title="Crusing solo have its moments"
+									 rel="prettyPhoto[screen_gallery]">
+										<img src="images/tmb_screen_04.jpg" alt="Battle Royale">
+								</a>
+						</li>
+            <!-- <li><a href="images/full_screen_05.jpg" 
+                   title="Lucky for him that the shield was on"
+                   rel="prettyPhoto[screen_gallery]">
+                    <img src="images/tmb_screen_05.jpg" alt="Shield blocking">
+                </a>
+            </li> -->
+						<li><a href="images/full_screen_06.jpg" 
+									 title="Spread fire in action"
+									 rel="prettyPhoto[screen_gallery]">
+										<img src="images/tmb_screen_06.jpg" alt="Bullet rain">
+								</a>
+						</li>
+					</ul>
+				</div>
+				<div class="column">
+					<h5>Videos</h5>
+					<ul>
+						<li><a href="http://www.youtube.com/watch?v=QX5nNXIzTjo" 
+									 title="Beta testing..."
+									 rel="prettyPhoto[video_gallery]">
+										<img src="images/tmb_video.jpg" alt="WPilot 1.0 Beta1 footage - 1">
+								</a>
+						</li>
+						<li><a href="http://www.youtube.com/watch?v=D4FwhbgpKcU" 
+									 title="Fight in map  Battle Royale"
+									 rel="prettyPhoto[video_gallery]">
+										<img src="images/tmb_video.jpg" alt="WPilot 1.0 Beta1 footage - 2">
+								</a>
+						</li>
+						<li><a href="http://www.youtube.com/watch?v=l19Oj9H5wDI" 
+									 title="Early alpha footage, 5 players simultaneously"
+									 rel="prettyPhoto[video_gallery]">
+										<img src="images/tmb_video.jpg" alt="Alpha footage">
+								</a>
+						</li>
+						<li><a href="http://vimeo.com/9988822" 
+									 title="Early alpha footage, 5 players simultaneously"
+									 rel="prettyPhoto[video_gallery]">
+										<img src="images/tmb_video.jpg" alt="Alpha footage">
+								</a>
+						</li>
+					</ul>
+				</div>
+			</div>
+			<p>Screenshots and videos from the game, click to view</p>
+		</div>
+
+    <div class="container">
+			<h2 id="compability">Browser compatibility</h2>
+			<div class="column">
+				<p>WPilot is unfortunately not playable in all browsers. This 
+				  compatibility list helps you find a browser that is supported by 
+				  WPilot. The browser rank gives you an indication of how well the game 
+				  perform.</p> 
+				
+				<p>The <span class="rank high">Recommended</span> indicates that the 
+				  browser is fully supported. There can be some quirks but nothing major.</p> 
+			</div>
+			<div class="column">
+				<p>The <span class="rank mid">Not recommended</span> indicates that the 
+				   game should run, but that there's one or more major quirks that 
+				   causes the game to run badly. Read the description for more 
+				   information.</p> 
+				
+				<p>The <span class="rank low">Not 
+   				  supported</span> indicates that the 
+				   game won't run at all. There may be support for the browser in a 
+				   future release, but no guarantee.</p>
+			</div>
+    </div>
+
+    <div class="container">
+			<ul class="column">
+				<li><h4>Internet Explorer - Win <span class="rank low">Not 
+				  supported</span></h4><span> Internet Explorer is NOT support by WPilot. 
+				  WPilot depends up on 
+          <a href="http://en.wikipedia.org/wiki/Canvas_element">Canvas</a> 
+					which Internet Explorer lacks. There are third-party solutions that 
+					emulates the <i>canvas</i> object, but they are really slow.
+					IE9 may support canvas in the future, if the team behind the browser 
+					decides to implement canvas support (
+					<a href="http://ajaxian.com/archives/ie9-canvas-support-leaked-by-amd">rumors</a> 
+					indicate it).</span></li>
+				<li><h4>Safari 5 - Mac <span class="rank high">Recommended</span></h4>
+				  <span>Safari delivers a good frame rate. However Safari lack support 
+				  for WebSocket, so it depends upon Flash plugin as fallback. The 
+				  experience is decent, but the Flash fallback can cause high latency in
+				  some situations.
+				  </span></li>
+				<li><h4>Webkit (nightlies) - Mac<span class="rank high">Recommended</span>
+				  </h4><span>Webkit delivers outstanding network performance, low latency 
+				  and no packet loss.
+				  </span></li>
+				<li><h4>Firefox 3.6 - Mac<span class="rank mid">Not recommended</span></h4>
+				  <span>Firefox for Mac delivers a great frame rate. Firefox lack support 
+				  for WebSocket, so Flash is a requirement. It seems to be some kind of 
+				  problem with the Flash implementation though. The ping tend to be very 
+				  high, even when connecting to localhost. Latest version of 
+				  Mindfield do have support for Websockets though. </span</li>
+			</ul>
+			<ul class="column">
+				<li><h4>Google Chrome - Win/Mac<span class="rank high">Recommended
+				  </span></h4><span>Google Chrome works great with WPilot!</span</li>
+				<li><h4>Firefox 3.6 - Win<span class="rank high">Recommended</span></h4>
+				  <span>Firefox for Win delivers a great
+					frame rate. Firefox lacks
+					support for WebSocket, so Flash is a requirement. Even though Flash is 
+					used as fall back it delivers low latency as opposed to the Mac version.
+					</span</li>
+				<li><h4>Opera 10.50 - Mac/Win<span class="rank low">Not supported</span>
+				  </h4><span>Only tested on Mac. Opera have some trouble communicating 
+				  with the Flash fallback plugin. The game 
+					connects to the server 1 of 10 times. No error messages is displayed 
+					so the problem is difficult to debug. There also seems to be some kind
+					of problem with the underlying text rendering interface. Some texts are
+					not rendered at all. The frame rate seems to be great, but the
+					game is unplayable.</span</li>
+			</ul>
+    </div>
+		
+    <div class="container">
+			<h2 id="background">Project goal</h2>
+			<div class="column">
+				<p>Yesterday's browser wasn't built to handle fast graphics applications and 
+				low-latency game network protocols.</p>
+				<p>This is about to change dramatically, the browser standard factory
+					is currently cooking up some very interesting new features for our 
+					browsers. New HTML5 technologies such as 
+					<a href="http://en.wikipedia.org/wiki/Canvas_element">Canvas</a>, 
+					<a href="http://dev.w3.org/html5/websockets/">WebSocket</a> and 
+					<a href="http://www.khronos.org/webgl/">WebGL</a> 
+					will change the way we think of games and applications in the browser.
+					</p>
+				<p>The goal of this projects was/is to test how far we can get using 
+				  only the browser. No third-party plugins such as
+					<a href="http://www.adobe.com/products/flashplayer/">Flash</a>, 
+					<a href="http://silverlight.net/">Silverlight</a> and  
+					<a href="http://unity3d.com/">Unity3D</a>. (Not entirely true though, 
+					Flash is used to emulate the WebSocket interface in browsers that 
+					lacks the feature)</p>
+			</div>
+			<div class="column">
+				<p>As you can see the results so far is pretty impressing. The game 
+				   engine runs at 60 ticks per second. Each game tick handles collision data, 
+				   movement and game rules. The server is constantly sending position 
+				   updates to each client which requires a low-latency connection between 
+				   the two parties.</p>
+				<p>The native implementation of WebSocket (In Safari and Google Chrome) 
+				   handle this very well. The fallback plugin is kind of unstable on 
+				   the mac but seems to do a good job on Windows machines.</p>
+				<p>WPilot and similar applications will be more stable and faster as
+				   browser vendors continues to implement new and exciting features 
+				   listed in the HTML5 draft.</p>
+				   
+			</div>
+    </div>
+		
+		<div class="container">
+			<h2 id="server-setup">Running your own server</h2>
+			<div class="column">
+				<p>So you are interesting in setting up a server of your own, that's 
+					great! The entire server is built in something called 
+					<a href="http://nodejs.org/">node.js</a>. Node.js is a framework built 
+					on top of Googles lighting fast Javascript engine 
+					<a href="http://code.google.com/p/v8/">V8</a></p>
+				<p>	
+					First, download and install node.js (see instructions on project 
+					homepage). Then, download the latest version of 
+					<a href="http://github.com/jfd/wpilot/zipball/master">WPilot</a>. 
+					Extract the zip to directory of choice. All server configuration is 
+					done via a set of command-line switches. You can get list of all 
+					available switches by typing:</p>
+					<pre>$ ./wpilots.js -H</pre>
+				<p>
+					You probably want to change the server name, region and port no. Use the 
+					<i>--name</i> switch to change name, the <i>--region</i> switch to 
+					change region and the <i>--ws_port</i> to change the TCP port to 
+					listen on.
+				</p>
+				<p>The WPilot server has a built-in HTTP-server that delivers all client
+				  releated data. The server is by default started and is serving the 
+				  data at port 8000. Set the <i>--http_port</i> switch to 0 to disable 
+				  HTTP server.</p>
+				<p>The current version of the server is a so called BETA version. Things
+				   can break. You can put server in "debug-mode" by adding the 
+				   <i>--debug</i> switch, which will print additional debug information
+				   in the console. This may help you to track down bugs.</p>
+				
+				<h4>Public server list</h4>
+				<p>We have limited server capacity, so please concider to list your 
+				   server in The Public server list (the list at the top of this page).
+				   </p>
+			</div>
+			<div class="column">
+				<p>Send your "ws://" host address to email to dahlberg.johan AT gmail 
+				   com. We will list it as soon as possible.</p>
+				<p>You can also fork the git repo and add the address directly</p>
+			  <h4>Map cycling</h4>
+				<p>WPilot comes with a set of maps. All maps is located in the the 
+					"$INSTALLDIR/maps" directory. You can choose to circle between 
+					multiple maps at startup. Use the <i>--map</i> for each map you want
+					to play. It's also possible to change map in-game.</p>
+			  <h4>In-game administration</h4>
+				<p>As an administrator you can change maps and kick players in-game. You 
+				   need to start the server with the switch "--admin_password 
+				   <i>password</i>" (where <i>password</i> is your 
+				   password), this enable the in-game admin mode. To authorize you 
+				   in-game, type:</p>
+				   
+				   <pre>/sv_password <i>password</i></pre> 
+				   
+				   <p>After authorization you can issue admin commands. For example, the 
+				   command:</p>
+				   
+				   <pre>/sv_map <i>maps/battle_royale.json</i></pre>
+				   <p>will change map to Battle Royale. You can also kick unwanted 
+				    players with:</p> 
+				    
+				   <pre>/sv_kick <i>player_name</i> <i>reason</i></pre> 
+				   
+				   <p>Note: The <i>reason</i> argument MUST be entered in order to kick someone.
+				   </p>
+			</div>
+    </div>
+
+		<div class="container">
+	    <h2>Contributing</h2>
+			<div class="column">
+				<p>This is an Open Source project, anyone can download and play around with
+					the code.</p>
+				<h4>Reporting bugs</h4>
+				<p>The easiest way is to post an issue ticket over at 
+				  <a href="http://github.com/jfd/wpilot/issues">GitHub</a>. You can also
+				  mail me at dahlberg.johan AT gmail com.</p>				  
+			  <h4>Contributing with code</h4>
+			  <p>Bug fixes and optimizations is appreciated. If you are an expert on
+			     Opera or maybe find a way of getting this to work on IE, we'd really 
+			     appreciate your contribution to the main project.</p>
+			</div>
+			<div class="column">
+				<p>First fork the WPilot GIT-repository with the following command:</p>
+				<pre>$ git clone git://github.com/jfd/wpilot.git</pre>
+				<p>When you are done with your bug-fix or performance increaser, press 
+				   the "pull request" -button in your forked repository.</p>
+			</div>
+		</div>
+		
+		<h2>Credits</h2>
+		<p>Lead developer - Johan Dahlberg
+		<br/>Collision coding - Linus Larsson
+		<br/>Original sounds - Emanuel Dahlberg
+		</p>
+
+    <h2>License</h2>
+    <p>This software is released under a MIT-style license. You can do pretty
+	 		 much what you want with it.</p>
+
+    <div class="footer">
+      Contact: Johan Dahlberg - dahlberg.johan AT gmail com
+    </div>
+
+  </div>
+
+  <script type="text/javascript">
+var gaJsHost = (("https:" == document.location.protocol) ? "https://ssl." : "http://www.");
+document.write(unescape("%3Cscript src='" + gaJsHost + "google-analytics.com/ga.js' type='text/javascript'%3E%3C/script%3E"));
+</script>
+<script type="text/javascript">
+try {
+var pageTracker = _gat._getTracker("UA-174675-13");
+pageTracker._trackPageview();
+} catch(err) {}</script>
+</body>
+</html>
