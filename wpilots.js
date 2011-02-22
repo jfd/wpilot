@@ -445,7 +445,6 @@ function start_gameserver(maps, options, shared) {
   function broadcast() {
     var msg = Array.prototype.slice.call(arguments);
     for(var id in connections) {
-      var conn = connections[id];
       connections[id].queue(msg);
     }
   }
@@ -467,12 +466,25 @@ function start_gameserver(maps, options, shared) {
   }
   
   /**
-   *  Prints a system message in the console.
+   *  pad single digit numbers with leading zero
+   *  @param {Integer} Number
+   *  @return {String} padded number
+   */
+  function pad0 (num) {
+    return (num < 10)
+      ? '0'+num 
+      : num;
+  }
+
+  /**
+   *  Prints a system message on the console.
    *  @param {String} msg The message to print .
    *  @return {undefined} Nothing
    */
   function log(msg) {
-    sys.puts(options.name + ': ' + msg);
+    var now = new Date();
+    sys.puts(pad0(now.getHours()) + ':' + pad0(now.getMinutes()) + ':' + 
+             pad0(now.getSeconds()) + ' ' + options.name + ': ' + msg);
   }
   
   /**
@@ -549,7 +561,7 @@ function start_gameserver(maps, options, shared) {
         message_queue     = [];
     
     /**
-     *  Set's information about client.
+     *  Sets client's information.
      */
     conn.set_client_info = function(info) {
       conn.rate = Math.min(info.rate, options.max_rate);
@@ -570,6 +582,7 @@ function start_gameserver(maps, options, shared) {
     conn.chat = function(message) {
       if (conn.player) {
         broadcast(OP_PLAYER_SAY, conn.player.id, message);
+        log('Chat ' + conn.player.id + ': ' + message);
       }
     }
     
@@ -673,7 +686,7 @@ function start_gameserver(maps, options, shared) {
     }
 
     /**
-     *  Stringify speicified object and sends it to remote part.
+     *  Stringifies specified object and sends it to remote part.
      */
     conn.post = function(data) {
       var packet = JSON.stringify(data);
@@ -681,7 +694,7 @@ function start_gameserver(maps, options, shared) {
     }
 
     /**
-     *  Post's specified data to this instances message queue
+     *  Posts specified data to this instances message queue
      */
     conn.flush_queue = function() {
       var now = get_time();
@@ -770,8 +783,8 @@ function start_gameserver(maps, options, shared) {
           conn.player = world.add_player(playeridincr, conn.player_name);
 
           conn.post([OP_WORLD_STATE, conn.player.id].concat(world.get_repr()));
-          
-          log(conn + ' joined the game.');
+
+          log(conn + conn.player_name + ' joined the game.');
           break;
         
         case DISCONNECTED:
@@ -783,7 +796,7 @@ function start_gameserver(maps, options, shared) {
             if (conn.player) {
               world.remove_player(conn.player.id, disconnect_reason);
               conn.player = null;
-              log(conn + ' leaved the game (Reason: ' + disconnect_reason + ')');
+              log(conn + ' left the game (Reason: ' + disconnect_reason + ')');
             }
 
             if (world.no_players == 0) {
@@ -807,13 +820,13 @@ function start_gameserver(maps, options, shared) {
       return this.remoteAddress + '(id: ' + this.id + ')';
     }
 
-    // Connection ´connect´ event handler. Challenge the player and creates 
+    // Connection 'connect' event handler. Challenge the player and creates
     // a new PlayerSession.
     conn.addListener('connect', function(resource) {
       conn.set_state(CONNECTED);
     });
 
-    // Connection ´recieve´ event handler. Occures each time that client sent
+    // Connection 'receive' event handler. Occures each time that client sent
     // a message to the server.
     conn.addListener('data', function(data) {
       var packet = null;
@@ -846,7 +859,7 @@ function start_gameserver(maps, options, shared) {
       }
     });
 
-    // Connection ´close´ event listener. Occures when the connection is 
+    // Connection 'close' event listener. Occures when the connection is 
     // closed by user or server.
     conn.addListener('close', function() {
       conn.set_state(DISCONNECTED);
@@ -992,7 +1005,7 @@ var process_game_message = match (
   },
   
   /**
-   *  The message sent by client could not be matched. Kill the session
+   *  The message sent by the client could not be matched. Kill the session
    */
   function(obj) {
     sys.puts(sys.inspect(obj[0]));
