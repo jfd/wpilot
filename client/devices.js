@@ -299,7 +299,6 @@ SoundDevice.prototype.play = function(name, volume) {
   if (buffer) {
 
     function free() {
-      console.log("free buffer " + name);
       self.free_buffer(name, buffer, free);
     }
 
