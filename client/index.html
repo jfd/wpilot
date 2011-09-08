@@ -26,14 +26,14 @@
 			  var context = dummy_canvas.getContext('2d');
 			  return typeof context.fillText == 'function';
 			}
-			
+
 			function unsupported(text) {
 				$('#splash').show();
 				$('#splash .notice')
 		        .css('display', 'block')
 		        .text(text);
 			}
-			
+
 			/**
 			 *  Is called when the document is loaded and ready. Creates a new client.
 			 */
@@ -41,20 +41,20 @@
 				if (WebSocket.__initialize && swfobject.getFlashPlayerVersion()['major'] < 1) {
 					return unsupported('Your browser doesnt support WebSocket or Flash');
 				}
-				
+
 				if (!supports_canvas_text()) {
 					return unsupported('Your browser doesnt support <canvas> or fillText.');
 				}
 
 				$('#options').show();
-								
+
 			  var options = $.extend({}, DEFAULT_OPTIONS);
 			  var canvas = $('#viewport canvas');
-			
+
 				$('#options input[name="name"]').val(options.name);
 				$('#options input[name="fg-sound"]').attr('checked', options.sfx_sound_enabled);
 				$('#options input[name="bg-sound"]').attr('checked', options.bg_sound_enabled);
-			
+
 			  $('#options button').click(function(e) {
 			    e.preventDefault();
 					options.name = $('#options input[name="name"]').val();
@@ -66,7 +66,7 @@
 
 			  $('#splash .server-info a').click(function(e) {
 			    e.preventDefault();
-			    // jQuery sets display to inline for section-tags. Don't know why, Im now using 
+			    // jQuery sets display to inline for section-tags. Don't know why, Im now using
 			    // display: none instead.
 			    $('#splash .server-info').css('display', 'none');
 			    $('#splash .notice')
@@ -93,12 +93,12 @@
 							sound			= new SoundDevice(options);
 
 					$('#splash .server-info').html('Connecting...');
-					
+
 				  wpilot = new WPilotClient(options);
 				  wpilot.set_viewport(viewport)
 				  wpilot.set_input(keyboard);
 				  wpilot.set_sound(sound);
-			
+
 				  wpilot.onconnect = function() {
 				    $('#splash .server-info').css('display', 'none');
 				    $('#splash').css('display', 'none');
@@ -116,7 +116,7 @@
 						keyboard.destroy();
 						sound.destroy();
 						viewport = keyboard = sound = null;
-						
+
 				    $('#splash').css('display', 'block');
 				    if (reason) {
 				      $('#splash .notice')
@@ -136,7 +136,7 @@
 			  setTimeout(function() { $('#splash .server-info a').click() }, 500);
 			});
 		</script>
-		
+
 	</head>
 	<body>
 		<section id="viewport" class="mode540">
@@ -149,9 +149,9 @@
 			</section>
 			<section class="server-info">
 				<h2></h2>
-				<p class="ping">C</p> 
-				<p class="map">C</p> 
-				<p class="players"></p> 
+				<p class="ping">C</p>
+				<p class="map">C</p>
+				<p class="players"></p>
 				<div class="actions">
 					<button>Join server</button> <span> or <a href="#">Refresh</a></span>
 				</div>
@@ -164,11 +164,11 @@
 				<h2></h2>
 				<form>
 					<p>Welcome to WPilot. Set options below, then click continue.</p>
-					<label for="name">Player name</label> 
+					<label for="name">Player name</label>
 					<input name="name" type="text">
-					<label for="bg-sound">Enable background sound</label> 
+					<label for="bg-sound">Enable background sound</label>
 					<input type="checkbox" name="bg-sound" checked>
-					<label for="fg-sound">Enable SFX sounds</label> 
+					<label for="fg-sound">Enable SFX sounds</label>
 					<input type="checkbox" name="fg-sound" checked>
 				</form>
 				<div class="actions">
