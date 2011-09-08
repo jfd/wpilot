@@ -1,11 +1,11 @@
 #!/usr/bin/env node
 //
 //  wpilots.js
-//  WPilot server 
-//  
+//  WPilot server
+//
 //  Read README for instructions and LICENSE license.
-//  
-//  Copyright (c) 2010 Johan Dahlberg 
+//
+//  Copyright (c) 2010 Johan Dahlberg
 //
 var sys       = require('sys'),
     path      = require('path'),
@@ -28,12 +28,12 @@ const PRIO_PASS     = 0,
       PRIO_LOW      = 'low',
       PRIO_HIGH     = 'high';
 
-// Player Connection states      
+// Player Connection states
 const DISCONNECTED  = -1;
       IDLE          = 0,
       CONNECTED     = 1;
       HANDSHAKING   = 3,
-      JOINED        = 4;      
+      JOINED        = 4;
 
 // Default map. This map is used if no other map i specified.
 const DEFAULT_MAP   = {
@@ -50,7 +50,7 @@ const DEFAULT_MAP   = {
 		[ 0, 11, 11,  0, 11, 11,  0],
 		[51,  0,  0, 51,  0,  0, 51]
 	]
-}; 
+};
 
 // Command line option parser switches
 const SWITCHES = [
@@ -85,12 +85,12 @@ const SWITCHES = [
 
 // Default server options
 const DEFAULT_OPTIONS = {
-  debug:                true, 
+  debug:                true,
   name:                 'WPilot Server',
   host:                 '127.0.0.1',
   region:               'n/a',
   admin_password:       null,
-  map:                  null, 
+  map:                  null,
   pub_host:             null,
   http_port:            8000,
   ws_port:              6114,
@@ -168,21 +168,21 @@ function main() {
   if (!options) return;
 
   sys.puts('WPilot server ' + SERVER_VERSION);
-  
+
   maps = options.maps;
-  
+
   if (options.http_port != 0) {
     webserver = start_webserver(options, shared);
   }
-  
+
   gameserver = start_gameserver(maps, options, shared);
-  
+
 }
 
 /**
  *  Starts the web socket game server.
  *  @param {GameOptions} options Game options.
- *  @returns {WebSocketServer} Returns the newly created WebSocket server 
+ *  @returns {WebSocketServer} Returns the newly created WebSocket server
  *                             instance.
  */
 function start_gameserver(maps, options, shared) {
@@ -193,14 +193,14 @@ function start_gameserver(maps, options, shared) {
       server          = null,
       update_tick     = 1,
       next_map_index  = 0;
-  
+
   // Is called by the web instance to get current state
   shared.get_state = function() {
     return {
       server_name:      options.name,
       region:           options.region,
       version:          SERVER_VERSION,
-      game_server_url:  'ws://' + (options.pub_host || options.host) + ':' + 
+      game_server_url:  'ws://' + (options.pub_host || options.host) + ':' +
                                 (options.pub_ws_port || options.ws_port) + '/',
       map_name:         world.map_name,
       max_players:      options.max_players,
@@ -222,7 +222,7 @@ function start_gameserver(maps, options, shared) {
     post_update();
     flush_queues();
   }
-  
+
   function connection_for_player(player) {
     for (var connid in connections) {
       var conn = connections[connid];
@@ -232,11 +232,11 @@ function start_gameserver(maps, options, shared) {
     }
     return null;
   }
-  
+
   // Create the world instance
   world = new World(true);
   world.max_players = options.max_players,
-  
+
   // Listen for round state changes
   world.on_round_state_changed = function(state, winners) {
     broadcast(OP_ROUND_STATE, state, winners);
@@ -250,12 +250,12 @@ function start_gameserver(maps, options, shared) {
       function(msg, conn) {
         if (conn.player && conn.player.id == player.id) {
           return PRIO_PASS;
-        } 
+        }
         return PRIO_HIGH;
       }
     );
   }
-  
+
   world.on_player_spawn = function(player, pos) {
     broadcast(OP_PLAYER_SPAWN, player.id, pos);
   }
@@ -263,7 +263,7 @@ function start_gameserver(maps, options, shared) {
   world.on_player_died = function(player, old_entity, death_cause, killer) {
     broadcast(OP_PLAYER_DIE, player.id, death_cause, killer ? killer.id : -1);
   }
-  
+
   world.on_player_ready = function(player) {
     broadcast(OP_PLAYER_INFO, player.id, 0, true);
   }
@@ -272,27 +272,27 @@ function start_gameserver(maps, options, shared) {
     player.name = get_unique_name(world.players, player.id, new_name);
     broadcast(OP_PLAYER_INFO, player.id, 0, 0, player.name);
   }
-  
+
   world.on_player_fire = function(player, angle, pos, vel, powerup) {
    broadcast(OP_PLAYER_FIRE, player.id, angle, pos, vel, powerup);
   }
-  
+
   world.on_player_leave = function(player, reason) {
     broadcast(OP_PLAYER_DISCONNECT, player.id, reason);
   }
-  
+
   world.on_powerup_spawn = function(powerup) {
-    broadcast(OP_POWERUP_SPAWN, powerup.powerup_id, 
-                               powerup.powerup_type, 
+    broadcast(OP_POWERUP_SPAWN, powerup.powerup_id,
+                               powerup.powerup_type,
                                powerup.pos);
   }
-  
+
   world.on_powerup_die = function(powerup, player) {
     broadcast(OP_POWERUP_DIE, powerup.powerup_id, player.id);
   }
-  
+
   /**
-   *  Starts the game loop. 
+   *  Starts the game loop.
    *  @return {undefined} Nothing
    */
   function start_gameloop() {
@@ -302,14 +302,14 @@ function start_gameserver(maps, options, shared) {
 
     gameloop = new GameLoop();
     gameloop.ontick = gameloop_tick;
-    
+
     log('Starting game loop...');
     gameloop.start();
   }
 
   /**
-   *  Stops the game loop, disconnects all connections and resets the world. 
-   *  @param {String} reason A reason why the game loop stopped. Is sent to all 
+   *  Stops the game loop, disconnects all connections and resets the world.
+   *  @param {String} reason A reason why the game loop stopped. Is sent to all
    *                         current connections.
    *  @return {undefined} Nothing
    */
@@ -317,24 +317,24 @@ function start_gameserver(maps, options, shared) {
     for (var id in connections) {
       connections[id].kill(reason || 'Server is shutting down');
     }
-    
+
     if (gameloop) {
       gameloop.ontick = null;
       gameloop.kill();
       gameloop = null;
     }
-  }  
+  }
 
   function post_update() {
     update_tick++;
     for (var id in connections) {
       var time = get_time();
       var connection = connections[id];
-      
+
       if (connection.state != JOINED) {
         continue;
       }
-      
+
       if (connection.last_ping + 2000 < time) {
         connection.last_ping = time;
         connection.write(JSON.stringify([PING_PACKET]));
@@ -346,7 +346,7 @@ function start_gameserver(maps, options, shared) {
         var player = world.players[id];
         var message = [OP_PLAYER_STATE, player.id];
         if (player.entity) {
-          message.push(pack_vector(player.entity.pos), player.entity.angle, 
+          message.push(pack_vector(player.entity.pos), player.entity.angle,
                                                        player.entity.action);
           connection.queue(message);
         }
@@ -354,11 +354,11 @@ function start_gameserver(maps, options, shared) {
           var player_connection = connection_for_player(player);
           connection.queue([OP_PLAYER_INFO, player.id, player_connection.ping]);
         }
-        
+
       }
-    }    
+    }
   }
-  
+
   /**
    *  Flushes all connection queues.
    *  @return {undefined} Nothing
@@ -366,32 +366,32 @@ function start_gameserver(maps, options, shared) {
   function flush_queues() {
     for (var id in connections) {
       var connection = connections[id];
-      
+
       if (connection.state != JOINED) {
         continue;
       }
-      
-      connection.flush_queue();      
+
+      connection.flush_queue();
     }
   }
-  
+
   /**
-   *  Check game rules 
+   *  Check game rules
    *  @param {Number} t Current world time.
    *  @param {Number} dt Current delta time,
    *  @return {undefined} Nothing
    */
   function check_rules(t, dt) {
     switch (world.r_state) {
-      
-      // The world is waiting for players to be "ready". The game starts when 
+
+      // The world is waiting for players to be "ready". The game starts when
       // 60% of the players are ready.
       case ROUND_WARMUP:
         if (world.no_players > 1 && world.no_ready_players >= (world.no_players * 0.6)) {
           world.set_round_state(ROUND_STARTING);
         }
         break;
-        
+
       // Round is starting. Server aborts if a player leaves the game.
       case ROUND_STARTING:
         // if (world.no_ready_players < (world.no_players * 0.6)) {
@@ -402,7 +402,7 @@ function start_gameserver(maps, options, shared) {
           world.set_round_state(ROUND_RUNNING);
         }
         break;
-        
+
       // The round is running. Wait for a winner.
       case ROUND_RUNNING:
         var winners = [];
@@ -435,7 +435,7 @@ function start_gameserver(maps, options, shared) {
         break;
     }
   }
-  
+
   /**
    *  Broadcasts a game message to all current connections. Broadcast always
    *  set's message priority to HIGH.
@@ -464,7 +464,7 @@ function start_gameserver(maps, options, shared) {
       }
     }
   }
-  
+
   /**
    *  pad single digit numbers with leading zero
    *  @param {Integer} Number
@@ -472,7 +472,7 @@ function start_gameserver(maps, options, shared) {
    */
   function pad0 (num) {
     return (num < 10)
-      ? '0'+num 
+      ? '0'+num
       : num;
   }
 
@@ -483,14 +483,14 @@ function start_gameserver(maps, options, shared) {
    */
   function log(msg) {
     var now = new Date();
-    sys.puts(pad0(now.getHours()) + ':' + pad0(now.getMinutes()) + ':' + 
+    sys.puts(pad0(now.getHours()) + ':' + pad0(now.getMinutes()) + ':' +
              pad0(now.getSeconds()) + ' ' + options.name + ': ' + msg);
   }
-  
+
   /**
    *  Load a map
-   *  @param path {String} path to map. 
-   *  @param default_on_fail {Boolean} loads the default map if the specified 
+   *  @param path {String} path to map.
+   *  @param default_on_fail {Boolean} loads the default map if the specified
    *                                   map failed to load.
    *  @return {undefined} Nothing
    */
@@ -503,25 +503,25 @@ function start_gameserver(maps, options, shared) {
       }
 
       if (map_data) {
-        
+
         if (gameloop) {
           gameloop.ontick = null;
           gameloop.kill();
         }
-        
-        world.build(map_data, get_rules(DEFAULT_OPTIONS, map_data.rules || {}, 
+
+        world.build(map_data, get_rules(DEFAULT_OPTIONS, map_data.rules || {},
                                                                 options.rules));
-                                                                
+
         if (gameloop) {
           gameloop = new GameLoop();
           gameloop.ontick = gameloop_tick;
           gameloop.start();
         }
-                                                                
+
       }
       callback(err);
     }
-    
+
     if (!map_path) {
       if (maps.length == 0) {
         done(null, DEFAULT_MAP);
@@ -533,7 +533,7 @@ function start_gameserver(maps, options, shared) {
         map_path = maps[next_map_index];
         next_map_index++;
       }
-    } 
+    }
 
     fs.readFile(map_path, function (err, data) {
       if (err) {
@@ -548,7 +548,7 @@ function start_gameserver(maps, options, shared) {
       }
     });
   }
-  
+
   /**
    *  Create the web socket server.
    *  @param {function} callback The callback for new connections.
@@ -559,7 +559,7 @@ function start_gameserver(maps, options, shared) {
     var connection_id     = 0,
         disconnect_reason = 'Closed by client',
         message_queue     = [];
-    
+
     /**
      *  Sets client's information.
      */
@@ -568,7 +568,7 @@ function start_gameserver(maps, options, shared) {
       conn.player_name = info.name;
       conn.dimensions = info.dimensions;
     }
-    
+
     conn.send_server_info = function() {
       if (conn.debug) {
         log('Debug: Sending server state to ' + conn);
@@ -577,7 +577,7 @@ function start_gameserver(maps, options, shared) {
     }
 
     /**
-     *  Sends a chat message 
+     *  Sends a chat message
      */
     conn.chat = function(message) {
       if (conn.player) {
@@ -585,12 +585,12 @@ function start_gameserver(maps, options, shared) {
         log('Chat ' + conn.player.id + ': ' + message);
       }
     }
-    
+
     conn.auth = function(password) {
       conn.is_admin = password == options.admin_password ? true : false;
       return conn.is_admin;
     }
-    
+
     conn.exec = function() {
       var args = Array.prototype.slice.call(arguments);
       var command = args.shift();
@@ -605,7 +605,7 @@ function start_gameserver(maps, options, shared) {
                 var conn = connections[id];
                 conn.write(JSON.stringify([OP_WORLD_RECONNECT]));
                 conn.set_state(HANDSHAKING);
-              }              
+              }
             }
           });
           return 'Loading map';
@@ -622,7 +622,7 @@ function start_gameserver(maps, options, shared) {
               return 'Game has already finished';
           }
           return 'Changed';
-          
+
         case 'start':
           switch (world.r_state) {
             case ROUND_WARMUP:
@@ -651,7 +651,7 @@ function start_gameserver(maps, options, shared) {
               break;
           }
           return 'Changed';
-          
+
         case 'kick':
           var name = args.shift();
           var reason = args.shift();
@@ -665,9 +665,9 @@ function start_gameserver(maps, options, shared) {
           return "Player not found";
       }
     }
-    
+
     /**
-     *  Forces a connection to be disconnected. 
+     *  Forces a connection to be disconnected.
      */
     conn.kill = function(reason) {
       disconnect_reason = reason || 'Unknown Reason';
@@ -675,7 +675,7 @@ function start_gameserver(maps, options, shared) {
       this.close();
       message_queue = [];
     }
-    
+
     /**
      *  Queues the specified message and sends it on next flush.
      */
@@ -707,12 +707,12 @@ function start_gameserver(maps, options, shared) {
         packet_data.push(data);
         data_sent += data.length;
       }
-            
+
       this.write('[' + GAME_PACKET + ',[' + packet_data.join(',') + ']]');
       this.data_sent += data_sent;
-      
+
       var diff = now - this.last_rate_check;
-      
+
       if (diff >= 1000) {
         if (this.data_sent < this.rate && this.update_rate > 1) {
           this.update_rate--;
@@ -722,22 +722,22 @@ function start_gameserver(maps, options, shared) {
         this.data_sent = 0;
         this.last_rate_check = now;
       }
-      
+
       message_queue = [];
     }
-    
+
     /**
      *  Sets the state of the connection
      */
     conn.set_state = function(new_state) {
       switch (new_state) {
-        
+
         case CONNECTED:
           if (no_connections++ > options.max_connections) {
             conn.kill('server busy');
             return;
           }
-          
+
           while (connections[++connection_id]);
 
           conn.id = connection_id;
@@ -756,14 +756,14 @@ function start_gameserver(maps, options, shared) {
           conn.debug = options.debug;
 
           connections[conn.id] = conn;
-          
+
           break;
 
         case HANDSHAKING:
           if (!gameloop) {
             start_gameloop();
           }
-          
+
           if (world.no_players >= world.max_players) {
             conn.kill('Server is full');
           } else {
@@ -774,19 +774,19 @@ function start_gameserver(maps, options, shared) {
             }
           }
           break;
-        
+
         case JOINED:
           var playeridincr = 0;
-          
+
           while (world.players[++playeridincr]);
-          
+
           conn.player = world.add_player(playeridincr, conn.player_name);
 
           conn.post([OP_WORLD_STATE, conn.player.id].concat(world.get_repr()));
 
           log(conn + conn.player_name + ' joined the game.');
           break;
-        
+
         case DISCONNECTED:
           if (conn.id && connections[conn.id]) {
             delete connections[conn.id];
@@ -801,7 +801,7 @@ function start_gameserver(maps, options, shared) {
 
             if (world.no_players == 0) {
               stop_gameloop();
-            } 
+            }
 
             if (conn.debug) {
               log('Debug: ' + conn + ' disconnected (Reason: ' + disconnect_reason + ')');
@@ -809,10 +809,10 @@ function start_gameserver(maps, options, shared) {
           }
           break;
       }
-      
+
       conn.state = new_state;
     }
-    
+
     /**
      *  Returns a String representation for this Connection
      */
@@ -832,7 +832,7 @@ function start_gameserver(maps, options, shared) {
       var packet = null;
 
       try {
-        packet = JSON.parse(data);        
+        packet = JSON.parse(data);
       } catch(e) {
         sys.debug('Malformed message recieved');
         sys.debug(sys.inspect(data));
@@ -855,31 +855,31 @@ function start_gameserver(maps, options, shared) {
         default:
           process_control_message([packet, conn]);
           break;
-          
+
       }
     });
 
-    // Connection 'close' event listener. Occures when the connection is 
+    // Connection 'close' event listener. Occures when the connection is
     // closed by user or server.
     conn.addListener('close', function() {
       conn.set_state(DISCONNECTED);
     });
-    
+
   });
-  
+
   load_map(null, true, function(err) {
     sys.puts('Starting Game Server server at ' + shared.get_state().game_server_url);
     server.listen(parseInt(options.ws_port), options.host);
   });
-  
+
   return server;
 }
 
 /**
- *  Processes a control message from a connection. 
+ *  Processes a control message from a connection.
  */
 var process_control_message = match (
-  
+
   [[OP_REQ_SERVER_INFO], {'state =': CONNECTED}],
   function(conn) {
     conn.send_server_info();
@@ -889,7 +889,7 @@ var process_control_message = match (
    *  MUST be sent by the client when connected to server. It's used to validate
    *  the session.
    */
-  [[OP_CLIENT_CONNECT, String], {'state =': CONNECTED}], 
+  [[OP_CLIENT_CONNECT, String], {'state =': CONNECTED}],
   function(version, conn) {
     if (version != SERVER_VERSION) {
       conn.kill('Wrong version');
@@ -897,17 +897,17 @@ var process_control_message = match (
       conn.set_state(HANDSHAKING);
     }
   },
-  
+
   /**
    *  Client has received world data. Client is now a player of the world.
    */
-  [[OP_CLIENT_JOIN, Object], {'state =': HANDSHAKING}], 
+  [[OP_CLIENT_JOIN, Object], {'state =': HANDSHAKING}],
   function(info, conn) {
     conn.set_client_info(info);
     conn.set_state(JOINED);
   },
 
-  [[OP_CLIENT_SAY, String], {'state =': JOINED}], 
+  [[OP_CLIENT_SAY, String], {'state =': JOINED}],
   function(message, conn) {
     if (message.length > 200) {
       conn.kill('Bad chat message');
@@ -915,13 +915,13 @@ var process_control_message = match (
       conn.chat(message);
     }
   },
-  
-  [[OP_CLIENT_SET, 'rate', Number], {'state =': JOINED}], 
+
+  [[OP_CLIENT_SET, 'rate', Number], {'state =': JOINED}],
   function(rate, conn) {
     conn.rate = Math.min(rate, conn.max_rate);
   },
 
-  [[OP_CLIENT_EXEC, String, 'kick', String, String], {'state =': JOINED}], 
+  [[OP_CLIENT_EXEC, String, 'kick', String, String], {'state =': JOINED}],
   function(password, player_name, reason, conn) {
     if (conn.auth(password)) {
       var resp = conn.exec('kick', player_name, reason);
@@ -931,7 +931,7 @@ var process_control_message = match (
     }
   },
 
-  [[OP_CLIENT_EXEC, String, 'map', String], {'state =': JOINED}], 
+  [[OP_CLIENT_EXEC, String, 'map', String], {'state =': JOINED}],
   function(password, path, conn) {
     if (conn.auth(password)) {
       var resp = conn.exec('map', path);
@@ -941,7 +941,7 @@ var process_control_message = match (
     }
   },
 
-  [[OP_CLIENT_EXEC, String, 'warmup'], {'state =': JOINED}], 
+  [[OP_CLIENT_EXEC, String, 'warmup'], {'state =': JOINED}],
   function(password, conn) {
     if (conn.auth(password)) {
       var resp = conn.exec('warmup');
@@ -951,7 +951,7 @@ var process_control_message = match (
     }
   },
 
-  [[OP_CLIENT_EXEC, String, 'start'], {'state =': JOINED}], 
+  [[OP_CLIENT_EXEC, String, 'start'], {'state =': JOINED}],
   function(password, conn) {
     if (conn.auth(password)) {
       var resp = conn.exec('start');
@@ -960,7 +960,7 @@ var process_control_message = match (
     }
   },
 
-  [[OP_CLIENT_EXEC, String, 'restart'], {'state =': JOINED}], 
+  [[OP_CLIENT_EXEC, String, 'restart'], {'state =': JOINED}],
   function(password, conn) {
     if (conn.auth(password)) {
       var resp = conn.exec('restart');
@@ -969,26 +969,26 @@ var process_control_message = match (
       conn.post([OP_SERVER_EXEC_RESP, 'Wrong password']);
     }
   },
-  
+
   function(data) {
     sys.puts(data);
     sys.puts(data[1].state);
     data[1].kill('Bad control message');
   }
-  
+
 );
 
 /**
- *  Processes a game message from specified player. 
+ *  Processes a game message from specified player.
  */
 var process_game_message = match (
 
-  [[OP_CLIENT_SET, 'ready'], _, _], 
+  [[OP_CLIENT_SET, 'ready'], _, _],
   function(player, world) {
     world.set_player_ready(player.id);
   },
 
-  [[OP_CLIENT_SET, 'name', String], _, _], 
+  [[OP_CLIENT_SET, 'name', String], _, _],
   function(name, player, world) {
     world.set_player_name(player.id, name);
   },
@@ -996,14 +996,14 @@ var process_game_message = match (
   /**
    *  Players command state has changed.
    */
-  [[OP_CLIENT_STATE, Number, Number], _, _], 
+  [[OP_CLIENT_STATE, Number, Number], _, _],
   function(action, angle, player, world) {
     player.action = action;
     if (!player.dead) {
       player.entity.angle = angle;
     }
   },
-  
+
   /**
    *  The message sent by the client could not be matched. Kill the session
    */
@@ -1015,7 +1015,7 @@ var process_game_message = match (
       sys.puts('Unhandled message:');
       sys.puts(sys.inspect(obj[0]));
     }
-    
+
     connection.kill('Bad game message');
   }
 
@@ -1035,15 +1035,15 @@ function start_webserver(options, shared) {
     fu.get('/' + virtualpath, fu.staticHandler(CLIENT_DATA[i]));
     i++;
   }
-  
+
   fu.get('/', fu.staticHandler(CLIENT_DATA[0]));
-  
+
   fu.get('/state', function (req, res) {
     res.writeHead(200, {'Content-Type': 'application/json'});
     res.write(JSON.stringify(shared.get_state()), 'utf8');
     res.end();
   });
-  
+
   return server;
 }
 
@@ -1060,7 +1060,7 @@ function get_rules(default_rules, map_rules, user_rules) {
       rules[match[1]] = default_rules[option];
     }
   }
-  return mixin(rules, mixin(map_rules, user_rules)); 
+  return mixin(rules, mixin(map_rules, user_rules));
 }
 
 
@@ -1077,19 +1077,19 @@ function parse_options() {
     sys.puts(parser.toString());
     parser.halt();
   });
-  
+
   parser.on('map', function(prop, value) {
     result.maps.push(value);
   });
-  
+
   parser.on('*', function(opt, value) {
     var match = opt.match(/^r_([a-z_]+)/);
     if (match) {
       result.rules[match[1]] = value;
     }
     result[opt] = value || true;
-  });      
-  
+  });
+
   parser.parse(process.ARGV);
   return parser._halt ? null : mixin(DEFAULT_OPTIONS, result);
 }
@@ -1109,7 +1109,7 @@ function get_unique_name(players, player_id, name) {
     }
     if (count == 0) {
       return name;
-    } 
+    }
     unique_name += '_';
   }
 }
@@ -1137,11 +1137,11 @@ function mixin(a, b) {
   for (var prop in a) {
     result[prop] = a[prop];
   }
-  
+
   for (var prop in b) {
     result[prop] = b[prop];
   }
-  
+
   return result;
 }
 

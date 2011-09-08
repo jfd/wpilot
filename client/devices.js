@@ -1,5 +1,5 @@
 /**
- *  Represents a keyboard device. 
+ *  Represents a keyboard device.
  *  @param {DOMElement} target The element to read input from.
  *  @param {Object} options Options with .bindings
  */
@@ -9,11 +9,11 @@ function KeyboardDevice(target, options) {
   this.target = target;
   this.bindings = options.bindings;
   this.onkeypress = null;
-  
+
   for (var i=0; i < 255; i++) {
     key_states[i] = 0;
   }
-  
+
   key_states['shift'] = 0;
   key_states['ctrl'] = 0;
   key_states['alt'] = 0;
@@ -25,7 +25,7 @@ function KeyboardDevice(target, options) {
       e.preventDefault();
     }
   };
-  
+
   target.onkeydown = function(e) {
     if(key_states[e.keyCode] == 0) key_states[e.keyCode] = 1;
     if (!self.onkeypress) {
@@ -74,7 +74,7 @@ KeyboardDevice.prototype.toggle = function(name) {
 
 /**
  *  Represents a canvas ViewportDevice.
- *  @param {DOMElement} target The canvas element 
+ *  @param {DOMElement} target The canvas element
  *  @param {Number} width The width of the viewport
  *  @param {Number} height The height of the viewport
  */
@@ -95,11 +95,11 @@ function ViewportDevice(target, width, height, options) {
 
   // Event callbacks
   this.ondraw       = function(ctx) {};
-  
+
   // Set canvas width and height
   target.width        = width;
   target.height       = height;
-  
+
   // Start to draw things
   this.set_autorefresh(true);
 }
@@ -110,7 +110,7 @@ ViewportDevice.prototype.destroy = function() {
 }
 
 /**
- *  Moves the camera focus to the specified point. 
+ *  Moves the camera focus to the specified point.
  *  @param {x, y} A point representing the position of the camera
  *  @returns {undefined} Nothing
  */
@@ -125,12 +125,12 @@ ViewportDevice.prototype.set_autorefresh = function(autorefresh) {
         if (self.autorefresh) setTimeout(loop, 1);
       }
       loop();
-    } 
+    }
   }
 }
 
 /**
- *  Moves the camera focus to the specified point. 
+ *  Moves the camera focus to the specified point.
  *  @param {Vector} A vector representing the position of the camera
  *  @returns {undefined} Nothing
  */
@@ -149,7 +149,7 @@ ViewportDevice.prototype.get_camera_box = function() {
     h: this.camera.size[1]
   }
 }
-  
+
 /**
  *  Translate a point into a camera pos.
  *  @param {Vector} The point that should be translated into camera pos
@@ -162,7 +162,7 @@ ViewportDevice.prototype.translate = function(vector) {
 /**
  *  If necessary, refreshes the view.
  *
- *  FIXME: Need a better solution for frame skipping (if possible in JS).. 
+ *  FIXME: Need a better solution for frame skipping (if possible in JS)..
  *         frame_skip +- 0 isnt good enough
  *  @param {Number} alpha A alpha number that can be used for interpolation
  *  @return {undefined} Nothing
@@ -174,14 +174,14 @@ ViewportDevice.prototype.refresh = function(alpha) {
 
   var time = get_time();
   var diff = time - this.frame_time;
-  
+
   if (diff > 100) {
     this.current_fps = this.current_fps * 0.9 + (diff / 10) * this.frame_count * 0.1;
-        
+
     this.frame_time = time;
     this.frame_count = 0;
     this.average_fps = this.current_fps;
-  }  
+  }
 }
 
 /**
@@ -199,7 +199,7 @@ ViewportDevice.prototype.draw = function() {
 
 
 /**
- *  Represents a keyboard device. 
+ *  Represents a keyboard device.
  *  @param {DOMElement} target The element to read input from.
  *  @param {Object} options Options with .bindings
  */
@@ -208,19 +208,19 @@ function SoundDevice(options){
 
   this.sounds = {};
   this.destroyed = false;
-  
+
   this.bg_sound_enabled = options.bg_sound_enabled;
   this.sfx_sound_enabled = options.sfx_sound_enabled;
-  
+
   try{
     this.supported = (new Audio()) !== undefined;
   }catch(e){
     this.supported = false;
   }
-  
+
   this.prefix = ".ogg";
-  
-  if (this.supported && /AppleWebKit/.test(navigator.userAgent) && 
+
+  if (this.supported && /AppleWebKit/.test(navigator.userAgent) &&
       !(this.supported && /Chrome/.test(navigator.userAgent))) {
     this.prefix = ".m4a";
   }
@@ -236,20 +236,20 @@ SoundDevice.prototype.destroy = function() {
       delete sound.buffers[index];
     }
     sound.free_count = 0;
-  } 
+  }
 }
 
 SoundDevice.prototype.init_sfx = function(sources) {
   if (!this.supported || !this.sfx_sound_enabled) {
     return false;
   }
-  
+
   for (var name in sources) {
     var source = sources[name],
         size = source[0],
         urls = source[1],
         sound = { name: name, buffers: [], free_count: size};
-        
+
     while (size--) {
       var url = urls[Math.floor(Math.random() * urls.length)],
           audio = new Audio(url + this.prefix);
@@ -257,10 +257,10 @@ SoundDevice.prototype.init_sfx = function(sources) {
       audio.load();
       sound.buffers.push(audio);
     }
-    
+
     this.sounds[name] = sound;
   }
-  
+
   return true;
 }
 
@@ -268,9 +268,9 @@ SoundDevice.prototype.init_bg = function(source) {
   if (!this.supported || !this.bg_sound_enabled) {
     return false;
   }
-  
+
   var sound = { name: this.BG_SOUND, buffers: [], free_count: 2};
-    
+
   for (var i = 0; i < 2; i++) {
     var audio = new Audio(source + this.prefix);
     audio.is_free = true;
@@ -278,34 +278,34 @@ SoundDevice.prototype.init_bg = function(source) {
   }
 
   this.sounds[this.BG_SOUND] = sound;
-  
+
   return true;
-} 
- 
+}
+
 SoundDevice.prototype.play = function(name, volume) {
   if (this.destroyed || !this.supported || !this.sfx_sound_enabled) {
     return;
   }
 
   var sound_volume = volume === undefined ? 1 : volume;
-  
+
   if (sound_volume <= 0 || sound_volume > 1) {
     return;
   }
 
   var self = this;
   var buffer = self.get_buffer(name);
-  
+
   if (buffer) {
-    
+
     function free() {
       console.log("free buffer " + name);
       self.free_buffer(name, buffer, free);
     }
-    
+
     buffer.addEventListener('ended', free, false);
     buffer.volume = sound_volume;
-    buffer.play();    
+    buffer.play();
   }
 }
 
@@ -313,10 +313,10 @@ SoundDevice.prototype.playbg = function(volume) {
   if (this.destroyed || !this.supported || !this.bg_sound_enabled) {
     return;
   }
-  
+
   var self = this;
   var buffer = this.get_buffer(this.BG_SOUND);
-  
+
   function free() {
     self.playbg(volume);
     self.free_buffer(self.BG_SOUND, buffer, free);
@@ -327,7 +327,7 @@ SoundDevice.prototype.playbg = function(volume) {
     buffer.addEventListener('ended', free, false);
     buffer.play();
   }
-  
+
 }
 
 SoundDevice.prototype.get_buffer = function(name) {
@@ -346,7 +346,7 @@ SoundDevice.prototype.get_buffer = function(name) {
       return buffer;
     }
   }
-  
+
   return;
 }
 
