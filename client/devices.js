@@ -104,6 +104,15 @@ function ViewportDevice(target, width, height, options) {
   this.set_autorefresh(true);
 }
 
+
+ViewportDevice.prototype.update_size = function(width, height) {
+  this.target.width = width;
+  this.target.height = height;
+  this.w = width;
+  this.h = height;
+  this.camera.size = [width, height];
+};
+
 ViewportDevice.prototype.destroy = function() {
   this.set_autorefresh = false;
   this.ctx.clearRect(0, 0, this.w, this.h);

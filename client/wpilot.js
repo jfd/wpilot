@@ -299,18 +299,15 @@ WPilotClient.prototype.set_viewport = function(viewport) {
 
   if (viewport) {
     // Initialize GUI elements
-    gui.hud = new GUIPlayerHUD([viewport.w / 2, viewport.h / 2]);
-    gui.netstat = new GUINetStat([6, 12], this.netstat);
-    gui.fps = new GUIFpsCounter([viewport.w - 6, 12], viewport);
-    gui.messages = new GUIMessageLog([6, viewport.h - 2],
+    gui.hud = new GUIPlayerHUD(viewport);
+    gui.netstat = new GUINetStat(viewport, this.netstat);
+    gui.fps = new GUIFpsCounter(viewport);
+    gui.messages = new GUIMessageLog(viewport,
                                      this.message_log,
                                      this.options);
-    gui.scoreboard = new GUIScoreboard([0, 0]);
-    gui.scoreboard.set_size([viewport.w, viewport.h]);
-    gui.warmupnotice = new GUIWarmupNotice([viewport.w / 2,
-                                            viewport.h - 50]);
-    gui.prompt = new GUIPrompt([40, viewport.h - 40]);
-    gui.prompt.set_size([viewport.w - 80, 26]);
+    gui.scoreboard = new GUIScoreboard(viewport);
+    gui.warmupnotice = new GUIWarmupNotice(viewport);
+    gui.prompt = new GUIPrompt(viewport);
     gui.prompt.oncommand = function() { self.exec.apply(self, arguments) };
     gui.prompt.onchat = function() { self.chat.apply(self, arguments) };
 
@@ -318,7 +315,8 @@ WPilotClient.prototype.set_viewport = function(viewport) {
     viewport.ondraw = function(ctx) {
       var world = self.world,
           player = self.player,
-          tick = tick;
+          tick = tick,
+          pos;
 
       if (player && !player.dead) {
         viewport.set_camera_pos(player.entity.pos);
@@ -335,9 +333,10 @@ WPilotClient.prototype.set_viewport = function(viewport) {
             visible = element.is_visible();
 
         if (element.alpha) {
+          pos = element.pos();
           ctx.save();
           ctx.globalAlpha = element.alpha;
-          ctx.translate(element.pos[0], element.pos[1]);
+          ctx.translate(pos[0], pos[1]);
           element.draw(ctx, tick);
           ctx.restore();
         }
@@ -1847,13 +1846,17 @@ PowerupSpawnAnimation.prototype.draw = function(ctx) {
 /**
  *  GUIPlayerHUD
  */
-function GUIPlayerHUD(pos) {
-  this.pos = pos || [0, 0];
+function GUIPlayerHUD(viewport) {
+  this.viewport = viewport;
   this.alpha = 0;
   this.visible = true;
   this.me = null;
   this.world = null;
 }
+
+GUIPlayerHUD.prototype.pos = function() {
+  return [this.viewport.w / 2, this.viewport.h / 2];
+};
 
 GUIPlayerHUD.prototype.is_visible = function() {
   return !this.world || !this.me || this.me.dead || !this.me.entity ?
@@ -1947,13 +1950,17 @@ GUIPlayerHUD.prototype.draw = function(ctx, t) {
 /**
  *  GUIMessageLog
  */
-function GUIMessageLog(pos, buffer, options) {
-  this.pos = pos || [0, 0];
+function GUIMessageLog(viewport, buffer, options) {
+  this.viewport = viewport;
   this.alpha = 0;
   this.visible = true;
   this.buffer = buffer;
   this.options = options;
 }
+
+GUIMessageLog.prototype.pos = function() {
+  return [6, this.viewport.h - 2];
+};
 
 GUIMessageLog.prototype.is_visible = function() {
   return this.buffer == null ? false : this.visible;
@@ -1987,12 +1994,16 @@ GUIMessageLog.prototype.draw = function(ctx) {
 /**
  *  GUINetStat
  */
-function GUINetStat(pos, stats) {
-  this.pos = pos || [0, 0];
+function GUINetStat(viewport, stats) {
+  this.viewport = viewport;
   this.alpha = 0;
   this.visible = false;
   this.stats = stats || null;
 }
+
+GUINetStat.prototype.pos = function() {
+  return [6, 12];
+};
 
 GUINetStat.prototype.is_visible = function() {
   return !this.stats.start_time ? false : this.visible;
@@ -2014,12 +2025,16 @@ GUINetStat.prototype.draw = function(ctx) {
 /**
  *  GUIFpsCounter
  */
-function GUIFpsCounter(pos, stats) {
-  this.pos = pos || [0, 0];
+function GUIFpsCounter(viewport) {
+  this.viewport = viewport;
   this.alpha = 0;
   this.visible = true;
-  this.stats = stats || null;
+  this.stats = viewport || null;
 }
+
+GUIFpsCounter.prototype.pos = function() {
+  return [this.viewport.w - 6, 12];
+};
 
 GUIFpsCounter.prototype.is_visible = function() {
   return this.visible;
@@ -2035,14 +2050,18 @@ GUIFpsCounter.prototype.draw = function(ctx) {
 /**
  *  GUIWarmupNotice
  */
-function GUIWarmupNotice(pos) {
-  this.pos = pos || [0, 0];
+function GUIWarmupNotice(viewport) {
+  this.viewport = viewport;
   this.alpha = 0;
   this.visible = true;
   this.pulse = 0;
   this.world = null;
   this.me = null;
 }
+
+GUIWarmupNotice.prototype.pos = function() {
+  return [this.viewport.w / 2, this.viewport.h - 50];
+};
 
 GUIWarmupNotice.prototype.is_visible = function() {
   return !this.world || this.world.r_state != ROUND_WARMUP || !this.me ||
@@ -2083,12 +2102,8 @@ GUIWarmupNotice.prototype.draw = function(ctx) {
 /**
  *  GUIScoreboard
  */
-function GUIScoreboard(pos) {
-  this.pos = pos;
-  this.size = null;
-  this.table_width = null;
-  this.table_height = null;
-  this.margin = null;
+function GUIScoreboard(viewport) {
+  this.viewport = viewport;
   this.alpha = 0;
   this.visible = false;
   this.pulse = 0;
@@ -2096,22 +2111,23 @@ function GUIScoreboard(pos) {
   this.me = null
 }
 
+GUIScoreboard.prototype.pos = function() {
+  return [0, 0];
+};
+
 GUIScoreboard.prototype.is_visible = function() {
   return this.visible || (this.world && this.me && this.me.dead) || false;
 }
 
-GUIScoreboard.prototype.set_size = function(size) {
-  this.size = size;
-  this.table_width = this.size[0] * 0.8;
-  this.margin = (this.size[0] - this.table_width) / 2;
-  this.table_height = this.size[1] - this.margin;
-}
-
 GUIScoreboard.prototype.draw = function(ctx) {
   var world = this.world,
+      vp = this.viewport,
       me = this.me,
-      x = this.margin,
-      y = this.margin;
+      table_width = vp.w * 0.8,
+      margin = (vp.w - table_width) / 2,
+      table_height = vp.h - margin,
+      x = margin,
+      y = margin;
 
   if (!world) return;
 
@@ -2121,7 +2137,7 @@ GUIScoreboard.prototype.draw = function(ctx) {
 
   // Shading
   ctx.fillStyle = 'rgba(0, 0, 0, 0.4)';
-  ctx.fillRect(0, 0, this.size[0], this.size[1]);
+  ctx.fillRect(0, 0, vp.w, vp.h);
 
   ctx.fillStyle = CANVAS_COLOR_ACCENT_1;
 
@@ -2160,14 +2176,14 @@ GUIScoreboard.prototype.draw = function(ctx) {
   if (world.r_timer) {
     timer = (world.r_state == ROUND_RUNNING) ? world.r_timer :
                                        world.r_timer - world.tick;
-    draw_label(ctx, x + this.table_width, y,
+    draw_label(ctx, x + table_width, y,
                format_timer(timer, world.delta), 'right');
   }
 
   // Draw heads-up notice
   if (notice) {
     ctx.font = SCOREBOARD_NOTICE_FONT;
-    draw_label(ctx, this.size[0] / 2, this.table_height + this.margin / 2,
+    draw_label(ctx, vp.w / 2, table_height + margin / 2,
                     notice, 'center');
   }
 
@@ -2175,12 +2191,12 @@ GUIScoreboard.prototype.draw = function(ctx) {
   draw_label(ctx, x, (y += 20), world.map_name +
                                 ', round limit: ' + world.rules.round_limit);
 
-  draw_label(ctx, x + this.table_width, y, world.no_players + ' / ' +
+  draw_label(ctx, x + table_width, y, world.no_players + ' / ' +
                                  world.max_players + ' players', 'right');
 
   // Draw table header
   draw_label(ctx, (x += (SCOREBOARD_PAD * 7)), (y += 60), 'Player name');
-  draw_label(ctx, (x = this.margin + this.table_width), y, 'Score',
+  draw_label(ctx, (x = margin + table_width), y, 'Score',
                   'right', 50);
   draw_label(ctx, (x -= 50), y, 'Kills', 'right', 50);
   draw_label(ctx, (x -= 50), y, 'Deaths', 'right', 50);
@@ -2190,19 +2206,19 @@ GUIScoreboard.prototype.draw = function(ctx) {
   var players = world.ranked_player_list,
       row = 0;
 
-  x = this.margin;
+  x = margin;
   y += 10;
 
   // Draw each table row
-  while (row < players.length && y < this.table_height) {
+  while (row < players.length && y < table_height) {
     var player = players[row++];
-    this.draw_row(ctx, [x, y], player);
+    this.draw_row(ctx, [x, y], player, table_width);
     y += 28;
   }
 
 }
 
-GUIScoreboard.prototype.draw_row = function(ctx, pos, player) {
+GUIScoreboard.prototype.draw_row = function(ctx, pos, player, width) {
   var x = pos[0],
       y = pos[1],
       t = this.world.tick,
@@ -2253,31 +2269,28 @@ GUIScoreboard.prototype.draw_row = function(ctx, pos, player) {
   ctx.fillStyle = player.is_me ? CANVAS_COLOR_BRIGHT : CANVAS_COLOR_DAWN;
 
   draw_label(ctx, (x += SCOREBOARD_PAD * 6), y, name);
-  draw_label(ctx, (x  = pos[0] + (this.table_width)), y, score, 'right', 50);
+  draw_label(ctx, (x  = pos[0] + (width)), y, score, 'right', 50);
   draw_label(ctx, (x -= 50), y, kills, 'right', 50);
   draw_label(ctx, (x -= 50), y, deaths, 'right', 50);
   draw_label(ctx, (x -= 50), y, time, 'right', 50);
   draw_label(ctx, (x -= 50), y, ping, 'right', 50);
 }
 
-function GUIPrompt(pos) {
-  this.pos = pos;
-  this.size = null;
+function GUIPrompt(viewport) {
+  this.viewport = viewport;
   this.alpha = 0;
   this.visible = false;
   this.buffer = '';
+  this.oncommand = null;
+  this.onchat = null;
 }
+
+GUIPrompt.prototype.pos = function() {
+  return [40, this.viewport.h - 40];
+};
 
 GUIPrompt.prototype.is_visible = function() {
   return this.visible;
-}
-
-GUIPrompt.prototype.set_size = function(size) {
-  this.size = size;
-  this.prompt_width = this.size[0] * 0.8;
-  this.margin = (this.size[0] - this.prompt_width) / 2;
-  this.oncommand = null;
-  this.onchat = null;
 }
 
 GUIPrompt.prototype.handle_key_stroke = function(char) {
@@ -2322,23 +2335,29 @@ GUIPrompt.prototype.handle_key_stroke = function(char) {
 }
 
 GUIPrompt.prototype.draw = function(ctx) {
+  var vp = this.viewport;
+  var width = (vp.w - 80);
+  var prompt_width = width * 0.8;
+  var margin = (width - prompt_width) / 2;
+  var height = 26;
+
   ctx.strokeStyle = CANVAS_COLOR_ACCENT_1;
   ctx.fillStlye = 'rgba(' + COLOR_DARK + ', 0.8)';
-  ctx.fillRect(this.margin, 0, this.size[0] - (this.margin * 2), this.size[1]);
-  ctx.strokeRect(this.margin, 0, this.size[0] - (this.margin * 2), this.size[1]);
+  ctx.fillRect(margin, 0, width - (margin * 2), height);
+  ctx.strokeRect(margin, 0, width - (margin * 2), height);
 
   ctx.strokeStyle = null;
   ctx.fillStyle = CANVAS_COLOR_ACCENT_1;
   ctx.font = PROMPT_FONT;
   ctx.textBaseline = 'top';
 
-  var clip_width = this.size[0] - (this.margin * 2) - 8;
+  var clip_width = width - (margin * 2) - 8;
   var text_width = ctx.measureText(this.buffer + PROMPT_CURSOR).width;
   var text_pos = text_width > clip_width ?
-                    (this.margin + 4) - (text_width - clip_width) :
-                    (this.margin + 4);
+                    (margin + 4) - (text_width - clip_width) :
+                    (margin + 4);
   ctx.beginPath();
-  ctx.rect(this.margin + 4, 4, clip_width, this.size[1] - 8);
+  ctx.rect(margin + 4, 4, clip_width, height - 8);
   ctx.clip();
   draw_label(ctx, text_pos, 4, this.buffer + PROMPT_CURSOR);
 }

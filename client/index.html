@@ -94,6 +94,12 @@
 
 					$('#splash .server-info').html('Connecting...');
 
+          $(window).bind("resize", function() {
+            if ($("#viewport.fullscreen").length) {
+              viewport.update_size(canvas.width(), canvas.height());
+            }
+          });
+
 				  wpilot = new WPilotClient(options);
 				  wpilot.set_viewport(viewport)
 				  wpilot.set_input(keyboard);
@@ -139,7 +145,7 @@
 
 	</head>
 	<body>
-		<section id="viewport" class="mode540">
+		<section id="viewport" class="fullscreen">
 			<canvas></canvas>
 		</section>
 		<section id="splash" class="dialog">
