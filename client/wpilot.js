@@ -550,6 +550,9 @@ WPilotClient.prototype.start_gameloop = function(initial_tick) {
   this.netstat.start_time = this.netstat.last_update =
                             this.netstat.last_received = get_time();
 
+  
+  this.viewport.set_autorefresh(true);
+
   gameloop.start();
   self.gameloop = gameloop;
 
@@ -568,6 +571,9 @@ WPilotClient.prototype.stop_gameloop = function() {
     this.gameloop.ontick = null;
     this.gameloop.ondone = null;
     this.gameloop = null;
+  }
+  if (this.viewport) {
+    this.viewport.set_autorefresh(false);
   }
 }
 
