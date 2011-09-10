@@ -86,8 +86,6 @@ window.requestAnimationFrame = window.requestAnimationFrame ||
              };
    })();
 
-console.log(window.requestAnimationFrame);
-
 /**
  *  Represents a canvas ViewportDevice.
  *  @param {DOMElement} target The canvas element
@@ -155,7 +153,6 @@ ViewportDevice.prototype.set_autorefresh = function(autorefresh) {
         self.frames++;
 
         if (time > self.frame_time + 1000 ) {
-          console.log(self.frames);
 			    self.current_fps = Math.round((self.frames * 1000) /
 			                                  (time - self.frame_time));
         	self.min_fps = Math.min(self.min_fps, self.current_fps);
