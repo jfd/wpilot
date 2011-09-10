@@ -68,6 +68,7 @@ const SWITCHES = [
   ['--max_rate NUMBER',           'The maximum rate per client and second (default: 1000)'],
   ['--max_connections NUMBER',    'Max connections, including players (default: 60)'],
   ['--max_players NUMBER',        'Max connected players allowed in server simultaneously (default: 8)'],
+  ['--r_ready_ratio NUMBER',      'Rule: Player ready ratio before a round start. (Default: 0.6)'],
   ['--r_respawn_time NUMBER',     'Rule: Player respawn time after death. (Default: 500)'],
   ['--r_reload_time NUMBER',      'Rule: The reload time after fire. (Default: 15)'],
   ['--r_shoot_cost NUMBER',       'Rule: Energy cost of shooting a bullet. (Default: 800)'],
@@ -98,6 +99,7 @@ const DEFAULT_OPTIONS = {
   max_connections:      60,
   max_players:          8,
   max_rate:             5000,
+  r_ready_ratio:        0.6,
   r_respawn_time:       400,
   r_reload_time:        15,
   r_shoot_cost:         300,
@@ -387,7 +389,7 @@ function start_gameserver(maps, options, shared) {
       // The world is waiting for players to be "ready". The game starts when
       // 60% of the players are ready.
       case ROUND_WARMUP:
-        if (world.no_players > 1 && world.no_ready_players >= (world.no_players * 0.6)) {
+        if (world.no_players > 1 && world.no_ready_players >= (world.no_players * world.rules.ready_ratio)) {
           world.set_round_state(ROUND_STARTING);
         }
         break;
