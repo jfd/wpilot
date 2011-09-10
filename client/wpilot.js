@@ -545,10 +545,7 @@ WPilotClient.prototype.start_gameloop = function(initial_tick) {
   // Is called when loop is about to start over.
   gameloop.ondone = function(t, dt, alpha) {
     self.update_netstat(t, dt);
-    viewport.refresh(alpha);
   }
-
-  this.viewport.set_autorefresh(false);
 
   this.netstat.start_time = this.netstat.last_update =
                             this.netstat.last_received = get_time();
@@ -2041,10 +2038,14 @@ GUIFpsCounter.prototype.is_visible = function() {
 }
 
 GUIFpsCounter.prototype.draw = function(ctx) {
+  var current = parseInt(this.stats.current_fps);
+  var min = parseInt(this.stats.min_fps);
+  var max = parseInt(this.stats.max_fps);
   ctx.font = STATS_FONT;
   ctx.fillStyle = CANVAS_COLOR_BRIGHT;
-  draw_label(ctx, 0, 0, 'FPS count: ' + parseInt(this.stats.average_fps),
-             'right');
+  draw_label(ctx, 0, 0, 'FPS: ' + current + 
+                        ' (min: ' + min + ', max: ' + max + ')',
+                        'right');
 }
 
 /**
