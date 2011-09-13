@@ -427,7 +427,7 @@ WPilotClient.prototype.set_state = function(state) {
       break;
 
     case CLIENT_DISCONNECTED:
-      this.log('You where disconnected from server ' +
+      this.log('You were disconnected from server ' +
                 this.disconnect_reason ?
                 '(Reason: ' + this.disconnect_reason + ').' : '');
       this.conn = null;
@@ -971,7 +971,7 @@ World.prototype.on_player_died = function(player, old, death_cause, killer) {
 
   if (player.is_me) {
     if (death_cause == DEATH_CAUSE_KILLED) {
-      text = 'You where killed by ' + killer.name;
+      text = 'You were killed by ' + killer.name;
     } else {
       text = 'You took your own life!';
     }
@@ -2137,7 +2137,7 @@ GUIScoreboard.prototype.draw = function(ctx) {
     case ROUND_RUNNING:
       if (me.dead) {
         title = me.death_cause == DEATH_CAUSE_KILLED ?
-                                  'You where killed by ' + me.killed_by.name :
+                                  'You were killed by ' + me.killed_by.name :
                                   'You took your own life';
 
         // Respawn timer
