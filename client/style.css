@@ -8,6 +8,7 @@ body {
   height: 100%;
   font-family: Arial;  
   background: #222;
+  overflow: hidden;
 }
 
 h1 {
@@ -33,6 +34,16 @@ section#viewport {
   left: 50%;
   top: 50%;
 }
+
+section#viewport.fullscreen {
+  position: absolute;
+  border: none;
+  left: 0;
+  top: 0;
+  right: 0;
+  bottom: 0;
+}
+
 
 section#viewport.mode480 {
   margin-left: -360px;

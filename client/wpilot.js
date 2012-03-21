@@ -1,16 +1,16 @@
 //
 //  wpilot.js
 //  Web browser WPilot client
-//  
+//
 //  Read README for instructions and LICENSE license.
-//  
-//  Copyright (c) 2010 Johan Dahlberg 
+//
+//  Copyright (c) 2010 Johan Dahlberg
 //
 var CLIENT_VERSION = '1.0';
 
 var GRID_CELL_SIZE      = 250,
     GRID_CELL_COLOR     = 'rgba(255,255,255,0.2)';
-    
+
 // Colors
 var COLOR_BRIGHT    = '255, 255, 255',
     COLOR_DUST      = '110, 110, 110',
@@ -18,7 +18,7 @@ var COLOR_BRIGHT    = '255, 255, 255',
     COLOR_DARK      = '0, 0, 0',
     COLOR_ACCENT_1  = '255, 215, 0',
     COLOR_ACCENT_2  = '102, 255, 0';
-    
+
 // Predefined canvas compatible colors
 var CANVAS_COLOR_BRIGHT   = 'rgb(' + COLOR_BRIGHT + ')',
     CANVAS_COLOR_DAWN     = 'rgb(' + COLOR_DAWN + ')',
@@ -43,9 +43,9 @@ var PLAYER_COLORS = {
 
 // Player names
 var PLAYER_NAMES = [
-  'Boba Fett', 
-  'Han Solo', 
-  'Luke Skywalker', 
+  'Boba Fett',
+  'Han Solo',
+  'Luke Skywalker',
   'Princess Leia',
   'R2-D2',
   'C-3PO',
@@ -70,10 +70,10 @@ var FONT_NAME = 'Arial',
     SIZE_MEDIUM = '13px',
     SIZE_LARGE  = '16px',
     SIZE_XLARGE = '18px';
-    
+
 
 var WARMUP_NOTICE_FONT  = [WEIGHT_HEAVY, SIZE_MEDIUM, FONT_NAME].join(' ');
-    
+
 // Scoreboard
 var SCOREBOARD_PAD = 6,
     SCOREBOARD_MAR = SCOREBOARD_PAD / 2;
@@ -102,29 +102,29 @@ var PLAYER_NAME_FONT  = [WEIGHT_HEAVY, SIZE_SMALL, FONT_NAME];
 
 var PROMPT_FONT   = [WEIGHT_HEAVY, SIZE_MEDIUM, FONT_NAME].join(' '),
     PROMPT_CURSOR = '|';
-    
+
 // WPilotClient states
 var CLIENT_DISCONNECTED     = 0,
     CLIENT_CONNECTING       = 1,
     CLIENT_CONNECTED        = 2;
 
-// Powerup constants    
+// Powerup constants
 var POWERUP_FONT            = '7px Arial',
     POWERUP_SPREAD_COLOR     = '230,21,90',
     POWERUP_RAPID_COLOR     = '166,219,0',
     POWERUP_RICO_COLOR    = '51,182,255';
-    
-var HUD_FONT = [WEIGHT_HEAVY, SIZE_XLARGE, FONT_NAME].join(' ');    
-    
+
+var HUD_FONT = [WEIGHT_HEAVY, SIZE_XLARGE, FONT_NAME].join(' ');
+
 var CHAT_MAX_CHARS  = 200;
-    
+
 var SFX_SOUNDS = {
   ship_spawn:   [3,  ['sound/ship_spawn']],
   ship_die:     [3,  ['sound/ship_die']],
-  ship_thrust:  [6,  ['sound/ship_thrust']],  
-  bullet_spawn: [8,  ['sound/ship_fire_1', 'sound/ship_fire_2', 'sound/ship_fire_3']], 
+  ship_thrust:  [6,  ['sound/ship_thrust']],
+  bullet_spawn: [8,  ['sound/ship_fire_1', 'sound/ship_fire_2', 'sound/ship_fire_3']],
   powerup_spawn:[3,  ['sound/powerup_spawn']],
-  powerup_die:  [2,  ['sound/powerup_1_die']] 
+  powerup_die:  [2,  ['sound/powerup_1_die']]
 }
 
 var COMMAND_USAGE = {
@@ -148,22 +148,22 @@ var BG_SOUND = 'sound/background';
 // Default client options. This options can be changed from the console
 // by typing wpilot.options[OPTION_NAME] = new_value
 var DEFAULT_OPTIONS         = {
-  
+
   rate:                 5000,
-  
+
   name:                 get_random_value(PLAYER_NAMES),
 
   rotation_speed:       6,
   rotation_acc:         0.5,
-  
+
   bg_sound_enabled:     true,
   sfx_sound_enabled:    true,
   sound_bg_volume:      0.4,
-  
+
   log_max_messages:     6,
   log_msg_lifetime:     5000,
   log_console:          true,
-  
+
   bindings: {
     'ready':            82,
     'scoreboard':       83,
@@ -181,7 +181,7 @@ var DEFAULT_OPTIONS         = {
  */
 function WPilotClient(options) {
   this.options            = options;
-  
+
   this.viewport           = null;
   this.input              = null;
   this.sound              = null;
@@ -189,18 +189,18 @@ function WPilotClient(options) {
   this.player             = null;
   this.conn               = null;
   this.message_log        = [];
-  this.gui                = { hud: null, scoreboard: null, warmupnotice: null, 
-                              netstat: null, fps: null, messages: null, 
+  this.gui                = { hud: null, scoreboard: null, warmupnotice: null,
+                              netstat: null, fps: null, messages: null,
                               prompt: null };
 
   this.admin_password     = null;
-  
-  this.netstat            = { 
+
+  this.netstat            = {
     start_time:         null,
     frequence:          0.01,
     last_update:        0,
-    last_received:      0, 
-    bytes_received:     0, 
+    last_received:      0,
+    bytes_received:     0,
     bytes_sent:         0,
     bps_in:             0,
     bps_out:            0,
@@ -211,7 +211,7 @@ function WPilotClient(options) {
     mps_in:             0,
     mps_out:            0
   };
-  
+
   // Status variables
   this.state              = CLIENT_DISCONNECTED;
   this.server_state       = null;
@@ -220,11 +220,11 @@ function WPilotClient(options) {
   this.disconnect_reason  = null;
   this.current_r          = 0;
   this.last_r             = 0;
-  
+
   // Event callbacks
   this.onconnect          = function() {};
   this.ondisconnect       = function() {};
-  
+
   this.log('Welcome to WPilot ' + CLIENT_VERSION);
 }
 
@@ -234,16 +234,16 @@ function WPilotClient(options) {
  *  @return {undefined} Nothing
  */
 WPilotClient.prototype.log = function(msg, color) {
-  var buffer = this.message_log, 
+  var buffer = this.message_log,
       time   = get_time() + this.options.log_msg_lifetime;
   if (buffer.length > MESSAGE_LOG_LENGTH) {
     buffer.shift();
   }
   buffer.push({
-    text: msg, 
-    time: time, 
-    disposed: false, 
-    color: color || COLOR_BRIGHT 
+    text: msg,
+    time: time,
+    disposed: false,
+    color: color || COLOR_BRIGHT
   });
   if (this.options.log_console && window.console) console.log(msg);
 }
@@ -265,7 +265,7 @@ WPilotClient.prototype.exec = function() {
  */
 WPilotClient.prototype.chat = function(message) {
   if (this.state == CLIENT_CONNECTED) {
-    this.post_control_packet([OP_CLIENT_SAY, 
+    this.post_control_packet([OP_CLIENT_SAY,
                               message.length > CHAT_MAX_CHARS ?
                               message.substr(0, CHAT_MAX_CHARS) :
                               message]);
@@ -299,18 +299,15 @@ WPilotClient.prototype.set_viewport = function(viewport) {
 
   if (viewport) {
     // Initialize GUI elements
-    gui.hud = new GUIPlayerHUD([viewport.w / 2, viewport.h / 2]);
-    gui.netstat = new GUINetStat([6, 12], this.netstat);
-    gui.fps = new GUIFpsCounter([viewport.w - 6, 12], viewport);
-    gui.messages = new GUIMessageLog([6, viewport.h - 2], 
+    gui.hud = new GUIPlayerHUD(viewport);
+    gui.netstat = new GUINetStat(viewport, this.netstat);
+    gui.fps = new GUIFpsCounter(viewport);
+    gui.messages = new GUIMessageLog(viewport,
                                      this.message_log,
                                      this.options);
-    gui.scoreboard = new GUIScoreboard([0, 0]);
-    gui.scoreboard.set_size([viewport.w, viewport.h]);
-    gui.warmupnotice = new GUIWarmupNotice([viewport.w / 2, 
-                                            viewport.h - 50]);
-    gui.prompt = new GUIPrompt([40, viewport.h - 40]);
-    gui.prompt.set_size([viewport.w - 80, 26]);
+    gui.scoreboard = new GUIScoreboard(viewport);
+    gui.warmupnotice = new GUIWarmupNotice(viewport);
+    gui.prompt = new GUIPrompt(viewport);
     gui.prompt.oncommand = function() { self.exec.apply(self, arguments) };
     gui.prompt.onchat = function() { self.chat.apply(self, arguments) };
 
@@ -318,8 +315,9 @@ WPilotClient.prototype.set_viewport = function(viewport) {
     viewport.ondraw = function(ctx) {
       var world = self.world,
           player = self.player,
-          tick = tick;
-          
+          tick = tick,
+          pos;
+
       if (player && !player.dead) {
         viewport.set_camera_pos(player.entity.pos);
       }
@@ -335,9 +333,10 @@ WPilotClient.prototype.set_viewport = function(viewport) {
             visible = element.is_visible();
 
         if (element.alpha) {
+          pos = element.pos();
           ctx.save();
           ctx.globalAlpha = element.alpha;
-          ctx.translate(element.pos[0], element.pos[1]);
+          ctx.translate(pos[0], pos[1]);
           element.draw(ctx, tick);
           ctx.restore();
         }
@@ -422,13 +421,13 @@ WPilotClient.prototype.set_state = function(state) {
       this.post_control_packet([OP_CLIENT_JOIN, {
         name: this.options.name,
         rate: this.options.rate,
-        dimensions: [this.viewport.w, this.viewport.h] 
-      }]);  
+        dimensions: [this.viewport.w, this.viewport.h]
+      }]);
       break;
-      
-    case CLIENT_DISCONNECTED:    
-      this.log('You where disconnected from server ' +
-                this.disconnect_reason ? 
+
+    case CLIENT_DISCONNECTED:
+      this.log('You were disconnected from server ' +
+                this.disconnect_reason ?
                 '(Reason: ' + this.disconnect_reason + ').' : '');
       this.conn = null;
       this.is_connected = false;
@@ -440,7 +439,7 @@ WPilotClient.prototype.set_state = function(state) {
       this.stop_gameloop();
       self.ondisconnect(self.disconnect_reason);
       break;
-    
+
   }
   this.state = state;
 }
@@ -454,20 +453,20 @@ WPilotClient.prototype.process_user_input = function(t, dt) {
   var gui           = this.gui,
       player        = this.player,
       input         = this.input;
-  
+
   if (input.toggle('prompt')) {
     gui.prompt.visible = !gui.prompt.visible;
-    input.onkeypress = this.gui.prompt.visible ? 
+    input.onkeypress = this.gui.prompt.visible ?
                             function(char) {
                               gui.prompt.handle_key_stroke(char);
                             } :
                             null;
   }
-  
+
   if (this.gui.prompt.visible) {
     return;
   }
-  
+
   if (input.on('scoreboard')) {
     this.gui.scoreboard.visible = true;
   } else {
@@ -481,15 +480,15 @@ WPilotClient.prototype.process_user_input = function(t, dt) {
   if (!player.dead && player.entity.visible) {
     var new_action   = 0,
         new_angle     = player.entity.angle;
-    
+
     if (input.on('thrust')) new_action |= THRUST;
     if (input.on('shield')) new_action |= SHIELD;
     if (input.on('shoot')) new_action |= SHOOT;
-    
+
     if (player.is(THRUST) && (parseInt(t * 1000)) % 10 == 0) {
       this.sound.play('ship_thrust', 0.05);
     }
-    
+
     if (input.on('rotate_west')) {
       if (this.last_r != -1) {
         this.last_r = -1;
@@ -497,7 +496,7 @@ WPilotClient.prototype.process_user_input = function(t, dt) {
       }
       if (this.current_r > -this.options.rotation_speed) {
         this.current_r -= this.options.rotation_acc;
-      } 
+      }
       new_angle += dt * this.current_r;
     }  else if (input.on('rotate_east')) {
       if (this.last_r != 1) {
@@ -506,7 +505,7 @@ WPilotClient.prototype.process_user_input = function(t, dt) {
       }
       if (this.current_r < this.options.rotation_speed) {
         this.current_r += this.options.rotation_acc;
-      } 
+      }
       new_angle += dt * this.current_r;
     } else {
       this.last_r = -1;
@@ -514,15 +513,15 @@ WPilotClient.prototype.process_user_input = function(t, dt) {
     }
 
     if (new_action != player.action || new_angle != player.entity.angle) {
-      
+
       if (new_angle > Math.PI) new_angle = -Math.PI;
       else if(new_angle < -Math.PI) new_angle = Math.PI;
-      
+
       player.action = new_action;
       player.entity.angle = new_angle;
       this.post_game_packet([OP_CLIENT_STATE, new_action, new_angle]);
     }
-  }  
+  }
 }
 
 /**
@@ -534,7 +533,7 @@ WPilotClient.prototype.start_gameloop = function(initial_tick) {
   var self          = this,
       world         = self.world,
       viewport      = self.viewport;
-      
+
   var gameloop = new GameLoop(initial_tick);
 
   // Is called on each game tick.
@@ -542,28 +541,28 @@ WPilotClient.prototype.start_gameloop = function(initial_tick) {
     self.process_user_input(t, dt);
     self.world.update(t, dt);
   }
-  
+
   // Is called when loop is about to start over.
   gameloop.ondone = function(t, dt, alpha) {
     self.update_netstat(t, dt);
-    viewport.refresh(alpha);
   }
 
-  this.viewport.set_autorefresh(false);
-
-  this.netstat.start_time = this.netstat.last_update = 
+  this.netstat.start_time = this.netstat.last_update =
                             this.netstat.last_received = get_time();
-                            
+
+  
+  this.viewport.set_autorefresh(true);
+
   gameloop.start();
   self.gameloop = gameloop;
 
   this.sound.playbg(this.options.sound_bg_volume);
-  
+
   return gameloop;
 }
 
 /**
- *  Kills the game loop. 
+ *  Kills the game loop.
  *  @return {undefined} Nothing
  */
 WPilotClient.prototype.stop_gameloop = function() {
@@ -573,16 +572,19 @@ WPilotClient.prototype.stop_gameloop = function() {
     this.gameloop.ondone = null;
     this.gameloop = null;
   }
+  if (this.viewport) {
+    this.viewport.set_autorefresh(false);
+  }
 }
 
 /**
- *  Joins a game server. 
+ *  Joins a game server.
  *  @param {String} url Server URL.
  *  @return {undefined} Nothing
  */
 WPilotClient.prototype.join = function(url) {
   var self = this;
-  
+
   if (!self.is_connected) {
     self.disconnect_reason = 'Unknown reason';
     this.log('Trying to join server at ' + url + '...');
@@ -613,10 +615,10 @@ WPilotClient.prototype.join = function(url) {
         case PING_PACKET:
           self.conn.send(JSON.stringify([PING_PACKET]));
           break;
-        
+
         case GAME_PACKET:
           if (!self.world) return;
-          
+
           var messages      = packet[1];
 
           if (self.netstat.start_time) {
@@ -629,14 +631,14 @@ WPilotClient.prototype.join = function(url) {
             self.netstat.bytes_received += event.data.length;
             self.netstat.messages_received += 1;
           }
-          
+
           for (var i = 0; i < messages.length; i++) {
             self.world.process_world_packet(messages[i]);
           }
-        
+
           break;
-          
-          
+
+
         default:
           process_control_message([packet, self]);
           break;
@@ -652,7 +654,7 @@ WPilotClient.prototype.join = function(url) {
     self.conn.onclose = function(event){
       self.set_state(CLIENT_DISCONNECTED);
     };
-    
+
   }
 
 }
@@ -668,7 +670,7 @@ WPilotClient.prototype.leave = function(reason) {
 }
 
 /**
- *  Post a game packet to server 
+ *  Post a game packet to server
  *  @param {String} msg The message that should be sent.
  *  @return {undefined} Nothing
  */
@@ -682,7 +684,7 @@ WPilotClient.prototype.post_game_packet = function(msg) {
 }
 
 /**
- *  Post a control packet to server 
+ *  Post a control packet to server
  *  @param {String} msg The message that should be sent.
  *  @return {undefined} Nothing
  */
@@ -717,23 +719,23 @@ WPilotClient.prototype.update_netstat = function() {
 
 /**
  *  Processes control message recieved from server.
- *  
+ *
  */
 var process_control_message = match (
   /**
-   *  The first message recieved from server on connect. Contains the 
-   *  state of the server. 
+   *  The first message recieved from server on connect. Contains the
+   *  state of the server.
    */
-  [[OP_SERVER_INFO, Object], _], 
+  [[OP_SERVER_INFO, Object], _],
   function(state, client) {
     client.set_server_state(state);
   },
-  
+
   /**
    *  Is received after the client has sent a CLIENT CONNECT message. The message
    *  contains all data necessary to set up the game world.
    */
-  [[OP_WORLD_DATA, Object, Object], _], 
+  [[OP_WORLD_DATA, Object, Object], _],
   function(map_data, rules, client) {
     var world = new World(false);
     world.build(map_data, rules);
@@ -741,24 +743,24 @@ var process_control_message = match (
     client.set_world(world);
     client.set_state(CLIENT_CONNECTED);
   },
-  
+
   [[OP_WORLD_STATE, Number, Object, Array, Array], _],
   function(my_id, state, players, powerups, client) {
     client.world.set_state(state, players, powerups);
     client.set_player(client.world.players[my_id]);
     client.start_gameloop(client.world.tick);
   },
-  
+
   [[OP_WORLD_RECONNECT], _],
   function(client) {
     client.set_world(null);
     client.stop_gameloop();
   },
-  
+
   /**
    *  Is recieved when disconnected from server.
    */
-  [[OP_DISCONNECT_REASON, String], _], 
+  [[OP_DISCONNECT_REASON, String], _],
   function(reason, client) {
     client.disconnect_reason = reason;
   },
@@ -766,27 +768,27 @@ var process_control_message = match (
   /**
    *  Is recieved when disconnected from server.
    */
-  [[OP_SERVER_EXEC_RESP, String], _], 
+  [[OP_SERVER_EXEC_RESP, String], _],
   function(message, client) {
     client.log(message);
   },
-  
+
   function(msg) {
     console.log('Unhandled message')
     console.log(msg[0]);
   }
-  
+
 );
 
 var COMMANDS = match (
   [_, 'name', String], function(client, new_name) {
     client.post_game_packet([OP_CLIENT_SET, 'name', new_name]);
   },
-  
+
   [_, 'ready'], function(client) {
     client.post_game_packet([OP_CLIENT_SET, 'ready']);
   },
-  
+
   [_, 'fps'], function(client) {
     client.gui.fps.visible = !client.gui.fps.visible;
   },
@@ -851,7 +853,7 @@ var COMMANDS = match (
       client.log('You need to set sv_password in order to send admin commands');
     }
   },
-  
+
   function(pattern) {
     var client = pattern[0];
     var command = pattern[1];
@@ -864,10 +866,10 @@ var COMMANDS = match (
 )
 
 Player.prototype.on_before_init = function() {
-  this.angle = 0; 
+  this.angle = 0;
   this.rank = 1;
   this.is_me = false;
-  
+
   // Used by score board to write information
   this.death_cause = 0;
   this.killed_by = null;
@@ -918,19 +920,19 @@ World.prototype.on_player_join = function(player) {
  */
 World.prototype.on_player_leave = function(player, reason) {
   this.client.log('Player "' + player.name + '" disconnected. Reason: ' + reason);
-  
+
   this.ranked_player_list = calculate_ranks(this);
 }
 
 /**
- * Callback for player spawn. 
+ * Callback for player spawn.
  */
 World.prototype.on_player_spawn = function(player, pos) {
   var self = this,
       volume = player.is_me ? 1 : calculate_sfx_volume(this.client, pos);
 
   this.client.sound.play('ship_spawn', volume);
-  
+
   this.play_animation(new SpawnAnimation(pos), function() {
     if (player.entity) {
       player.entity.visible = true;
@@ -941,11 +943,11 @@ World.prototype.on_player_spawn = function(player, pos) {
     player.entity.is_me = true;
     this.client.viewport.set_camera_pos(pos);
   }
-  
+
 }
 
 World.prototype.on_player_fire = function(player, angle) {
-  var volume = player.is_me ? 1 : calculate_sfx_volume(this.client, 
+  var volume = player.is_me ? 1 : calculate_sfx_volume(this.client,
                                                        player.entity.pos);
   this.client.sound.play('bullet_spawn', volume);
 }
@@ -954,24 +956,24 @@ World.prototype.on_player_fire = function(player, angle) {
  * Callback for player died
  */
 World.prototype.on_player_died = function(player, old, death_cause, killer) {
-  var volume = player.is_me ? 1 : calculate_sfx_volume(this.client, 
+  var volume = player.is_me ? 1 : calculate_sfx_volume(this.client,
                                                        old.pos);
 
   player.death_cause = death_cause;
   player.killed_by = killer;
 
   this.client.sound.play('ship_die', volume);
-  
+
   this.play_animation(new DieAnimation(old.pos, old.angle, old.vel));
   this.play_animation(new ExplodeAnimation(old.pos));
-  
+
   if (killer && killer.is_me && killer.entity) {
     this.play_animation(new TextAnimation(killer.entity.pos, COLOR_ACCENT_1, '+1'));
   }
-  
+
   if (player.is_me) {
     if (death_cause == DEATH_CAUSE_KILLED) {
-      text = 'You where killed by ' + killer.name;
+      text = 'You were killed by ' + killer.name;
     } else {
       text = 'You took your own life!';
     }
@@ -984,7 +986,7 @@ World.prototype.on_player_died = function(player, old, death_cause, killer) {
   }
 
   this.client.log(text);
-  
+
   this.ranked_player_list = calculate_ranks(this);
 }
 
@@ -1011,34 +1013,34 @@ World.prototype.on_player_name_changed = function(player, new_name, old_name) {
 World.prototype.on_round_state_changed = function(state, winners) {
 
   switch (state) {
-    
+
     case ROUND_STARTING:
       this.client.viewport.set_camera_pos(vector_div(this.size, 2));
       break;
-      
+
     case ROUND_FINISHED:
-      var names = [];      
+      var names = [];
       for (var i = 0; i < winners.length; i++) {
          names.push(this.players[winners[i]].name);
       }
       this.winner_names = names.join(',');
       break;
-      
+
   }
 };
 
 World.prototype.on_powerup_spawn = function(powerup) {
   var volume = calculate_sfx_volume(this.client, powerup.pos);
   this.client.sound.play('powerup_spawn', volume);
-  
+
   this.play_animation(new PowerupSpawnAnimation(
-    powerup.pos, 
+    powerup.pos,
     powerup.size,
     powerup.color
   ), function() {
     powerup.visible = true;
   });
-  
+
 }
 
 World.prototype.on_powerup_die = function(powerup, player) {
@@ -1046,13 +1048,13 @@ World.prototype.on_powerup_die = function(powerup, player) {
   if (player.is_me) {
     this.client.sound.play('powerup_die');
   }
-  
+
   this.play_animation(new TextAnimation(
     powerup.pos,
     get_powerup_color(powerup.powerup_type),
     get_powerup_text(powerup.powerup_type)
   ));
-  
+
 }
 
 World.prototype.on_after_init = function() {
@@ -1063,7 +1065,7 @@ World.prototype.on_after_init = function() {
   this.PACKET_HANDLERS[OP_PLAYER_INFO] = this.update_player_info;
   this.PACKET_HANDLERS[OP_PLAYER_SPAWN] = this.spawn_player;
   this.PACKET_HANDLERS[OP_PLAYER_DIE] = this.kill_player;
-  this.PACKET_HANDLERS[OP_PLAYER_FIRE] = this.fire_player_canon;
+  this.PACKET_HANDLERS[OP_PLAYER_FIRE] = this.fire_player_cannon;
   this.PACKET_HANDLERS[OP_PLAYER_STATE] = this.update_player_state;
   this.PACKET_HANDLERS[OP_PLAYER_SAY] = this.player_say;
   this.PACKET_HANDLERS[OP_POWERUP_SPAWN] = this.spawn_powerup;
@@ -1078,7 +1080,7 @@ World.prototype.play_animation = function(animation, callback) {
     anim: animation,
     callback: callback || function() {}
   });
-  
+
   return id;
 }
 
@@ -1112,7 +1114,7 @@ World.prototype.update_player_info = function(id, ping, ready, name) {
 World.prototype.update_player_state = function(id, pos, angle, action) {
   var player = this.players[id];
 
-  // The Flash fallback sometimes bugs. Do an extra check here 
+  // The Flash fallback sometimes bugs. Do an extra check here
   if (player.entity) {
     if (pos) {
       player.entity.pos_sv = pos;
@@ -1201,7 +1203,7 @@ World.prototype.draw_grid = function(ctx, camera) {
     ctx.lineTo(camw, y);
     y += GRID_CELL_SIZE;
   }
-   
+
   ctx.stroke();
 
   // Left Edge
@@ -1228,7 +1230,7 @@ World.prototype.draw_grid = function(ctx, camera) {
 
 /**
  *  Class Ship
- *  Local constructor for the Entity class. Add a visible property that 
+ *  Local constructor for the Entity class. Add a visible property that
  *  indiciates that the Entity is visible or not.
  */
 Ship.prototype.on_before_init = function() {
@@ -1247,8 +1249,8 @@ Ship.prototype.on_after_init = function() {
 Ship.prototype.world_update = function(t, dt) {
 
   this.move(t, dt);
-  
-  if (Math.abs(this.pos[0] - this.pos_sv[0]) > 0.01 || 
+
+  if (Math.abs(this.pos[0] - this.pos_sv[0]) > 0.01 ||
       Math.abs(this.pos[1] - this.pos_sv[1]) > 0.01) {
     this.pos = vector_add(this.pos, vector_div(vector_sub(this.pos_sv, this.pos), 10));
   }
@@ -1269,7 +1271,7 @@ Ship.prototype.update = function(t, dt) {
 }
 
 /**
- *  Override the EntityBase.destroy method. Destroy's the Ship in end of 
+ *  Override the EntityBase.destroy method. Destroy's the Ship in end of
  *  world update.
  *  @param {DEATH_CAUSE_*} death_cause The cause of death
  *  @param {Player} killed_by The killer if not suicide.
@@ -1289,7 +1291,7 @@ Ship.prototype.destroy = function(death_cause, killer_id) {
  */
 Ship.prototype.draw = function(ctx) {
   if (!this.visible) return;
-  
+
   var centerx = this.size[0] / 2,
       centery = this.size[1] / 2;
 
@@ -1298,24 +1300,24 @@ Ship.prototype.draw = function(ctx) {
   ctx.lineWidth = 1;
   ctx.fillStyle = "white";
   draw_triangle(ctx, centerx, centery);
-  
+
   for (var anim in this.animations) {
     ctx.save();
     this.animations[anim].draw(ctx);
     ctx.restore();
   }
-  
-  if(!this.is_me){  
+
+  if(!this.is_me){
     ctx.rotate(-this.angle);
     ctx.font = PLAYER_NAME_FONT;
   	ctx.fillStyle = 'rgb(' + this.player.color + ')';
-    draw_label(ctx, 0, this.size[1] + 10, this.player.name, 'center', 100);	
+    draw_label(ctx, 0, this.size[1] + 10, this.player.name, 'center', 100);
   }
 }
 
 /**
  *  Class Bullet
- *  Local constructor for the Entity class. Add a visible property that 
+ *  Local constructor for the Entity class. Add a visible property that
  *  indiciates that the Entity is visible or not.
  */
 Bullet.prototype.on_before_init = function() {
@@ -1370,12 +1372,12 @@ Wall.prototype.draw = function(ctx, world) {
 Block.prototype.draw = function(ctx, world) {
   var connectors = this.connectors,
       size       = this.size;
-  
+
   ctx.strokeStyle = "rgba(200, 20, 20, 0.4)";
   ctx.lineWidth = 2;
   ctx.fillStyle = 'rgba(200, 20, 20, 0.1)';
   ctx.fillRect(0, 0, this.size[0], this.size[1]);
-  
+
   if (!(connectors & BLOCK_CONNECTOR_NORTH)) {
     ctx.beginPath();
     ctx.moveTo(0, 0);
@@ -1403,8 +1405,8 @@ Block.prototype.draw = function(ctx, world) {
     ctx.lineTo(0, size[1]);
     ctx.stroke();
   }
-  
-  if((connectors & (BLOCK_CONNECTOR_EAST | BLOCK_CONNECTOR_NORTH)) == 
+
+  if((connectors & (BLOCK_CONNECTOR_EAST | BLOCK_CONNECTOR_NORTH)) ==
      (BLOCK_CONNECTOR_EAST | BLOCK_CONNECTOR_NORTH)){
     ctx.beginPath();
     ctx.moveTo(size[0]-BLOCK_SPACING, 0);
@@ -1412,8 +1414,8 @@ Block.prototype.draw = function(ctx, world) {
     ctx.lineTo(size[0], BLOCK_SPACING);
     ctx.stroke();
   }
-  
-  if((connectors & (BLOCK_CONNECTOR_EAST | BLOCK_CONNECTOR_SOUTH)) == 
+
+  if((connectors & (BLOCK_CONNECTOR_EAST | BLOCK_CONNECTOR_SOUTH)) ==
      (BLOCK_CONNECTOR_EAST | BLOCK_CONNECTOR_SOUTH)){
     ctx.beginPath();
     ctx.moveTo(size[0], size[1]-BLOCK_SPACING);
@@ -1421,8 +1423,8 @@ Block.prototype.draw = function(ctx, world) {
     ctx.lineTo(size[0]-BLOCK_SPACING, size[1]);
     ctx.stroke();
   }
-  
-  if((connectors & (BLOCK_CONNECTOR_WEST | BLOCK_CONNECTOR_NORTH)) == 
+
+  if((connectors & (BLOCK_CONNECTOR_WEST | BLOCK_CONNECTOR_NORTH)) ==
      (BLOCK_CONNECTOR_WEST | BLOCK_CONNECTOR_NORTH)){
     ctx.beginPath();
     ctx.moveTo(0+BLOCK_SPACING, 0);
@@ -1430,8 +1432,8 @@ Block.prototype.draw = function(ctx, world) {
     ctx.lineTo(0, BLOCK_SPACING);
     ctx.stroke();
   }
-  
-  if((connectors & (BLOCK_CONNECTOR_WEST | BLOCK_CONNECTOR_SOUTH)) == 
+
+  if((connectors & (BLOCK_CONNECTOR_WEST | BLOCK_CONNECTOR_SOUTH)) ==
      (BLOCK_CONNECTOR_WEST | BLOCK_CONNECTOR_SOUTH)){
     ctx.beginPath();
     ctx.moveTo(0+BLOCK_SPACING, size[1]);
@@ -1450,9 +1452,9 @@ Powerup.prototype.on_after_init = function() {
 
 Powerup.prototype.update = function(t, dt) {
   if (!this.visible) return;
-  
+
   this.pulse += (dt * 6);
-  
+
   if (this.pulse > 20) {
     this.pulse = 0;
   }
@@ -1468,23 +1470,23 @@ Powerup.prototype.draw = function(ctx) {
       outer_alpha = 0.7 - ((this.pulse * 5) / 100),
       inner_radius = this.inner_radius,
       outer_radius = inner_radius + this.pulse;
-      
+
   ctx.beginPath();
   ctx.lineWidth = 1.5;
-  ctx.strokeStyle = 'rgba(' + color + ', 0.8)';    
+  ctx.strokeStyle = 'rgba(' + color + ', 0.8)';
   ctx.arc(0, 0, inner_radius, 0, Math.PI / 180, true);
   ctx.stroke();
-    
+
   ctx.beginPath();
   ctx.lineWidth = 1;
-  ctx.strokeStyle = 'rgba(' + color + ', ' +  outer_alpha +')';    
+  ctx.strokeStyle = 'rgba(' + color + ', ' +  outer_alpha +')';
   ctx.arc(0, 0, outer_radius, 0, Math.PI / 180, true);
   ctx.stroke();
-    
+
   ctx.font = POWERUP_FONT;
   ctx.fillStyle = 'rgba(' + color + ', ' + text_alpha + ')';
   draw_label(ctx, 1, 2, this.ch, 'center', inner_radius);
-  
+
 }
 
 /**
@@ -1493,7 +1495,7 @@ Powerup.prototype.draw = function(ctx) {
 function ThrustAnimation() {
   var particles = new cParticleSystem();
   particles.active = false;
-  particles.position = Vector.create(0, 12);	
+  particles.position = Vector.create(0, 12);
   particles.positionRandom = Vector.create( 0, 0 );
   particles.gravity = Vector.create( 0.01, 0.01 );
   particles.speed = 1.5;
@@ -1504,7 +1506,7 @@ function ThrustAnimation() {
   particles.angleRandom = 15;
   particles.maxParticles = 60;
   particles.init();
-  this.particles = particles; 
+  this.particles = particles;
 }
 
 /**
@@ -1569,7 +1571,7 @@ ShieldAnimation.prototype.update = function(t, dt) {
     value += (dt * 5);
   } else if (value > 0) {
     value -= (dt * 5);
-  } 
+  }
   this.value = value;
 }
 
@@ -1581,7 +1583,7 @@ ShieldAnimation.prototype.update = function(t, dt) {
 ShieldAnimation.prototype.draw = function(ctx) {
   if (this.value > 0) {
     ctx.beginPath();
-    ctx.strokeStyle = 'rgba(255, 255, 255,' + this.value + ')';    
+    ctx.strokeStyle = 'rgba(255, 255, 255,' + this.value + ')';
     ctx.arc(0, 0, 20, 0, Math.PI / 180, true);
     ctx.stroke();
   }
@@ -1600,9 +1602,9 @@ function SpawnAnimation(pos) {
   particles.startColourRandom = [80,20,20,0 ];
   particles.finishColourRandom = [60,10,10,0.1];
   particles.gravity = Vector.create( 0.01, 0.01 );
-  particles.sharpness = 60; 
+  particles.sharpness = 60;
   particles.speed = 1;
-  particles.size = 1.5; 
+  particles.size = 1.5;
   particles.sizeRandom = 1;
   particles.maxParticles = 120;
   particles.duration = 0.8;
@@ -1644,7 +1646,7 @@ SpawnAnimation.prototype.draw = function(ctx) {
   ctx.save();
   ctx.fillStyle = 'rgba(255, 255, 255, ' + this.alpha + ')';
   draw_triangle(ctx, (SHIP_WIDTH * this.ship_size), (SHIP_HEIGHT * this.ship_size));
-  ctx.restore();  
+  ctx.restore();
 }
 
 /**
@@ -1658,7 +1660,7 @@ function DieAnimation(pos, angle, vel) {
     [(cx / 2), (cy / 4), cx / 2 , cy / 2, angle, Math.random()],
     [0, (cy / 4), cx / 2 , cy / 2, angle -270, Math.random()]
   ];
-  
+
   this.lifetime = 1.5;
   this.pos = pos;
   this.vel = vel;
@@ -1683,20 +1685,20 @@ DieAnimation.prototype.update = function(t, dt) {
             seed  = piece[5];
         piece[4] += dt * (seed * 8);
       }
-      
+
       var speedx = this.vel[0] / 1.05;
       var speedy = this.vel[1] / 1.05;
-      
+
       this.pos = [this.pos[0] + speedx * dt,  this.pos[1] - speedy * dt];
-      
+
       this.vel[0] = speedx;
       this.vel[1] = speedy;
-      
+
     } else {
       this.is_done = true;
     }
-  } 
-  
+  }
+
   this.lifetime -= dt;
 }
 
@@ -1730,7 +1732,7 @@ function ExplodeAnimation(pos) {
   particles.positionRandom = Vector.create( 3, 3 );
   particles.gravity = Vector.create(0.01, 0.01);
   particles.sharpness = 60;
-  particles.size = 1.5; 
+  particles.size = 1.5;
   particles.sizeRandom = 1;
   particles.maxParticles = 150;
   particles.speed = 1;
@@ -1836,7 +1838,7 @@ PowerupSpawnAnimation.prototype.draw = function(ctx) {
   var color = this.color,
       alpha = this.alpha,
       radius = this.size[0] / 1.8;
-      
+
   ctx.beginPath();
   ctx.lineWidth = 1.5;
   ctx.strokeStyle = 'rgba(' + color + ', ' + alpha + ')';
@@ -1847,23 +1849,27 @@ PowerupSpawnAnimation.prototype.draw = function(ctx) {
 /**
  *  GUIPlayerHUD
  */
-function GUIPlayerHUD(pos) {
-  this.pos = pos || [0, 0];
+function GUIPlayerHUD(viewport) {
+  this.viewport = viewport;
   this.alpha = 0;
   this.visible = true;
   this.me = null;
   this.world = null;
 }
 
+GUIPlayerHUD.prototype.pos = function() {
+  return [this.viewport.w / 2, this.viewport.h / 2];
+};
+
 GUIPlayerHUD.prototype.is_visible = function() {
-  return !this.world || !this.me || this.me.dead || !this.me.entity ? 
+  return !this.world || !this.me || this.me.dead || !this.me.entity ?
                                                             false : this.visible;
 }
 
 GUIPlayerHUD.prototype.draw = function(ctx, t) {
   var me    = this.me,
       world = this.world;
-  
+
   var angle = (Math.PI * 2 * me.energy / 100);
 
   ctx.beginPath();
@@ -1877,24 +1883,24 @@ GUIPlayerHUD.prototype.draw = function(ctx, t) {
   ctx.strokeStyle = 'rgba(' + COLOR_BRIGHT + ', 0.08)';
   ctx.arc(0, 0, 108, 0, Math.PI / 180, true);
   ctx.stroke();
-  
+
   if (me.has_powerup(POWERUP_SPREAD)) {
     var powerup = me.powerup_timers[POWERUP_SPREAD];
     var perc = (powerup.end - t) / (powerup.end - powerup.start);
     angle = (Math.PI * 2 * perc)
-    
+
     ctx.beginPath();
     ctx.lineWidth = 6;
     ctx.strokeStyle = 'rgba(' + POWERUP_SPREAD_COLOR + ', 0.1)';
     ctx.arc(0, 0, 81, Math.PI * 3 / 2, angle - Math.PI / 2, false);
-    ctx.stroke();    
+    ctx.stroke();
   }
 
   if (me.has_powerup(POWERUP_RAPID)) {
     var powerup = me.powerup_timers[POWERUP_RAPID];
     var perc = (powerup.end - t) / (powerup.end - powerup.start);
     angle = (Math.PI * 2 * perc);
-    
+
     ctx.beginPath();
     ctx.lineWidth = 6;
     ctx.strokeStyle = 'rgba(' + POWERUP_RAPID_COLOR + ', 0.1)';
@@ -1906,7 +1912,7 @@ GUIPlayerHUD.prototype.draw = function(ctx, t) {
     var powerup = me.powerup_timers[POWERUP_RICO];
     var perc = (powerup.end - t) / (powerup.end - powerup.start);
     angle = (Math.PI * 2 * perc)
-    
+
     ctx.beginPath();
     ctx.lineWidth = 6;
     ctx.strokeStyle = 'rgba(' + POWERUP_RICO_COLOR + ', 0.1)';
@@ -1915,7 +1921,7 @@ GUIPlayerHUD.prototype.draw = function(ctx, t) {
   }
 
   if (world.r_state == ROUND_RUNNING && world.ranked_player_list.length > 1) {
-    var ahead = world.ranked_player_list[0] == me ? 
+    var ahead = world.ranked_player_list[0] == me ?
                     me.score - world.ranked_player_list[1].score :
                     me.score - world.ranked_player_list[0].score;
 
@@ -1926,7 +1932,7 @@ GUIPlayerHUD.prototype.draw = function(ctx, t) {
     } else {
       ahead = 'Tied for the lead';
     }
-    
+
     ctx.font = HUD_FONT;
     ctx.fillStyle = 'rgba(' + COLOR_BRIGHT + ', 0.3)';
     draw_label(ctx, 0, 240, ahead, 'center');
@@ -1937,23 +1943,27 @@ GUIPlayerHUD.prototype.draw = function(ctx, t) {
     ctx.save();
     me.entity.draw(ctx);
     ctx.restore();
-    
-    ctx.rotate(me.entity.angle);  
+
+    ctx.rotate(me.entity.angle);
     ctx.fillStyle = 'rgba(' + COLOR_BRIGHT + ', 0.8)';
     ctx.fillRect(0, -110, 1, 6);
   }
 }
 
 /**
- *  GUIMessageLog 
+ *  GUIMessageLog
  */
-function GUIMessageLog(pos, buffer, options) {
-  this.pos = pos || [0, 0];
+function GUIMessageLog(viewport, buffer, options) {
+  this.viewport = viewport;
   this.alpha = 0;
   this.visible = true;
   this.buffer = buffer;
   this.options = options;
 }
+
+GUIMessageLog.prototype.pos = function() {
+  return [6, this.viewport.h - 2];
+};
 
 GUIMessageLog.prototype.is_visible = function() {
   return this.buffer == null ? false : this.visible;
@@ -1977,22 +1987,26 @@ GUIMessageLog.prototype.draw = function(ctx) {
            0.8 + (0 - ((time - message.time) / 1000));
       if (alpha < 0.02) {
         message.disposed = true;
-      } 
+      }
       ctx.fillStyle = 'rgba(' + message.color + ',' + alpha + ')';
       draw_label(ctx, 0, (row -= 12), message.text, 'left');
     }
-  }  
+  }
 }
 
 /**
- *  GUINetStat 
+ *  GUINetStat
  */
-function GUINetStat(pos, stats) {
-  this.pos = pos || [0, 0];
+function GUINetStat(viewport, stats) {
+  this.viewport = viewport;
   this.alpha = 0;
   this.visible = false;
   this.stats = stats || null;
 }
+
+GUINetStat.prototype.pos = function() {
+  return [6, 12];
+};
 
 GUINetStat.prototype.is_visible = function() {
   return !this.stats.start_time ? false : this.visible;
@@ -2012,31 +2026,39 @@ GUINetStat.prototype.draw = function(ctx) {
 }
 
 /**
- *  GUIFpsCounter 
+ *  GUIFpsCounter
  */
-function GUIFpsCounter(pos, stats) {
-  this.pos = pos || [0, 0];
+function GUIFpsCounter(viewport) {
+  this.viewport = viewport;
   this.alpha = 0;
   this.visible = true;
-  this.stats = stats || null;
+  this.stats = viewport || null;
 }
+
+GUIFpsCounter.prototype.pos = function() {
+  return [this.viewport.w - 6, 12];
+};
 
 GUIFpsCounter.prototype.is_visible = function() {
   return this.visible;
 }
 
 GUIFpsCounter.prototype.draw = function(ctx) {
+  var current = parseInt(this.stats.current_fps);
+  var min = parseInt(this.stats.min_fps);
+  var max = parseInt(this.stats.max_fps);
   ctx.font = STATS_FONT;
   ctx.fillStyle = CANVAS_COLOR_BRIGHT;
-  draw_label(ctx, 0, 0, 'FPS count: ' + parseInt(this.stats.average_fps), 
-             'right');
+  draw_label(ctx, 0, 0, 'FPS: ' + current + 
+                        ' (min: ' + min + ', max: ' + max + ')',
+                        'right');
 }
 
 /**
- *  GUIWarmupNotice 
+ *  GUIWarmupNotice
  */
-function GUIWarmupNotice(pos) {
-  this.pos = pos || [0, 0];
+function GUIWarmupNotice(viewport) {
+  this.viewport = viewport;
   this.alpha = 0;
   this.visible = true;
   this.pulse = 0;
@@ -2044,8 +2066,12 @@ function GUIWarmupNotice(pos) {
   this.me = null;
 }
 
+GUIWarmupNotice.prototype.pos = function() {
+  return [this.viewport.w / 2, this.viewport.h - 50];
+};
+
 GUIWarmupNotice.prototype.is_visible = function() {
-  return !this.world || this.world.r_state != ROUND_WARMUP || !this.me || 
+  return !this.world || this.world.r_state != ROUND_WARMUP || !this.me ||
          this.me.dead ? false : this.visible;
 }
 
@@ -2054,7 +2080,7 @@ GUIWarmupNotice.prototype.draw = function(ctx) {
       me = this.me,
       text = '',
       pulse = false;
-      
+
   if (world.no_players == 1) {
     text = 'Waiting for more players to join...';
   } else if (!me.ready) {
@@ -2062,33 +2088,29 @@ GUIWarmupNotice.prototype.draw = function(ctx) {
     pulse = true;
   } else {
     var no = Math.ceil((world.no_players * 0.6) - world.no_ready_players);
-    text = 'Waiting for ' + no + ' player' + (no == 1 ? '' : 's') + 
+    text = 'Waiting for ' + no + ' player' + (no == 1 ? '' : 's') +
            ' to press ready';
   }
 
   ctx.font = WARMUP_NOTICE_FONT;
   ctx.fillStyle = CANVAS_COLOR_ACCENT_1;
-  
+
   if (pulse) {
     var alpha = Math.abs(Math.sin((this.pulse += 0.08)));
     if (alpha < 0.1) {
       alpha = 0.1;
-    } 
+    }
     ctx.fillStyle = 'rgba(' + COLOR_ACCENT_1 + ',' + alpha + ')';
   }
-  
+
   draw_label(ctx, 0, 0, text, 'center');
 }
 
 /**
- *  GUIScoreboard 
+ *  GUIScoreboard
  */
-function GUIScoreboard(pos) {
-  this.pos = pos;
-  this.size = null;
-  this.table_width = null;
-  this.table_height = null;
-  this.margin = null;
+function GUIScoreboard(viewport) {
+  this.viewport = viewport;
   this.alpha = 0;
   this.visible = false;
   this.pulse = 0;
@@ -2096,32 +2118,33 @@ function GUIScoreboard(pos) {
   this.me = null
 }
 
+GUIScoreboard.prototype.pos = function() {
+  return [0, 0];
+};
+
 GUIScoreboard.prototype.is_visible = function() {
   return this.visible || (this.world && this.me && this.me.dead) || false;
 }
 
-GUIScoreboard.prototype.set_size = function(size) {
-  this.size = size;
-  this.table_width = this.size[0] * 0.8;
-  this.margin = (this.size[0] - this.table_width) / 2;
-  this.table_height = this.size[1] - this.margin;
-}
-
 GUIScoreboard.prototype.draw = function(ctx) {
   var world = this.world,
+      vp = this.viewport,
       me = this.me,
-      x = this.margin,
-      y = this.margin;
-  
+      table_width = vp.w * 0.8,
+      margin = (vp.w - table_width) / 2,
+      table_height = vp.h - margin,
+      x = margin,
+      y = margin;
+
   if (!world) return;
-  
+
   var title  = '',
       notice = null,
       timer  = 0;
 
   // Shading
   ctx.fillStyle = 'rgba(0, 0, 0, 0.4)';
-  ctx.fillRect(0, 0, this.size[0], this.size[1]);
+  ctx.fillRect(0, 0, vp.w, vp.h);
 
   ctx.fillStyle = CANVAS_COLOR_ACCENT_1;
 
@@ -2129,7 +2152,7 @@ GUIScoreboard.prototype.draw = function(ctx) {
     case ROUND_WARMUP:
       title = 'Warmup round';
       break;
-      
+
     case ROUND_STARTING:
       title = 'Prepare your self, game starts in...';
       break;
@@ -2137,9 +2160,9 @@ GUIScoreboard.prototype.draw = function(ctx) {
     case ROUND_RUNNING:
       if (me.dead) {
         title = me.death_cause == DEATH_CAUSE_KILLED ?
-                                  'You where killed by ' + me.killed_by.name :
+                                  'You were killed by ' + me.killed_by.name :
                                   'You took your own life';
-                                  
+
         // Respawn timer
         timer = me.respawn_time - world.tick;
         notice = 'Respawn in ' + format_timer(timer, world.delta) + ' sec';
@@ -2148,65 +2171,65 @@ GUIScoreboard.prototype.draw = function(ctx) {
         title = 'Your rank is ' + me.rank + ' of ' + world.no_players;
       }
       break;
-      
+
     case ROUND_FINISHED:
       title = 'Round won by ' + world.winner_names + ', next map starts in...';
       break;
   }
-  
+
   ctx.font = SCOREBOARD_TITLE_FONT;
   draw_label(ctx, x, y, title , 'left');
-  
+
   if (world.r_timer) {
     timer = (world.r_state == ROUND_RUNNING) ? world.r_timer :
-                                       world.r_timer - world.tick; 
-    draw_label(ctx, x + this.table_width, y, 
+                                       world.r_timer - world.tick;
+    draw_label(ctx, x + table_width, y,
                format_timer(timer, world.delta), 'right');
   }
-  
+
   // Draw heads-up notice
   if (notice) {
     ctx.font = SCOREBOARD_NOTICE_FONT;
-    draw_label(ctx, this.size[0] / 2, this.table_height + this.margin / 2, 
+    draw_label(ctx, vp.w / 2, table_height + margin / 2,
                     notice, 'center');
   }
-  
+
   ctx.font = SCOREBOARD_SUB_FONT;
-  draw_label(ctx, x, (y += 20), world.map_name + 
+  draw_label(ctx, x, (y += 20), world.map_name +
                                 ', round limit: ' + world.rules.round_limit);
-                                        
-  draw_label(ctx, x + this.table_width, y, world.no_players + ' / ' +
+
+  draw_label(ctx, x + table_width, y, world.no_players + ' / ' +
                                  world.max_players + ' players', 'right');
-  
+
   // Draw table header
   draw_label(ctx, (x += (SCOREBOARD_PAD * 7)), (y += 60), 'Player name');
-  draw_label(ctx, (x = this.margin + this.table_width), y, 'Score', 
+  draw_label(ctx, (x = margin + table_width), y, 'Score',
                   'right', 50);
   draw_label(ctx, (x -= 50), y, 'Kills', 'right', 50);
   draw_label(ctx, (x -= 50), y, 'Deaths', 'right', 50);
   draw_label(ctx, (x -= 50), y, 'Time', 'right', 50);
   draw_label(ctx, (x -= 50), y, 'Ping', 'right', 50);
-  
+
   var players = world.ranked_player_list,
       row = 0;
-    
-  x = this.margin;    
+
+  x = margin;
   y += 10;
-  
+
   // Draw each table row
-  while (row < players.length && y < this.table_height) {
+  while (row < players.length && y < table_height) {
     var player = players[row++];
-    this.draw_row(ctx, [x, y], player);
+    this.draw_row(ctx, [x, y], player, table_width);
     y += 28;
   }
-  
+
 }
 
-GUIScoreboard.prototype.draw_row = function(ctx, pos, player) {
+GUIScoreboard.prototype.draw_row = function(ctx, pos, player, width) {
   var x = pos[0],
       y = pos[1],
       t = this.world.tick,
-      dt = this.world.delta;      
+      dt = this.world.delta;
 
   var name = player.name + (this.world.r_state == ROUND_RUNNING &&
                             player.dead ? ' (dead)' : ''),
@@ -2216,7 +2239,7 @@ GUIScoreboard.prototype.draw_row = function(ctx, pos, player) {
       time = format_timer(t - player.time, dt),
       ping = player.ping || '--',
       rank = player.rank;
-      
+
   ctx.textBaseline = 'top';
 
   switch (this.world.r_state) {
@@ -2233,7 +2256,7 @@ GUIScoreboard.prototype.draw_row = function(ctx, pos, player) {
         rank = SCOREBOARD_NOT_READY_CHAR;
       }
       break;
-      
+
     case ROUND_RUNNING:
     case ROUND_FINISHED:
       ctx.font = SCOREBOARD_ROW_FONT;
@@ -2242,7 +2265,7 @@ GUIScoreboard.prototype.draw_row = function(ctx, pos, player) {
   }
 
   ctx.fillRect(x, y, SCOREBOARD_PAD * 4, 22);
-  
+
   x +=  SCOREBOARD_PAD;
   y += SCOREBOARD_MAR;
 
@@ -2251,33 +2274,30 @@ GUIScoreboard.prototype.draw_row = function(ctx, pos, player) {
 
   ctx.font = SCOREBOARD_ROW_FONT;
   ctx.fillStyle = player.is_me ? CANVAS_COLOR_BRIGHT : CANVAS_COLOR_DAWN;
-  
+
   draw_label(ctx, (x += SCOREBOARD_PAD * 6), y, name);
-  draw_label(ctx, (x  = pos[0] + (this.table_width)), y, score, 'right', 50);
+  draw_label(ctx, (x  = pos[0] + (width)), y, score, 'right', 50);
   draw_label(ctx, (x -= 50), y, kills, 'right', 50);
   draw_label(ctx, (x -= 50), y, deaths, 'right', 50);
   draw_label(ctx, (x -= 50), y, time, 'right', 50);
-  draw_label(ctx, (x -= 50), y, ping, 'right', 50);  
+  draw_label(ctx, (x -= 50), y, ping, 'right', 50);
 }
 
-function GUIPrompt(pos) {
-  this.pos = pos;
-  this.size = null;
+function GUIPrompt(viewport) {
+  this.viewport = viewport;
   this.alpha = 0;
   this.visible = false;
   this.buffer = '';
+  this.oncommand = null;
+  this.onchat = null;
 }
+
+GUIPrompt.prototype.pos = function() {
+  return [40, this.viewport.h - 40];
+};
 
 GUIPrompt.prototype.is_visible = function() {
   return this.visible;
-}
-
-GUIPrompt.prototype.set_size = function(size) {
-  this.size = size;
-  this.prompt_width = this.size[0] * 0.8;
-  this.margin = (this.size[0] - this.prompt_width) / 2;
-  this.oncommand = null;
-  this.onchat = null;
 }
 
 GUIPrompt.prototype.handle_key_stroke = function(char) {
@@ -2303,7 +2323,7 @@ GUIPrompt.prototype.handle_key_stroke = function(char) {
             word += char;
           }
         }
-        
+
         if (word.length) {
           args.push(word);
         }
@@ -2314,7 +2334,7 @@ GUIPrompt.prototype.handle_key_stroke = function(char) {
       }
       this.buffer = '';
       break;
-      
+
     default:
       this.buffer += String.fromCharCode(char);
       break;
@@ -2322,23 +2342,29 @@ GUIPrompt.prototype.handle_key_stroke = function(char) {
 }
 
 GUIPrompt.prototype.draw = function(ctx) {
+  var vp = this.viewport;
+  var width = (vp.w - 80);
+  var prompt_width = width * 0.8;
+  var margin = (width - prompt_width) / 2;
+  var height = 26;
+
   ctx.strokeStyle = CANVAS_COLOR_ACCENT_1;
   ctx.fillStlye = 'rgba(' + COLOR_DARK + ', 0.8)';
-  ctx.fillRect(this.margin, 0, this.size[0] - (this.margin * 2), this.size[1]);
-  ctx.strokeRect(this.margin, 0, this.size[0] - (this.margin * 2), this.size[1]);
-  
+  ctx.fillRect(margin, 0, width - (margin * 2), height);
+  ctx.strokeRect(margin, 0, width - (margin * 2), height);
+
   ctx.strokeStyle = null;
   ctx.fillStyle = CANVAS_COLOR_ACCENT_1;
   ctx.font = PROMPT_FONT;
   ctx.textBaseline = 'top';
 
-  var clip_width = this.size[0] - (this.margin * 2) - 8;
+  var clip_width = width - (margin * 2) - 8;
   var text_width = ctx.measureText(this.buffer + PROMPT_CURSOR).width;
-  var text_pos = text_width > clip_width ? 
-                    (this.margin + 4) - (text_width - clip_width) : 
-                    (this.margin + 4);
+  var text_pos = text_width > clip_width ?
+                    (margin + 4) - (text_width - clip_width) :
+                    (margin + 4);
   ctx.beginPath();
-  ctx.rect(this.margin + 4, 4, clip_width, this.size[1] - 8);
+  ctx.rect(margin + 4, 4, clip_width, height - 8);
   ctx.clip();
   draw_label(ctx, text_pos, 4, this.buffer + PROMPT_CURSOR);
 }
@@ -2351,7 +2377,7 @@ function get_powerup_color(type) {
 
     case POWERUP_RAPID:
       return POWERUP_RAPID_COLOR;
-      
+
     case POWERUP_RICO:
       return POWERUP_RICO_COLOR;
 
@@ -2366,7 +2392,7 @@ function get_powerup_text(type) {
 
     case POWERUP_RAPID:
       return 'Rapid fire';
-      
+
     case POWERUP_RICO:
       return 'Ricochet ammo';
 
@@ -2384,7 +2410,7 @@ function draw_triangle(ctx, centerx, centery) {
 
 /**
  *  Draws a label
- *  
+ *
  */
 function draw_label(ctx, x, y, text, align, width) {
   ctx.textAlign = align || 'left';
@@ -2403,15 +2429,15 @@ function calculate_ranks(world) {
   for (var id in world.players) {
     ranked_list.push(world.players[id]);
   }
-  ranked_list.sort(function(player, opponent) { 
+  ranked_list.sort(function(player, opponent) {
     if (player.score == opponent.score) {
       return 0;
-    } 
-    return player.score > opponent.score ? -1 : 1; 
+    }
+    return player.score > opponent.score ? -1 : 1;
   });
-  
+
   var index = ranked_list.length;
-  
+
   while (index--) {
     ranked_list[index].rank = index + 1;
   }
@@ -2421,7 +2447,7 @@ function calculate_ranks(world) {
 function format_timer(value, delta) {
   var seconds = parseInt(value / (delta * 60));
       minutes = seconds < 0 ? 0 : parseInt(seconds / 60);
-      
+
   seconds = seconds < 0 ? 0 : seconds - minutes * 60;
 
   return minutes + ':' + (seconds < 10 ? '0' + seconds : seconds);

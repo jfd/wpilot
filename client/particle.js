@@ -10,7 +10,7 @@ Vector : a vector helper object
 
 Modified to work better with Firefox (Disabled radial gradient pixles).
 */
- 
+
 // Individual particle
 function cParticle(){
 this.position = Vector.create();
@@ -23,13 +23,13 @@ this.drawColour = "";
 this.deltaColour = [];
 this.sharpness = 0;
 }
- 
+
 // The particle emitter.
 function cParticleSystem(){
 this.maxParticles = 150;
 this.particles = [];
 this.active = true;
- 
+
 // Properties
 this.position = Vector.create( 100, 100 );
 this.positionRandom = Vector.create( 10, 10 );
@@ -48,75 +48,75 @@ this.finishColour = [ 245, 35, 0, 0 ];
 this.finishColourRandom = [ 60, 60, 60, 0 ];
 this.sharpness = 40;
 this.sharpnessRandom = 10;
- 
+
 this.particleCount = 0;
 this.elapsedTime = 0;
 this.duration = -1;
 this.emissionRate = 0;
 this.emitCounter = 0;
 this.particleIndex = 0;
- 
+
 this.init = function(){
 this.emissionRate = this.maxParticles / this.lifeSpan;
 this.emitCounter = 0;
 };
- 
+
 this.addParticle = function(){
 if(this.particleCount == this.maxParticles) {
 return false;
 }
- 
+
 // Take the next particle out of the particle pool we have created and initialize it
 var particle = new cParticle();
 this.initParticle( particle );
 this.particles[ this.particleCount ] = particle;
 // Increment the particle count
 this.particleCount++;
- 
+
 return true;
 };
- 
+
 this.initParticle = function( particle ){
 var RANDM1TO1 = function(){ return Math.random() * 2 - 1; };
- 
+
 particle.position.x = this.position.x + this.positionRandom.x * RANDM1TO1();
 particle.position.y = this.position.y + this.positionRandom.y * RANDM1TO1();
- 
+
 var newAngle = (this.angle + this.angleRandom * RANDM1TO1() ) * ( Math.PI / 180 ); // convert to radians
 var vector = Vector.create( Math.cos( newAngle ), Math.sin( newAngle ) ); // Could move to lookup for speed
 var vectorSpeed = this.speed + this.speedRandom * RANDM1TO1();
 particle.direction = Vector.multiply( vector, vectorSpeed );
- 
+
 particle.size = this.size + this.sizeRandom * RANDM1TO1();
 particle.size = particle.size < 0 ? 0 : ~~particle.size;
 particle.timeToLive = this.lifeSpan + this.lifeSpanRandom * RANDM1TO1();
- 
+
 particle.sharpness = this.sharpness + this.sharpnessRandom * RANDM1TO1();
 particle.sharpness = particle.sharpness > 100 ? 100 : particle.sharpness < 0 ? 0 : particle.sharpness;
 // internal circle gradient size - affects the sharpness of the radial gradient
 particle.sizeSmall = ~~( ( particle.size / 200 ) * particle.sharpness ); //(size/2/100)
- 
+
 var start = [
 this.startColour[ 0 ] + this.startColourRandom[ 0 ] * RANDM1TO1(),
 this.startColour[ 1 ] + this.startColourRandom[ 1 ] * RANDM1TO1(),
 this.startColour[ 2 ] + this.startColourRandom[ 2 ] * RANDM1TO1(),
 this.startColour[ 3 ] + this.startColourRandom[ 3 ] * RANDM1TO1()
 ];
- 
+
 var end = [
 this.finishColour[ 0 ] + this.finishColourRandom[ 0 ] * RANDM1TO1(),
 this.finishColour[ 1 ] + this.finishColourRandom[ 1 ] * RANDM1TO1(),
 this.finishColour[ 2 ] + this.finishColourRandom[ 2 ] * RANDM1TO1(),
 this.finishColour[ 3 ] + this.finishColourRandom[ 3 ] * RANDM1TO1()
 ];
- 
+
 particle.colour = start;
 particle.deltaColour[ 0 ] = ( end[ 0 ] - start[ 0 ] ) / particle.timeToLive;
 particle.deltaColour[ 1 ] = ( end[ 1 ] - start[ 1 ] ) / particle.timeToLive;
 particle.deltaColour[ 2 ] = ( end[ 2 ] - start[ 2 ] ) / particle.timeToLive;
 particle.deltaColour[ 3 ] = ( end[ 3 ] - start[ 3 ] ) / particle.timeToLive;
 };
- 
+
 this.update = function( delta ){
 if( this.active && this.emissionRate > 0 ){
 var rate = 1 / this.emissionRate;
@@ -130,26 +130,26 @@ if( this.duration != -1 && this.duration < this.elapsedTime ){
 this.stop();
 }
 }
- 
+
 this.particleIndex = 0;
 while( this.particleIndex < this.particleCount ) {
- 
+
 var currentParticle = this.particles[ this.particleIndex ];
- 
+
 // If the current particle is alive then update it
 if( currentParticle.timeToLive > 0 ){
- 
+
 // Calculate the new direction based on gravity
 currentParticle.direction = Vector.add( currentParticle.direction, this.gravity );
 currentParticle.position = Vector.add( currentParticle.position, currentParticle.direction );
 currentParticle.timeToLive -= delta;
- 
+
 // Update colours based on delta
 var r = currentParticle.colour[ 0 ] += ( currentParticle.deltaColour[ 0 ] * delta );
 var g = currentParticle.colour[ 1 ] += ( currentParticle.deltaColour[ 1 ] * delta );
 var b = currentParticle.colour[ 2 ] += ( currentParticle.deltaColour[ 2 ] * delta );
 var a = currentParticle.colour[ 3 ] += ( currentParticle.deltaColour[ 3 ] * delta );
- 
+
 // Calculate the rgba string to draw.
 var draw = [];
 draw.push("rgba(" + ( r > 255 ? 255 : r < 0 ? 0 : ~~r ) );
@@ -157,7 +157,7 @@ draw.push( g > 255 ? 255 : g < 0 ? 0 : ~~g );
 draw.push( b > 255 ? 255 : b < 0 ? 0 : ~~b );
 draw.push( (a > 1 ? 1 : a < 0 ? 0 : a.toFixed( 2 ) ) + ")");
 currentParticle.drawColour = draw.join( "," );
- 
+
 this.particleIndex++;
 } else {
 // Replace particle with the last active
@@ -168,13 +168,13 @@ this.particleCount--;
 }
 }
 };
- 
+
 this.stop = function(){
 this.active = false;
 this.elapsedTime = 0;
 this.emitCounter = 0;
 };
- 
+
 this.render = function( context ){
 for( var i = 0, j = this.particleCount; i < j; i++ ){
 var particle = this.particles[ i ];
@@ -182,13 +182,13 @@ var size = particle.size;
 var halfSize = size >> 1;
 var x = ~~particle.position.x;
 var y = ~~particle.position.y;
- 
+
 context.fillStyle = particle.drawColour;
 context.fillRect( x, y, size, size );
 }
 };
 }
- 
+
 /* Vector Helper */
 var Vector = {
 create : function( x, y ){
