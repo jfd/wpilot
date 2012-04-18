@@ -438,7 +438,7 @@ WPilotClient.prototype.process_user_input = function(t, dt) {
 
   if (input.toggle('prompt'))
     input.onkeypress = (gui.prompt.visible = !gui.prompt.visible) ?
-      function(char) { gui.prompt.handle_key_stroke(char); } : null;
+      function(code) { gui.prompt.handle_key_stroke(code); } : null;
 
   if (gui.prompt.visible) return;
 
@@ -2055,8 +2055,8 @@ GUIPrompt.prototype.set_size = function(size) {
   this.onchat = null;
 };
 
-GUIPrompt.prototype.handle_key_stroke = function(char) {
-  switch (char) {
+GUIPrompt.prototype.handle_key_stroke = function(code) {
+  switch (code) {
     case 8:
       this.buffer = this.buffer.substr(0, this.buffer.length - 1);
       break;
@@ -2069,12 +2069,12 @@ GUIPrompt.prototype.handle_key_stroke = function(char) {
             count = 0;
 
         for (var i = 1; i < this.buffer.length; i++) {
-          var char = this.buffer[i];
-          if (char == '"') smode = !smode;
-          else if (char == ' ' && !smode) {
+          var code = this.buffer[i];
+          if (code == '"') smode = !smode;
+          else if (code == ' ' && !smode) {
             args.push(word);
             word = '';
-          } else word += char;
+          } else word += code;
         }
         if (word.length) args.push(word);
         this.oncommand.apply(null, args);
@@ -2094,7 +2094,7 @@ GUIPrompt.prototype.handle_key_stroke = function(char) {
     case 40:
 
     default:
-      this.buffer += String.fromCharCode(char);
+      this.buffer += String.fromCharCode(code);
       break;
   }
 };
