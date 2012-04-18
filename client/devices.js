@@ -19,24 +19,32 @@ function KeyboardDevice(target, options) {
   key_states['alt'] = 0;
   key_states['meta'] = 0;
 
+  // fixed by firejune: support fuckgin IE and filter the backspace key
   target.onkeypress = function(e) {
+	if (window.event) e = window.event;
     if (self.onkeypress) {
-      self.onkeypress(e.keyCode || e.which);
-      e.preventDefault();
+      e.keyCode != 8 && self.onkeypress(e.keyCode || e.which);
+      e.preventDefault && e.preventDefault();
+      e.returnValue = false;
     }
   };
   
   target.onkeydown = function(e) {
-    if(key_states[e.keyCode] == 0) key_states[e.keyCode] = 1;
-    if (!self.onkeypress) {
-      e.preventDefault();
+    if (window.event) e = window.event;
+    if (key_states[e.keyCode] == 0) key_states[e.keyCode] = 1;
+    if (!self.onkeypress || e.keyCode == 8) {
+      e.keyCode == 8 && self.onkeypress(8);
+      e.preventDefault && e.preventDefault();
+      e.returnValue = false;
     }
   };
 
   target.onkeyup = function(e) {
-    if(key_states[e.keyCode] > 0) key_states[e.keyCode] = 0;
+    if (window.event) e = window.event;
+    if (key_states[e.keyCode] > 0) key_states[e.keyCode] = 0;
     if (!self.onkeypress) {
-      e.preventDefault();
+      e.preventDefault && e.preventDefault();
+      e.returnValue = false;
     }
   };
 }
@@ -208,7 +216,7 @@ function SoundDevice(options){
 
   this.sounds = {};
   this.destroyed = false;
-  
+
   this.bg_sound_enabled = options.bg_sound_enabled;
   this.sfx_sound_enabled = options.sfx_sound_enabled;
   
@@ -218,11 +226,12 @@ function SoundDevice(options){
     this.supported = false;
   }
   
-  this.prefix = ".ogg";
+  this.prefix = options.sound_prefix || 'sound/'; // changed by firejune
+  this.suffix = ".ogg";
   
   if (this.supported && /AppleWebKit/.test(navigator.userAgent) && 
       !(this.supported && /Chrome/.test(navigator.userAgent))) {
-    this.prefix = ".m4a";
+    this.suffix = ".m4a";
   }
 }
 
@@ -249,10 +258,9 @@ SoundDevice.prototype.init_sfx = function(sources) {
         size = source[0],
         urls = source[1],
         sound = { name: name, buffers: [], free_count: size};
-        
     while (size--) {
       var url = urls[Math.floor(Math.random() * urls.length)],
-          audio = new Audio(url + this.prefix);
+          audio = new Audio(this.prefix + url + this.suffix);
       audio.is_free = true;
       audio.load();
       sound.buffers.push(audio);
@@ -272,7 +280,7 @@ SoundDevice.prototype.init_bg = function(source) {
   var sound = { name: this.BG_SOUND, buffers: [], free_count: 2};
     
   for (var i = 0; i < 2; i++) {
-    var audio = new Audio(source + this.prefix);
+    var audio = new Audio(this.prefix + source + this.suffix);
     audio.is_free = true;
     sound.buffers.push(audio);
   }
@@ -299,7 +307,6 @@ SoundDevice.prototype.play = function(name, volume) {
   if (buffer) {
     
     function free() {
-      console.log("free buffer " + name);
       self.free_buffer(name, buffer, free);
     }
     

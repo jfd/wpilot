@@ -4,7 +4,7 @@
 	"recommended_players": 2,
 	
 	"rules": {
-		"round_limit": 3,
+		"round_limit": 8,
 	  "powerup_max": 0
 	},
 	

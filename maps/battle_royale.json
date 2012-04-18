@@ -2,7 +2,11 @@
 	"name": "Battle Royale",
 	"author": "Johan Dahlberg",
 	"recommended_players": 2,
-		
+
+  "rules": {
+    "round_limit": 5
+	},
+
 	"data": [
   	[51,  0,  0, 51,  0,  0, 51],
   	[ 0, 11, 11,  0, 11, 11,  0],
