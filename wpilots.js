@@ -346,8 +346,9 @@ function start_gameserver(maps, options, shared) {
         var player = world.players[id];
         var message = [OP_PLAYER_STATE, player.id];
         if (player.entity) {
-          message.push(pack_vector(player.entity.pos), player.entity.angle,
-                                                       player.entity.action);
+          message.push(pack_vector(player.entity.pos),
+                       player.entity.angle,
+                       player.entity.action);
           connection.queue(message);
         }
         if (update_tick % 200 == 0) {
