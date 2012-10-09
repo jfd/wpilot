@@ -1,0 +1,26 @@
+{
+	"name": "DIY DIE",
+	"author": "Wade Penistone",
+	"recommended_players": 8,
+	
+	"rules": {
+		"round_limit": 3,
+	  "powerup_max": 0
+	},
+	
+	"data": [
+		[0, 51, 0],
+		[0, 11, 0],
+		[0, 11, 0],
+		[0, 51, 0]
+	]
+}
+/*
+// map standard 
+3D object spacing = 1 meter
+Scaled to match 
+// map specs
+Total area x (width) = 66 meters
+Total area y (length) = 106 meters
+Total area z (height) = 14 meters
+*/
