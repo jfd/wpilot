@@ -1093,7 +1093,7 @@ function parse_options() {
     result[opt] = value || true;
   });
 
-  parser.parse(process.ARGV);
+  parser.parse(process.argv);
   return parser._halt ? null : mixin(DEFAULT_OPTIONS, result);
 }
 
