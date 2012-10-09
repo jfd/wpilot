@@ -3,6 +3,10 @@
 // Reference: http://dev.w3.org/html5/websockets/
 // Reference: http://tools.ietf.org/html/draft-hixie-thewebsocketprotocol
 
+// if (typeof MozWebSocket !== "undefined") {
+//   window.WebSocket = window.MozWebSocket;
+// }
+
 if (!window.WebSocket) {
 
   if (!window.console) console = {log: function(){ }, error: function(){ }};
