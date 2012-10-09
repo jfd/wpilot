@@ -11,11 +11,13 @@ var sys       = require('sys'),
     path      = require('path'),
     fs        = require('fs'),
     fu        = require('./lib/fu');
-    ws        = require('./lib/ws'),
+    ws        = require('ws'),
     optparse  = require('./lib/optparse'),
     match     = require('./lib/match').Match,
     go        = require('./lib/gameobjects');
+    
 
+var WebSocketServer = ws.Server;
 
 // Define aliases
 var _  = match.incl;
@@ -339,7 +341,7 @@ function start_gameserver(maps, options, shared) {
 
       if (connection.last_ping + 2000 < time) {
         connection.last_ping = time;
-        connection.write(JSON.stringify([PING_PACKET]));
+        connection.send(JSON.stringify([PING_PACKET]));
       }
       if (update_tick % connection.update_rate != 0) {
         continue;
@@ -429,7 +431,7 @@ function start_gameserver(maps, options, shared) {
             for(var id in connections) {
               var conn = connections[id];
               if (conn.state == JOINED) {
-                conn.write(JSON.stringify([OP_WORLD_RECONNECT]));
+                conn.send(JSON.stringify([OP_WORLD_RECONNECT]));
                 conn.set_state(HANDSHAKING);
               }
             }
@@ -558,7 +560,12 @@ function start_gameserver(maps, options, shared) {
    *  @param {String} msg The message to broadcast.
    *  @return {undefined} Nothing
    */
-  server = ws.createServer(function(conn) {
+  server = new WebSocketServer({
+    port: parseInt(options.ws_port),
+    host: options.host
+  });
+  
+  server.on("connection", function(conn) {
     var connection_id     = 0,
         disconnect_reason = 'Closed by client',
         message_queue     = [];
@@ -606,7 +613,7 @@ function start_gameserver(maps, options, shared) {
             } else {
               for(var id in connections) {
                 var conn = connections[id];
-                conn.write(JSON.stringify([OP_WORLD_RECONNECT]));
+                conn.send(JSON.stringify([OP_WORLD_RECONNECT]));
                 conn.set_state(HANDSHAKING);
               }
             }
@@ -693,7 +700,7 @@ function start_gameserver(maps, options, shared) {
      */
     conn.post = function(data) {
       var packet = JSON.stringify(data);
-      this.write(packet);
+      this.send(packet);
     }
 
     /**
@@ -711,8 +718,13 @@ function start_gameserver(maps, options, shared) {
         data_sent += data.length;
       }
 
-      this.write('[' + GAME_PACKET + ',[' + packet_data.join(',') + ']]');
-      this.data_sent += data_sent;
+      try {
+        this.send('[' + GAME_PACKET + ',[' + packet_data.join(',') + ']]');
+        this.data_sent += data_sent;
+      } catch (err) {
+        return;
+      }
+
 
       var diff = now - this.last_rate_check;
 
@@ -823,15 +835,9 @@ function start_gameserver(maps, options, shared) {
       return this.remoteAddress + '(id: ' + this.id + ')';
     }
 
-    // Connection 'connect' event handler. Challenge the player and creates
-    // a new PlayerSession.
-    conn.addListener('connect', function(resource) {
-      conn.set_state(CONNECTED);
-    });
-
     // Connection 'receive' event handler. Occures each time that client sent
     // a message to the server.
-    conn.addListener('data', function(data) {
+    conn.on('message', function(data) {
       var packet = null;
 
       try {
@@ -864,15 +870,21 @@ function start_gameserver(maps, options, shared) {
 
     // Connection 'close' event listener. Occures when the connection is
     // closed by user or server.
-    conn.addListener('close', function() {
+    conn.on('close', function() {
       conn.set_state(DISCONNECTED);
     });
 
+
+    // Connection 'connect' event handler. Challenge the player and creates
+    // a new PlayerSession.
+    conn.set_state(CONNECTED);
+
+    conn.remoteAddress = conn._socket.remoteAddress;
   });
 
   load_map(null, true, function(err) {
     sys.puts('Starting Game Server server at ' + shared.get_state().game_server_url);
-    server.listen(parseInt(options.ws_port), options.host);
+    // server.listen(parseInt(options.ws_port), options.host);
   });
 
   return server;
