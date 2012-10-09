@@ -1,0 +1,17 @@
+{
+	"name": "DIY DIE",
+	"author": "Wade Penistone",
+	"recommended_players": 8,
+	
+	"rules": {
+		"round_limit": 3,
+	  "powerup_max": 0
+	},
+	
+	"data": [
+		[0, 51, 0],
+		[0, 11, 0],
+		[0, 11, 0],
+		[0, 51, 0]
+	]
+}
