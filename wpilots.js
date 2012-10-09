@@ -7,8 +7,7 @@
 //
 //  Copyright (c) 2010 Johan Dahlberg
 //
-var sys       = require('sys'),
-    path      = require('path'),
+var path      = require('path'),
     fs        = require('fs'),
     fu        = require('./lib/fu');
     ws        = require('ws'),
@@ -18,6 +17,7 @@ var sys       = require('sys'),
     
 
 var WebSocketServer = ws.Server;
+var inspect = require('util');
 
 // Define aliases
 var _  = match.incl;
@@ -171,7 +171,7 @@ function main() {
 
   if (!options) return;
 
-  sys.puts('WPilot server ' + SERVER_VERSION);
+  console.log('WPilot server ' + SERVER_VERSION);
 
   maps = options.maps;
 
@@ -488,8 +488,8 @@ function start_gameserver(maps, options, shared) {
    */
   function log(msg) {
     var now = new Date();
-    sys.puts(pad0(now.getHours()) + ':' + pad0(now.getMinutes()) + ':' +
-             pad0(now.getSeconds()) + ' ' + options.name + ': ' + msg);
+    console.log(pad0(now.getHours()) + ':' + pad0(now.getMinutes()) + ':' +
+                pad0(now.getSeconds()) + ' ' + options.name + ': ' + msg);
   }
 
   /**
@@ -843,8 +843,8 @@ function start_gameserver(maps, options, shared) {
       try {
         packet = JSON.parse(data);
       } catch(e) {
-        sys.debug('Malformed message recieved');
-        sys.debug(sys.inspect(data));
+        console.error('Malformed message recieved');
+        console.error(inspect(data));
         conn.kill('Malformed message sent by client');
         return;
       }
@@ -883,7 +883,7 @@ function start_gameserver(maps, options, shared) {
   });
 
   load_map(null, true, function(err) {
-    sys.puts('Starting Game Server server at ' + shared.get_state().game_server_url);
+    console.log('Starting Game Server server at ' + shared.get_state().game_server_url);
     // server.listen(parseInt(options.ws_port), options.host);
   });
 
@@ -986,8 +986,8 @@ var process_control_message = match (
   },
 
   function(data) {
-    sys.puts(data);
-    sys.puts(data[1].state);
+    console.error(data);
+    console.error(data[1].state);
     data[1].kill('Bad control message');
   }
 
@@ -1023,12 +1023,12 @@ var process_game_message = match (
    *  The message sent by the client could not be matched. Kill the session
    */
   function(obj) {
-    sys.puts(sys.inspect(obj[0]));
+    console.error(inspect(obj[0]));
     var connection = obj[1].connection;
 
     if (connection.debug) {
-      sys.puts('Unhandled message:');
-      sys.puts(sys.inspect(obj[0]));
+      console.error('Unhandled message:');
+      console.error(inspect(obj[0]));
     }
 
     connection.kill('Bad game message');
@@ -1042,7 +1042,7 @@ var process_game_message = match (
  *  @return {http.Server} Returns the HTTP server instance.
  */
 function start_webserver(options, shared) {
-  sys.puts('Starting HTTP server at http://' + options.host + ':' + options.http_port);
+  console.log('Starting HTTP server at http://' + options.host + ':' + options.http_port);
   var server = fu.listen(parseInt(options.http_port), options.host);
 
   for (var i=0; i < CLIENT_DATA.length; i++) {
@@ -1089,7 +1089,7 @@ function parse_options() {
   parser.banner = 'Usage: wpilots.js [options]';
 
   parser.on('help', function() {
-    sys.puts(parser.toString());
+    console.log(parser.toString());
     parser.halt();
   });
 
