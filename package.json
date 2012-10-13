@@ -1,0 +1,12 @@
+{
+  "author": "Johan Dahlberg <dahlberg.johan@gmail.com> (jfd.github.com)",
+  "name": "WPilot",
+  "description": "A proof-of-concept multiplayer game in the Browser",
+  "version": "1.0.0",
+  "dependencies": {
+    "ws": "~0.4.22"
+  },
+  "engines": {
+    "node": ">=0.7.7"
+  }
+}
