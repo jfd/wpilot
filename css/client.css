@@ -40,6 +40,15 @@ a {
   top: 50%;
 }
 
+#viewport.fullscreen {
+  position: absolute;
+  border: none;
+  left: 0;
+  top: 0;
+  right: 0;
+  bottom: 0;
+}
+
 #viewport.mode480 {
   margin-left: -360px;
   margin-top: -240px;
