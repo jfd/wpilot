@@ -2414,7 +2414,11 @@ function draw_triangle(ctx, centerx, centery) {
  */
 function draw_label(ctx, x, y, text, align, width) {
   ctx.textAlign = align || 'left';
-  ctx.fillText(text, x, y, width || 0);
+  if(width){
+    ctx.fillText(text, x, y, width);    
+  }else{
+    ctx.fillText(text, x, y);    
+  }
 }
 
 function calculate_sfx_volume(client, pos) {
