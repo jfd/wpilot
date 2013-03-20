@@ -90,7 +90,7 @@ const SWITCHES = [
 const DEFAULT_OPTIONS = {
   debug:                true,
   name:                 'WPilot Server',
-  host:                 '127.0.0.1',
+  host:                 '10.0.1.3',
   region:               'n/a',
   admin_password:       null,
   map:                  null,
@@ -344,6 +344,7 @@ function start_gameserver(maps, options, shared) {
         try {
           connection.send(JSON.stringify([PING_PACKET]));          
         } catch (err) {
+          log(connection + ' send error (Reason: ' + err + ')');
           return;
         }
       }
@@ -436,8 +437,9 @@ function start_gameserver(maps, options, shared) {
               var conn = connections[id];
               if (conn.state == JOINED) {
                 try {
-                    conn.send(JSON.stringify([OP_WORLD_RECONNECT]));
+                  conn.send(JSON.stringify([OP_WORLD_RECONNECT]));
                 } catch (err) {
+                  log(conn + ' send error (Reason: ' + err + ')');
                   return;
                 }
                 conn.set_state(HANDSHAKING);
@@ -622,8 +624,9 @@ function start_gameserver(maps, options, shared) {
               for(var id in connections) {
                 var conn = connections[id];
                 try{
-                    conn.send(JSON.stringify([OP_WORLD_RECONNECT]));
+                  conn.send(JSON.stringify([OP_WORLD_RECONNECT]));
                 } catch (err) {
+                  log(conn + ' send error (Reason: ' + err + ')');
                   return;
                 }
                 conn.set_state(HANDSHAKING);
@@ -713,8 +716,9 @@ function start_gameserver(maps, options, shared) {
     conn.post = function(data) {
       var packet = JSON.stringify(data);
       try {
-          this.send(packet);
+        this.send(packet);
       } catch (err){
+        log(this + ' send error (Reason: ' + err + ')');
         return;
       }
       
@@ -739,6 +743,7 @@ function start_gameserver(maps, options, shared) {
         this.send('[' + GAME_PACKET + ',[' + packet_data.join(',') + ']]');
         this.data_sent += data_sent;
       } catch (err) {
+        log(this + ' send error (Reason: ' + err + ')');
         return;
       }
 
