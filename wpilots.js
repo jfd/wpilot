@@ -90,7 +90,7 @@ const SWITCHES = [
 const DEFAULT_OPTIONS = {
   debug:                true,
   name:                 'WPilot Server',
-  host:                 '10.0.1.3',
+  host:                 '127.0.0.1',
   region:               'n/a',
   admin_password:       null,
   map:                  null,
