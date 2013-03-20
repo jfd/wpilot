@@ -341,7 +341,12 @@ function start_gameserver(maps, options, shared) {
 
       if (connection.last_ping + 2000 < time) {
         connection.last_ping = time;
-        connection.send(JSON.stringify([PING_PACKET]));
+        try {
+          connection.send(JSON.stringify([PING_PACKET]));          
+        } catch (err) {
+          log(connection + ' send error (Reason: ' + err + ')');
+          return;
+        }
       }
       if (update_tick % connection.update_rate != 0) {
         continue;
@@ -431,7 +436,12 @@ function start_gameserver(maps, options, shared) {
             for(var id in connections) {
               var conn = connections[id];
               if (conn.state == JOINED) {
-                conn.send(JSON.stringify([OP_WORLD_RECONNECT]));
+                try {
+                  conn.send(JSON.stringify([OP_WORLD_RECONNECT]));
+                } catch (err) {
+                  log(conn + ' send error (Reason: ' + err + ')');
+                  return;
+                }
                 conn.set_state(HANDSHAKING);
               }
             }
@@ -613,7 +623,12 @@ function start_gameserver(maps, options, shared) {
             } else {
               for(var id in connections) {
                 var conn = connections[id];
-                conn.send(JSON.stringify([OP_WORLD_RECONNECT]));
+                try{
+                  conn.send(JSON.stringify([OP_WORLD_RECONNECT]));
+                } catch (err) {
+                  log(conn + ' send error (Reason: ' + err + ')');
+                  return;
+                }
                 conn.set_state(HANDSHAKING);
               }
             }
@@ -700,7 +715,13 @@ function start_gameserver(maps, options, shared) {
      */
     conn.post = function(data) {
       var packet = JSON.stringify(data);
-      this.send(packet);
+      try {
+        this.send(packet);
+      } catch (err){
+        log(this + ' send error (Reason: ' + err + ')');
+        return;
+      }
+      
     }
 
     /**
@@ -722,6 +743,7 @@ function start_gameserver(maps, options, shared) {
         this.send('[' + GAME_PACKET + ',[' + packet_data.join(',') + ']]');
         this.data_sent += data_sent;
       } catch (err) {
+        log(this + ' send error (Reason: ' + err + ')');
         return;
       }
 
