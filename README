@@ -12,7 +12,11 @@ You need Node.js in order to run the server. Download (or clone) Node.js at http
 
 Quick start
 -----------
-You can start the game- and client server by typing:
+Install Ws module by typing 
+	npm install ws
+
+
+Then you can start the game- and client server by typing:
 
 	./wpilots.js
 		
