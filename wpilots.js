@@ -88,8 +88,8 @@ const SWITCHES = [
 
 // Default server options
 const DEFAULT_OPTIONS = {
-  debug:                true,
-  name:                 'WPilot Server',
+  debug:                false,
+  name:                 'WPilot server',
   host:                 '127.0.0.1',
   region:               'n/a',
   admin_password:       null,
@@ -341,7 +341,13 @@ function start_gameserver(maps, options, shared) {
 
       if (connection.last_ping + 2000 < time) {
         connection.last_ping = time;
-        connection.send(JSON.stringify([PING_PACKET]));
+        try {
+          connection.send(JSON.stringify([PING_PACKET]));
+        } catch (err) {
+          // most likely the socket is not opened
+          connection.set_state(DISCONNECTED);
+          continue;
+        }
       }
       if (update_tick % connection.update_rate != 0) {
         continue;
@@ -835,7 +841,7 @@ function start_gameserver(maps, options, shared) {
       return this.remoteAddress + '(id: ' + this.id + ')';
     }
 
-    // Connection 'receive' event handler. Occures each time that client sent
+    // Connection 'receive' event handler. Occurs each time that client sent
     // a message to the server.
     conn.on('message', function(data) {
       var packet = null;
